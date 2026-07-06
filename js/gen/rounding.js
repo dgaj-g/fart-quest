@@ -232,7 +232,7 @@ function t2Nearest10With5Endings(rng) {
   distractors.push({ text: fmt(roundToNearest(n, 100)), misconception: 'wrong-place' });
 
   const correct = { text: fmt(answer), misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctVal: answer, base: 10, original: n });
+  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctVal: answer, base: 10, original: n, min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
@@ -277,7 +277,7 @@ function t2Nearest100Boundary(rng) {
   distractors.push({ text: fmt(roundToNearest(n, 10)), misconception: 'wrong-place' });
 
   const correct = { text: fmt(answer), misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctVal: answer, base: 100, original: n });
+  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctVal: answer, base: 100, original: n, min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
@@ -311,43 +311,56 @@ function t2ReverseWhichRounds(rng) {
   const target = hundreds * 100;
   const stem = `Which of these numbers rounds to <b>${fmt(target)}</b> (nearest 100)?`;
 
-  const correctN = target + pick(rng, [rngInt(rng, 0, 49), rngInt(rng, 50, 49) === 50 ? 50 : 50]); // ensure within [target, target+49] or via lower boundary
-  // simpler: build a valid correct number directly within [target-49, target+49] rounding to target
+  // Correct answer must land within [target-49, target+49] so it truly rounds to target.
   const offsetCorrect = rngInt(rng, 0, 49) * (rng() < 0.5 ? 1 : -1);
   let correctVal = target + offsetCorrect;
   if (correctVal < 0) correctVal = target + 10;
 
-  // distractor that rounds to the neighbouring hundred below
   const belowTarget = target - 100;
   const aboveTarget = target + 100;
-  const distractorBelow = belowTarget >= 0 ? belowTarget + rngInt(rng, 50, 99) : target + 149;
-  const distractorAbove = aboveTarget - rngInt(rng, 50, 99);
-  const distractorExactOther = target + 50; // rounds up to the NEXT hundred, common trap
+  // Fix (CRITICAL): these must land BEYOND the ±50 boundary around target, never inside it —
+  // otherwise the distractor also rounds to target, creating a second correct answer.
+  // distractorBelow = belowTarget + [1,49]  -> lands in [belowTarget+1, belowTarget+49] = [target-99, target-51]
+  // distractorAbove = aboveTarget - [1,49]  -> lands in [aboveTarget-49, aboveTarget-1] = [target+51, target+99]
+  const distractorBelowRaw = belowTarget + rngInt(rng, 1, 49);
+  const distractorBelow = distractorBelowRaw >= 0 ? distractorBelowRaw : target + 51 + rngInt(rng, 0, 48); // clamp: keep >= target+51 zone if below-zero
+  const distractorAbove = aboveTarget - rngInt(rng, 1, 49);
+  const distractorExactOther = target + 50; // rounds up to the NEXT hundred, common trap (exactly on the boundary, not inside it)
 
-  const stemFinal = stem;
   const distractors = [
     { text: fmt(distractorBelow), misconception: 'wrong-camp' },
-    { text: fmt(distractorAbove < target ? distractorAbove + 100 : distractorAbove), misconception: 'wrong-camp' },
+    { text: fmt(distractorAbove), misconception: 'wrong-camp' },
     { text: fmt(distractorExactOther), misconception: 'wrong-camp' },
   ];
 
   const correct = { text: fmt(correctVal), misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 3);
+  const options = makeMcq(correct, shuffle(rng, distractors), 3, { min: 5 });
 
-  // Pad with extra numbers that round to a DIFFERENT hundred if dedup left us short — never a
-  // number that would also round to target (that would create a second correct answer).
-  if (options.length < 4) {
+  // Pad with extra numbers that round to a DIFFERENT hundred if dedup (or the raised 5-option
+  // minimum) left us short — never a number that would also round to target (that would create
+  // a second correct answer).
+  if (options.length < 5) {
     const seen = new Set(options.map((o) => o.text));
-    const extraCandidates = [target + 150, target - 150, target + 250, target - 250, target + 350]
+    const extraCandidates = [target + 150, target - 150, target + 250, target - 250, target + 350, target - 350]
       .filter((v) => v >= 0 && Math.round(v / 100) * 100 !== target);
     for (const v of extraCandidates) {
-      if (options.length >= 4) break;
+      if (options.length >= 5) break;
       const text = fmt(v);
       if (seen.has(text)) continue;
       seen.add(text);
       options.push({ text, misconception: 'wrong-camp' });
     }
   }
+
+  // Dev/test guard: assert no non-correct option actually rounds to target (would silently create
+  // a second correct answer). Throws so the bug surfaces immediately rather than shipping silently.
+  options.forEach((o, i) => {
+    if (i === 0) return; // correct is always index 0 pre-shuffle (options array, not yet shuffled by the format renderer)
+    const val = Number(String(o.text).replace(/,/g, ''));
+    if (Math.round(val / 100) * 100 === target) {
+      throw new Error(`t2ReverseWhichRounds: distractor "${o.text}" also rounds to target ${target}`);
+    }
+  });
 
   const whyWrong = {};
   for (const o of options) {
@@ -356,7 +369,7 @@ function t2ReverseWhichRounds(rng) {
 
   return {
     templateId: 'round-t2-reverse-which',
-    stem: stemFinal,
+    stem,
     options,
     correctIndex: 0,
     hintSteps: [
@@ -390,7 +403,7 @@ function t2Nearest10ThreeDigit(rng) {
   distractors.push({ text: fmt(roundToNearest(n, 100)), misconception: 'wrong-place' });
 
   const correct = { text: fmt(answer), misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctVal: answer, base: 10, original: n });
+  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctVal: answer, base: 10, original: n, min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
@@ -468,7 +481,7 @@ function t3EstimateMultiply(rng) {
   ];
 
   const correct = { text: fmt(estimate), misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctVal: estimate, base: aRound || 10, original: exact });
+  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctVal: estimate, base: aRound || 10, original: exact, min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
@@ -516,13 +529,14 @@ function t3EstimateMoney(rng) {
   const options = makeMcq(correct, shuffle(rng, distractors), 3);
 
   // Money format (£X.XX) isn't a plain integer, so the generic ±10/±100 padder doesn't apply —
-  // pad with other plausible rounded-pound totals (± £1 camps, the other rounding direction).
-  if (options.length < 4) {
+  // pad with other plausible rounded-pound totals (± £1/£2 camps, the other rounding direction).
+  // Fix 7: T3 mcq5 needs >=5 total options.
+  if (options.length < 5) {
     const seen = new Set(options.map((o) => o.text));
-    const extraCandidates = [estimate + 1, estimate - 1, estimate + 2, Math.max(0, estimate - 2)]
+    const extraCandidates = [estimate + 1, estimate - 1, estimate + 2, Math.max(0, estimate - 2), estimate + 3, Math.max(0, estimate - 3)]
       .filter((v) => v >= 0);
     for (const v of extraCandidates) {
-      if (options.length >= 4) break;
+      if (options.length >= 5) break;
       const text = `£${v.toFixed(2)}`;
       if (seen.has(text)) continue;
       seen.add(text);

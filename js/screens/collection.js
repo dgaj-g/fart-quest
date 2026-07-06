@@ -6,14 +6,31 @@ function starsFor(rarity) {
   return meta ? '⭐'.repeat(meta.stars) : '';
 }
 
-function openModal(ctx, data) {
+// Only the 3 topic bosses (rarity 'rare') ship a '<name>-shiny.png' sibling; commons
+// and teasers never do (their records have no `shiny` flag at all). Only ever derive
+// the shiny path for an OWNED creature whose record says shiny — otherwise use the
+// normal image, so we never fire a request for a file that can't exist. onerror is
+// still wired as a belt-and-braces fallback in case a shiny file is ever missing.
+function imageFor(owned, data) {
+  if (owned && data.shiny && data.image) return data.image.replace(/\.png$/, '-shiny.png');
+  return data.image;
+}
+
+function shinyOnerrorAttr(owned, data) {
+  if (owned && data.shiny && data.image) {
+    return ` onerror="this.onerror=null;this.src='${data.image}'"`;
+  }
+  return '';
+}
+
+function openModal(ctx, owned, data) {
   const overlay = document.getElementById('overlay');
   const modal = document.createElement('div');
   modal.className = 'creature-modal';
   modal.innerHTML = `
     <div class="creature-modal-card enter-pop">
       <button class="modal-close">✕</button>
-      <img src="${data.image}" alt="${data.name}">
+      <img src="${imageFor(owned, data)}" alt="${data.name}"${shinyOnerrorAttr(owned, data)}>
       <h2>${data.name}${data.shiny ? ' <span class="shiny-badge">✨</span>' : ''}</h2>
       <div class="stars">${starsFor(data.rarity)}</div>
       <p>${data.bio}</p>
@@ -66,7 +83,7 @@ export function mount(root, ctx) {
   const capturedCount = commonsOwned.length + capturedTopics;
 
   screen.innerHTML += `
-    <h1 class="collection-title">The Dungeon of Shame</h1>
+    <h1 class="collection-title">The Stink Vault</h1>
     <p class="collection-sub">${capturedCount} / ${total} beasties captured</p>
   `;
 
@@ -77,14 +94,14 @@ export function mount(root, ctx) {
     const plinth = document.createElement('button');
     plinth.className = `plinth ${owned ? '' : 'unowned'}`;
     plinth.innerHTML = `
-      <img class="${owned ? 'idle-bob' : ''}" src="${data.image}" alt="${owned ? data.name : '???'}">
+      <img class="${owned ? 'idle-bob' : ''}" src="${owned ? imageFor(owned, data) : data.image}" alt="${owned ? data.name : '???'}"${owned ? shinyOnerrorAttr(owned, data) : ''}>
       <div class="plinth-name">${owned ? data.name : '???'}</div>
       <div class="plinth-stars">${owned ? starsFor(data.rarity) : ''}</div>
     `;
     plinth.addEventListener('click', () => {
       ctx.audio.sfx('click');
-      if (owned) openModal(ctx, data);
-      else openModal(ctx, { ...data, name: '???', bio: 'Not yet captured. Keep questing, hero!', image: data.image });
+      if (owned) openModal(ctx, true, data);
+      else openModal(ctx, false, { ...data, name: '???', bio: 'Not yet captured. Keep questing, hero!', image: data.image });
     });
     grid.appendChild(plinth);
   });

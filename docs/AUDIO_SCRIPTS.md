@@ -95,7 +95,7 @@ Feel free to improvise around any line — funnier beats accurate. The only rule
 > "WAIT. Not a single wrong answer?! That's… that's a SHINY one! The rarest of the rare! I've only ever seen one other, and I ATE it by mistake."
 
 **vo-collect-02**
-> "A new recruit for the Dungeon of Shame! Don't worry — it's a NICE dungeon. Mostly."
+> "A new recruit for the Stink Vault! Don't worry — it's a NICE vault. Mostly."
 
 **vo-hint-02**
 > "Ohhh, very well. Lean in. Closer. CLOSER. Right — here's what old Whiffbeard would do…"

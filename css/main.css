@@ -701,10 +701,10 @@ button {
   padding: 5px 12px;
   border-radius: 8px;
   box-shadow: 0 3px 0 rgba(0,0,0,.25);
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.15;
   max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
 }
 
 .pad-sparkle {

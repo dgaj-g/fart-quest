@@ -3,7 +3,9 @@
 
 const MAX_LEN = 8;
 
-function normaliseForCompare(raw) {
+// Spec amendment: mathematically-equal entries must be accepted, so trailing zeros after the
+// decimal point (and a trailing bare '.') are stripped too, e.g. '0.80'->'0.8', '778.0'->'778'.
+export function normaliseForCompare(raw) {
   let s = String(raw).trim();
   if (s === '') return s;
   const neg = s.startsWith('-');
@@ -12,7 +14,8 @@ function normaliseForCompare(raw) {
     let [intPart, decPart] = s.split('.');
     intPart = intPart.replace(/^0+(?=\d)/, '');
     if (intPart === '') intPart = '0';
-    s = `${intPart}.${decPart}`;
+    decPart = decPart.replace(/0+$/, ''); // strip trailing zeros: '80' -> '8', '0' -> ''
+    s = decPart === '' ? intPart : `${intPart}.${decPart}`; // drop a now-bare trailing '.'
   } else {
     s = s.replace(/^0+(?=\d)/, '');
     if (s === '') s = '0';

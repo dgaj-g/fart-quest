@@ -6,6 +6,14 @@ import { REGIONS } from '../../data/map.js';
 
 const STAGE_LABEL = { minion: 'Minion Battle', elite: 'Elite Battle', boss: 'BOSS BATTLE' };
 
+// Whiffbeard's reteach-card heading rotates randomly so a wrong answer never feels
+// like the same scolding twice — re-rolled on every showReteach() call.
+const RETEACH_HEADINGS = [
+  'Ooof, my young stinker — watch closely…',
+  'A trap! A classic trap! Observe…',
+  "Ha! That one fools EVERYONE. Here's the secret…",
+];
+
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function regionBgFor(topic) {
@@ -29,9 +37,20 @@ function castCreatureFor(topic, stage) {
 }
 
 let cleanupFns = [];
+let alive = false; // false once unmounted — guards deferred (setTimeout/sleep) callbacks
+
+// setTimeout wrapper used for every game-flow-control timer in this file so its id is
+// always registered for disposal in cleanupFns (see unmount()) — prevents orphan timers
+// from firing into a torn-down screen after navigating away mid-battle.
+function deferTimeout(fn, ms) {
+  const id = setTimeout(fn, ms);
+  cleanupFns.push(() => clearTimeout(id));
+  return id;
+}
 
 export async function mount(root, ctx, params) {
   cleanupFns = [];
+  alive = true;
   const topic = ctx.topics[params.id];
   const stage = params.stage;
   if (!topic || !STAGE_LABEL[stage]) { ctx.go(`#/topic/${params.id || ''}`); return; }
@@ -131,7 +150,7 @@ export async function mount(root, ctx, params) {
       const finish = () => { if (done) return; done = true; fill.removeEventListener('transitionend', onEnd); resolve(); };
       const onEnd = (e) => { if (e.propertyName === 'width') finish(); };
       fill.addEventListener('transitionend', onEnd);
-      setTimeout(finish, 400); // safety fallback in case transitionend doesn't fire
+      deferTimeout(finish, 400); // safety fallback in case transitionend doesn't fire
     });
   }
 
@@ -146,7 +165,9 @@ export async function mount(root, ctx, params) {
     screen.appendChild(megaBanner);
     requestAnimationFrame(() => megaBanner.classList.add('show'));
     const el = megaBanner;
-    setTimeout(() => { el.remove(); if (megaBanner === el) megaBanner = null; }, 1400);
+    // Cleanup-only timer (removes the banner node), but still registered for disposal
+    // so unmount() doesn't leave it dangling against a torn-down screen.
+    deferTimeout(() => { el.remove(); if (megaBanner === el) megaBanner = null; }, 1400);
   }
 
   function updateStreakPips(streak) {
@@ -162,7 +183,9 @@ export async function mount(root, ctx, params) {
     if (colour) f.style.color = colour;
     arena.appendChild(f);
     requestAnimationFrame(() => f.classList.add('go'));
-    setTimeout(() => f.remove(), 1200);
+    // Cleanup-only timer (removes the floating score node); registered for disposal
+    // so it can't fire against a screen that's already been torn down.
+    deferTimeout(() => f.remove(), 1200);
   }
 
   let currentQuestion = null;
@@ -193,10 +216,12 @@ export async function mount(root, ctx, params) {
     ctx.audio.vo('boss-intro');
     ctx.audio.parp(2);
     await sleep(650);
+    if (!alive) return; // screen was unmounted during the intro beat
   }
 
   async function firstQuestion() {
     if (isBoss) await bossIntroBeat();
+    if (!alive) return; // unmounted during the boss intro beat (or before it, for minions)
     renderQuestion(engine.nextQuestion());
   }
 
@@ -224,12 +249,12 @@ export async function mount(root, ctx, params) {
         ctx.audio.vo('correct');
       }
 
-      ctx.state.recordAnswer(topic.id, { correct: true, tier: q.tier });
+      ctx.state.recordAnswer(topic.id, { correct: true, tier: q.tier }).catch(() => {});
 
       if (outcome.finished) {
-        setTimeout(() => finishBattle(outcome), 700);
+        deferTimeout(() => { if (!alive) return; finishBattle(outcome); }, 700);
       } else {
-        setTimeout(() => renderQuestion(engine.nextQuestion()), 900);
+        deferTimeout(() => { if (!alive) return; renderQuestion(engine.nextQuestion()); }, 900);
       }
     } else {
       ctx.audio.sfx('wrong');
@@ -244,12 +269,12 @@ export async function mount(root, ctx, params) {
       updateStreakPips(0);
       if (stage === 'boss') updateGauge(true);
 
-      ctx.state.recordAnswer(topic.id, { correct: false, tier: q.tier });
+      ctx.state.recordAnswer(topic.id, { correct: false, tier: q.tier }).catch(() => {});
 
       showReteach(q, result);
 
       if (engine.getState().finished) {
-        setTimeout(() => finishBattle(engine.getState()), 900);
+        deferTimeout(() => { if (!alive) return; finishBattle(engine.getState()); }, 900);
       }
     }
   }
@@ -259,11 +284,12 @@ export async function mount(root, ctx, params) {
     overlay.className = 'reteach-overlay';
     const chosenText = result.chosenText;
     const whyWrong = (q.explain.whyWrong && chosenText && q.explain.whyWrong[chosenText]) || '';
+    const reteachHeading = pick(RETEACH_HEADINGS);
     overlay.innerHTML = `
       <div class="reteach-card">
         <div class="reteach-head">
           <div class="wb-portrait"><img class="wb-img" src="assets/monsters/whiffbeard.png" alt=""></div>
-          <h3>Ooof! Watch this…</h3>
+          <h3>${reteachHeading}</h3>
         </div>
         <div class="reteach-body">
           <div class="rule-line">${q.explain.rule}</div>
@@ -295,11 +321,13 @@ export async function mount(root, ctx, params) {
   }
 
   async function finishBattle(outcome) {
+    if (!alive) return; // screen already unmounted (e.g. a queued deferTimeout firing late)
     if (outcome.won) {
       // Ensure the PONG METER visibly finishes draining to exactly 0% before any
       // end screen appears — force the value and await the transition.
       const fill = updateGauge(false, 0);
       await waitForGaugeTransition(fill);
+      if (!alive) return; // unmounted while waiting for the gauge transition
     }
     hideQuestionArea();
 
@@ -344,6 +372,7 @@ export async function mount(root, ctx, params) {
       if (unowned.length > 0) {
         dropCreature = pick(unowned);
         await ctx.state.grantCommon(dropCreature.id);
+        if (!alive) return; // unmounted while grantCommon was pending
         dropHtml = `
           <div class="stinkling-drop-card enter-up">
             <img src="${dropCreature.image}" alt="${dropCreature.name}">
@@ -375,31 +404,47 @@ export async function mount(root, ctx, params) {
   async function runCaptureSequence(outcome) {
     creatureWrap.classList.add('slowmo-wobble');
     await sleep(1400);
+    if (!alive) return; // unmounted mid slow-mo wobble
     whiteFlash.classList.add('go');
     await sleep(160);
+    if (!alive) return; // unmounted during the white flash beat
     ctx.audio.sfx('capture');
     ctx.audio.vo('boss-defeated');
 
     const flawless = outcome.flawless;
-    await ctx.state.recordBoss(topic.id, { won: true, flawless });
+    // recordBoss persistence is best-effort (state.js never rejects post-fix, but we
+    // guard here too, belt-and-braces): a storage failure must never strand the child
+    // on the white-flash overlay with no way forward — always continue to the capture
+    // end screen regardless of whether the write succeeded.
+    try {
+      await ctx.state.recordBoss(topic.id, { won: true, flawless });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('battle.js: recordBoss failed, continuing capture sequence anyway:', err);
+    }
+    if (!alive) return; // unmounted while recordBoss was pending
     if (flawless) ctx.audio.vo('shiny');
 
     spawnConfetti(screen);
     stamp.classList.add('show');
 
     await sleep(600);
+    if (!alive) return; // unmounted during the confetti/stamp beat
     ctx.audio.music('map');
 
     const record = ctx.state.topic(topic.id);
     const stars = record.shiny ? '⭐⭐⭐ SHINY!' : '⭐⭐';
     const tip = pick(topic.tips);
+    // Only place-value/decimals-x10/rounding bosses have a -shiny.png sibling (rare-rarity
+    // topic bosses); show it once flawless, falling back to the normal image if missing.
+    const captureImage = record.shiny ? topic.creature.image.replace(/\.png$/, '-shiny.png') : topic.creature.image;
 
     const end = document.createElement('div');
     end.className = 'battle-end-screen enter-pop';
     end.innerHTML = `
       <h1 class="end-title">CAPTURED!</h1>
       <div class="end-creature-card">
-        <img src="${topic.creature.image}" alt="${topic.creature.name}">
+        <img src="${captureImage}" alt="${topic.creature.name}" onerror="this.onerror=null;this.src='${topic.creature.image}'">
         <h2 style="font-family:'Fredoka',sans-serif; margin:6px 0;">${topic.creature.name}</h2>
         <div class="stars">${stars}</div>
       </div>
@@ -413,7 +458,11 @@ export async function mount(root, ctx, params) {
     });
   }
 
-  function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+  // Registers its own timeout for disposal in cleanupFns, so an awaited sleep() that's
+  // still pending when the screen unmounts never resolves into torn-down DOM/state.
+  function sleep(ms) {
+    return new Promise((r) => { deferTimeout(r, ms); });
+  }
 
   function spawnConfetti(container) {
     const colours = ['#F4C542', '#2ecc71', '#9B59D0', '#C7F464', '#e74c3c', '#FFF9EC'];
@@ -425,7 +474,9 @@ export async function mount(root, ctx, params) {
       piece.style.animationDuration = `${1.2 + Math.random() * 1.4}s`;
       piece.style.animationDelay = `${Math.random() * 0.4}s`;
       container.appendChild(piece);
-      setTimeout(() => piece.remove(), 3200);
+      // Cleanup-only timer (removes a single confetti piece); registered for disposal —
+      // 80 of these can otherwise queue up and fire long after the screen has gone.
+      deferTimeout(() => piece.remove(), 3200);
     }
   }
 
@@ -434,6 +485,7 @@ export async function mount(root, ctx, params) {
 }
 
 export function unmount() {
+  alive = false;
   cleanupFns.forEach((fn) => fn());
   cleanupFns = [];
 }

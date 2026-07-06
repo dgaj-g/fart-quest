@@ -114,13 +114,14 @@ export default {
     {
       type: 'show',
       title: 'Estimating: the examiner’s favourite',
-      html: `<p>Here’s where the catapult wins you actual SEAG marks. When a question says <b>“estimate”</b> or <b>“roughly”</b>, it is NOT asking you to work out the exact answer — it’s asking you to <b>round first, THEN calculate</b> with the easy numbers.</p>
+      html: `<p>Here’s where the catapult wins you actual SEAG marks. When a question says <b>“estimate”</b> or <b>“roughly”</b>, it does NOT want the exact answer. It wants you to <b>round first, THEN calculate</b> with the easy numbers.</p>
 <div class="estimate-demo">
   <div class="est-line">41 × 19 = 😱 <span class="est-note">too hard, too slow</span></div>
   <div class="est-line">↓ round both ↓</div>
   <div class="est-line"><b>40 × 20 = 800</b> 😎 <span class="est-note">two seconds!</span></div>
 </div>
-<p>The exact answer is 779 — and 800 is beautifully close. On the test, wrong answers to estimate-questions are usually the EXACT answer (779) hiding in the options to tempt you. Don’t take the bait: if it says estimate, they want the rounded one!</p>`,
+<p>The exact answer is 779 — and 800 is beautifully close. On the test, wrong answers to estimate-questions are usually the EXACT answer (779) hiding in the options to tempt you. Don’t take the bait: if it says estimate, they want the rounded one!</p>
+<p><b>Money works exactly the same way.</b> The catapult flings prices to the nearest whole pound — the decider is the first digit after the point: £9.90 → <b>£10</b>, £3.20 → <b>£3</b>. So “estimate the total: £9.90 + £3.20” becomes 10 + 3 = <b>about £13</b>. Ka-ching!</p>`,
     },
     {
       type: 'try',
@@ -157,6 +158,7 @@ export default {
     'Nearest 10 → decider is the UNITS digit. Nearest 100 → decider is the TENS digit.',
     'The Law of Five: 5 or more ALWAYS flings up. 75 → 80. 350 → 400. No exceptions.',
     'See “estimate”, “roughly” or “approximately” in a question? Round FIRST, then calculate.',
+    'Money rounds too: the decider is the first digit after the point. £9.90 → £10, £3.20 → £3.',
     'In estimate questions, the EXACT answer is usually sitting in the options as bait. Don’t take it.',
     'Use the catapult to CHECK answers too: 41 × 19 should be near 800 — if you got 7,790, a digit slid too far!',
   ],

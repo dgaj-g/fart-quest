@@ -23,7 +23,7 @@ export const REGIONS = [
   { id: 'measure-marsh',   name: 'Measure Marsh',      open: false, closedSign: 'CLOSED — Old Farter Time overslept. Again.' },
   { id: 'shape-caves',     name: 'Shape Caves',        open: false, closedSign: 'CLOSED — The Mirror Bum is doing his hair.' },
   { id: 'money-mines',     name: 'Money Mines',        open: false, closedSign: 'CLOSED — The Penny Pincher pinched the key.' },
-  { id: 'chance-cliffs',   name: 'Chance Cliffs',      open: false, closedSign: 'CLOSED — 50% chance of opening tomorrow. Maybe.' },
+  { id: 'chance-cliffs',   name: 'Chance Cliffs',      open: false, closedSign: 'CLOSED — 50% chance of opening. Maybe.' },
   { id: 'data-dump',       name: 'The Data Dump',      open: false, closedSign: 'CLOSED — Graf is still counting the rubbish.' },
   { id: 'punctuation-pits',name: 'Punctuation Pits',   open: false, closedSign: 'CLOSED, until further notice…!?' },
   { id: 'spelling-sewers', name: 'The Spelling Sewers',open: false, closedSign: 'CLOSED — blocked by a rogue “necessery”.' },

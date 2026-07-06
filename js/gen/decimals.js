@@ -294,15 +294,31 @@ function t2Times100Or1000(rng) {
   distractors.push({ text: fromHundredths(oneSlideHundredths), misconception: 'wrong-number-of-slides' });
   const wrongDirHundredths = isMul ? baseHundredths / factor : baseHundredths * factor;
   distractors.push({ text: fromHundredths(wrongDirHundredths), misconception: 'slid-wrong-way' });
+  // "seat-warmer" trap: dropping the leading "0." and misreading the result as a bare whole
+  // number (e.g. reading "0.04" as "4"). Derived from the result's own digits, so — unlike a
+  // further ÷10/÷100 of a tiny base — it can never vanish to 0, keeping this template
+  // self-sufficient for the 5-option minimum (fix 7) without relying on the generic pad
+  // degenerating gracefully for small bases. Only meaningful (and only added) when the result is
+  // actually < 1, i.e. has a real seat-warmer zero to drop.
+  if (resultText.startsWith('0.')) {
+    const droppedZeroText = resultText.replace(/^0\./, '');
+    distractors.push({ text: droppedZeroText, misconception: 'dropped-seat-warmer' });
+  } else {
+    // result >= 1 (typically the multiply case): fall back to a fixed 4-slide distractor (always
+    // distinct from the 2-slide or 3-slide correct answer, since factor is only ever 100 or 1000).
+    const fourSlideHundredths = isMul ? baseHundredths * 10000 : baseHundredths / 10000;
+    distractors.push({ text: fromHundredths(fourSlideHundredths), misconception: 'wrong-number-of-slides' });
+  }
 
   const correct = { text: resultText, misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctHundredths: resultHundredths });
+  const options = makeMcq(correct, shuffle(rng, distractors), 4, { rng, correctHundredths: resultHundredths, min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
     if (o.misconception === 'add-a-zero') whyWrong[o.text] = 'Sticking zeros on the end isn’t sliding — the digits must move past the point.';
     else if (o.misconception === 'wrong-number-of-slides') whyWrong[o.text] = `That’s only 1 slide — ${factor} needs ${slides} slides.`;
     else if (o.misconception === 'slid-wrong-way') whyWrong[o.text] = `Wrong direction — ${isMul ? 'multiplying' : 'dividing'} makes the number ${isMul ? 'bigger' : 'smaller'}.`;
+    else if (o.misconception === 'dropped-seat-warmer') whyWrong[o.text] = 'Missing the seat-warmer zero! A number less than 1 must start "0." — don’t drop the front zero.';
     else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = 'Check how many thrones the digits actually slid, and which way.';
   }
 
@@ -324,7 +340,7 @@ function t2Times100Or1000(rng) {
 }
 
 function t2OrderFourDecimals(rng) {
-  // order 4 decimals incl. a longer-is-bigger trap pair (0.3 vs 0.25)
+  // order 5 decimals (fix 7: T2 mcq5 needs >=5 options) incl. a longer-is-bigger trap pair (0.3 vs 0.25)
   const askLargest = rng() < 0.5;
   // build a trap pair: shortDec (e.g. 0.3) vs longerButSmaller (e.g. 0.25)
   const shortTenths = rngInt(rng, 2, 8);
@@ -335,7 +351,7 @@ function t2OrderFourDecimals(rng) {
 
   const others = new Set([shortHundredths, longHundredths]);
   const values = [shortHundredths, longHundredths];
-  while (values.length < 4) {
+  while (values.length < 5) {
     const v = rngInt(rng, 5, 95);
     if (others.has(v)) continue;
     others.add(v);
@@ -376,6 +392,33 @@ function t2OrderFourDecimals(rng) {
   };
 }
 
+// Fix (CRITICAL, bracket tell): the old distractor set always left the correct factor sandwiched
+// in the middle after padding (proven 1338/1338 — never min, never max). Build 3 alternative
+// distractor pools per factor and pick one via rng, so which position (min/mid/max) the correct
+// answer lands in varies across generations and carries no signal.
+function missingOpDistractorPool(rng, factor) {
+  // Each shape returns exactly 4 distractors (so the 5-option minimum is met WITHOUT falling
+  // through to makeMcq's generic pad — that generic pad would add an extra value from a fixed
+  // list and could silently displace the correct answer from the min/max position the shape
+  // intends, undoing the whole point of varying position).
+  const shape = rngInt(rng, 0, 2);
+  if (factor === 10) {
+    // Shape 0: {1, 10(correct), 100, 1000} — correct sits in the middle.
+    // Shape 1: {10(correct), 100, 1000, 10000} — correct is the MIN.
+    // Shape 2: {1, 2, 5, 10(correct)} — a smaller-only set where correct is the MAX.
+    if (shape === 0) return [1, 100, 1000, 10000].map((f) => ({ text: String(f), misconception: 'wrong-number-of-slides' }));
+    if (shape === 1) return [100, 1000, 10000, 100000].map((f) => ({ text: String(f), misconception: 'wrong-number-of-slides' }));
+    return [1, 2, 5, 3].map((f) => ({ text: String(f), misconception: 'wrong-number-of-slides' }));
+  }
+  // factor === 100
+  // Shape 0: {10, 100(correct), 1000, 10000} — correct sits in the middle.
+  // Shape 1: {1, 5, 10, 100(correct)} — correct is the MAX.
+  // Shape 2: {100(correct), 1000, 10000, 100000} — a heavier set where correct is the MIN.
+  if (shape === 0) return [10, 1000, 10000, 100000].map((f) => ({ text: String(f), misconception: 'wrong-number-of-slides' }));
+  if (shape === 1) return [1, 5, 10, 20].map((f) => ({ text: String(f), misconception: 'wrong-number-of-slides' }));
+  return [1000, 10000, 100000, 1000000].map((f) => ({ text: String(f), misconception: 'wrong-number-of-slides' }));
+}
+
 function t2MissingOp(rng) {
   // "3.7 x ___ = 370"
   const factor = pick(rng, [10, 100]);
@@ -386,21 +429,20 @@ function t2MissingOp(rng) {
   const resultText = fromHundredths(resultHundredths);
   const stem = `${baseText} × ___ = ${resultText}`;
 
-  const distractors = [];
-  const otherFactors = [10, 100, 1000].filter((f) => f !== factor);
-  distractors.push({ text: String(otherFactors[0]), misconception: 'wrong-number-of-slides' });
-  distractors.push({ text: String(otherFactors[1]), misconception: 'wrong-number-of-slides' });
-  distractors.push({ text: String(factor / 10 > 1 ? factor / 10 : factor * 10), misconception: 'off-by-one-slide' });
+  const distractors = missingOpDistractorPool(rng, factor);
 
   const correct = { text: String(factor), misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 3);
+  // n=4: the pool always ships exactly 4 distinct-from-correct distractors already engineered to
+  // land the correct answer in the intended min/mid/max position — taking fewer via slice(0,3)
+  // would silently reintroduce the generic pad (see comment on missingOpDistractorPool).
+  const options = makeMcq(correct, shuffle(rng, distractors), 4, { min: 5 });
 
-  // This template's answer is a bare multiplier (10/100/1000), not a decimal amount, so the
+  // This template's answer is a bare multiplier (power of 10), not a decimal amount, so the
   // generic decimal padder doesn't fit — pad with other plausible slide-count multipliers instead.
-  if (options.length < 4) {
+  if (options.length < 5) {
     const seen = new Set(options.map((o) => o.text));
-    for (const f of [1, 10, 100, 1000, 10000]) {
-      if (options.length >= 4) break;
+    for (const f of [1, 2, 5, 10, 100, 1000, 10000, 100000]) {
+      if (options.length >= 5) break;
       const text = String(f);
       if (seen.has(text)) continue;
       seen.add(text);
@@ -428,7 +470,7 @@ function t2MissingOp(rng) {
     ],
     explain: {
       rule: RULE,
-      worked: `${baseText} needs its digits to slide ${factor === 10 ? 'one' : 'two'} throne(s) left to reach ${resultText}, so the missing number is ${factor}.`,
+      worked: `${baseText} needs its digits to slide ${factor === 10 ? 'one throne' : 'two thrones'} left to reach ${resultText}, so the missing number is ${factor}.`,
       whyWrong,
     },
   };

@@ -204,12 +204,26 @@ function notify() {
 
 async function persistTopic(topicId) {
   if (!_db) return;
-  await _db.put('progress', topicId, _topics[topicId]);
+  try {
+    await _db.put('progress', topicId, _topics[topicId]);
+  } catch (err) {
+    // Best-effort: iOS private mode / storage pressure can reject writes.
+    // In-memory state is already correct; a persistence failure must never
+    // propagate to action callers, who should keep behaving as if it saved.
+    // eslint-disable-next-line no-console
+    console.error('state.js: persistTopic failed (in-memory state unaffected):', err);
+  }
 }
 
 async function persistMeta() {
   if (!_db) return;
-  await _db.put('meta', 'commonsOwned', _commonsOwned);
+  try {
+    await _db.put('meta', 'commonsOwned', _commonsOwned);
+  } catch (err) {
+    // Best-effort — see persistTopic's comment above; same rationale applies.
+    // eslint-disable-next-line no-console
+    console.error('state.js: persistMeta failed (in-memory state unaffected):', err);
+  }
 }
 
 /**

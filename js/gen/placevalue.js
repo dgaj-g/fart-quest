@@ -26,6 +26,37 @@ function valueAtPlace(n, placeIdx) {
   return d * Math.pow(10, placeIdx);
 }
 
+// Fix (CRITICAL, repeated-digit ambiguity): "What is the 7 worth in 3,742?" is ambiguous if 7
+// appears twice — the stem names the DIGIT, not its position, so every place bearing that digit
+// must be unambiguous, i.e. the digit must occur exactly once in the number. Returns the list of
+// {d, i} places (non-zero digit, digit unique within the number) a template may safely ask about.
+function uniqueValuePlaces(digs) {
+  const counts = {};
+  digs.forEach((d) => { counts[d] = (counts[d] || 0) + 1; });
+  return digs
+    .map((d, i) => ({ d, i }))
+    .filter((x) => x.d !== '0' && counts[x.d] === 1);
+}
+
+// Fallback used when the regenerate-loop can't find a number with any unique-digit place: builds
+// an N with digitCount all-distinct digits (leading digit non-zero), guaranteeing every non-zero
+// digit is unique so uniqueValuePlaces always returns at least one candidate.
+function forceDistinctDigitNumber(rng, digitCount) {
+  const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const chosenDigits = [];
+  const available = pool.slice();
+  // leading digit must be non-zero
+  const leadIdx = rngInt(rng, 1, available.length - 1);
+  chosenDigits.push(available[leadIdx]);
+  available.splice(leadIdx, 1);
+  while (chosenDigits.length < digitCount) {
+    const idx = rngInt(rng, 0, available.length - 1);
+    chosenDigits.push(available[idx]);
+    available.splice(idx, 1);
+  }
+  return Number(chosenDigits.join(''));
+}
+
 function uniqueOptions(correctText, candidates) {
   // candidates: array of {text, misconception}; dedupe against correct and each other
   const seen = new Set([correctText]);
@@ -78,17 +109,71 @@ function makeMcq(correct, distractorPool, rng, n = 3, opts = {}) {
 
 // -------- T1 templates --------
 
+// Fix (CRITICAL, structural tell): builds a varied distractor pool for value-of-digit questions
+// so the correct answer's option LENGTH (digit count) carries no signal. `n`/`placeIdx`/`digit`
+// describe the source number; `correctVal` is the digit's value. rng picks between pool shapes:
+// some include the ×10-throne slip (correct is never the longest in that shape), others omit it
+// and instead use ÷10, digit×1, and a same-digit-count near-miss (digit±1 on the same throne) —
+// in that shape the correct answer IS the longest option. Varying which shape appears means no
+// fixed length/position rule identifies the answer across generations.
+function valueOfDigitDistractors(rng, n, placeIdx, digit, correctVal) {
+  const pool = [];
+  // digit×1 ("bare digit" trap) — always safe to include, never clashes with correct (throne 0
+  // would make digit===correctVal only when placeIdx===0, which we exclude via the caller).
+  pool.push({ text: fmt(digit), misconception: 'digit-only' });
+
+  const includeTimes10 = rng() < 0.5;
+  if (includeTimes10) {
+    // Shape A: wrong-throne(s), INCLUDING one throne further left, plus the ×10-throne slip.
+    // Correct is never the longest option in this shape (both the wrong-throne-left and the ×10
+    // slip always have one more digit than correct).
+    if (placeIdx > 0) {
+      pool.push({ text: fmt(digit * Math.pow(10, placeIdx - 1)), misconception: 'wrong-throne' });
+    }
+    pool.push({ text: fmt(digit * Math.pow(10, placeIdx + 1)), misconception: 'wrong-throne' });
+    // ×10-throne slip: distinguished from generic 'wrong-throne' with its own tag since it is
+    // algebraically identical to "one throne too far left" but represents a distinct misconception
+    // (mechanically bolting a zero on vs miscounting seats) — kept as its own tag per spec fix 3.
+    pool.push({ text: fmt(correctVal * 10), misconception: 'times-10-slip' });
+  } else {
+    // Shape B: ÷10 (wrong-throne, one seat too far right) + same-digit-count near-miss (digit±1
+    // re-seated on the SAME throne) + a same-digit-count near-miss on the throne one seat to the
+    // right (placeIdx-1, when it exists). Deliberately NO "one throne further left" option here —
+    // every option in this shape has AT MOST as many digits as correct, so correct is sometimes
+    // the longest (or tied-longest) option across generations.
+    if (placeIdx > 0) {
+      pool.push({ text: fmt(digit * Math.pow(10, placeIdx - 1)), misconception: 'wrong-throne' });
+    }
+    const nearMissDigit = digit >= 9 ? digit - 1 : digit + 1;
+    pool.push({ text: fmt(nearMissDigit * Math.pow(10, placeIdx)), misconception: 'near-miss-digit' });
+    const nearMissDigit2 = digit <= 1 ? digit + 2 : digit - 2;
+    pool.push({ text: fmt(nearMissDigit2 * Math.pow(10, placeIdx)), misconception: 'near-miss-digit' });
+  }
+
+  return pool;
+}
+
 function t1ValueOfDigit(rng) {
-  // 3-4 digit N, pick a non-zero digit D, ask its value.
+  // 3-4 digit N, pick a non-zero digit D whose value is unambiguous (unique in the number), ask
+  // its value. Fix (CRITICAL, repeated-digit ambiguity): regenerate N (bounded) if no place has a
+  // unique digit; fall back to forcing all-distinct digits if the loop still can't find one.
   const digitCount = pick(rng, [3, 4]);
-  let n;
+  let n, digs, candidatePlaces;
+  let tries = 0;
   do {
     n = rngInt(rng, digitCount === 3 ? 100 : 1000, digitCount === 3 ? 999 : 9999);
-  } while (String(n).length !== digitCount);
-  const digs = digitsOf(n);
-  // choose a place index with a non-zero digit, prefer not the leading digit sometimes but any is fine
-  const nonZeroPlaces = digs.map((d, i) => ({ d, i })).filter((x) => x.d !== '0');
-  const chosen = pick(rng, nonZeroPlaces);
+    if (String(n).length !== digitCount) continue;
+    digs = digitsOf(n);
+    candidatePlaces = uniqueValuePlaces(digs);
+    tries++;
+  } while (candidatePlaces.length === 0 && tries < 50);
+  if (candidatePlaces.length === 0) {
+    // Fallback: force all-distinct digits so a unique place is guaranteed.
+    n = forceDistinctDigitNumber(rng, digitCount);
+    digs = digitsOf(n);
+    candidatePlaces = uniqueValuePlaces(digs);
+  }
+  const chosen = pick(rng, candidatePlaces);
   const placeIdx = chosen.i;
   const digit = Number(chosen.d);
   const correctVal = digit * Math.pow(10, placeIdx);
@@ -96,17 +181,7 @@ function t1ValueOfDigit(rng) {
 
   const stem = `What is the <b>${digit}</b> worth in ${fmt(n)}?`;
 
-  const distractors = [];
-  // bare digit
-  distractors.push({ text: fmt(digit), misconception: 'digit-only' });
-  // wrong throne: one place too far right (÷10) if possible
-  if (placeIdx > 0) {
-    distractors.push({ text: fmt(digit * Math.pow(10, placeIdx - 1)), misconception: 'wrong-throne' });
-  }
-  // wrong throne: one place too far left (×10)
-  distractors.push({ text: fmt(digit * Math.pow(10, placeIdx + 1)), misconception: 'wrong-throne' });
-  // value x10 slip (extra zero tacked on beyond correct, distinct from above if placeIdx+1 clashes)
-  distractors.push({ text: fmt(correctVal * 10), misconception: 'value-times-10-slip' });
+  const distractors = valueOfDigitDistractors(rng, n, placeIdx, digit, correctVal);
 
   const correct = { text: correctText, misconception: null };
   const options = makeMcq(correct, shuffle(rng, distractors), rng, 3, { digit });
@@ -115,7 +190,8 @@ function t1ValueOfDigit(rng) {
   for (const o of options) {
     if (o.misconception === 'digit-only') whyWrong[o.text] = 'That’s the digit in its disguise — but its throne makes it bigger!';
     else if (o.misconception === 'wrong-throne') whyWrong[o.text] = 'That’s a different throne — count the seats from the right again.';
-    else if (o.misconception === 'value-times-10-slip') whyWrong[o.text] = 'That’s ten times too big — the throne only counts once.';
+    else if (o.misconception === 'times-10-slip') whyWrong[o.text] = 'That’s ten times too big — the throne only counts once.';
+    else if (o.misconception === 'near-miss-digit') whyWrong[o.text] = 'Wrong digit on the right throne — check which digit is actually sitting there.';
     else if (o.misconception === 'padded-place-shift') whyWrong[o.text] = 'Check which throne the digit sits on — count the seats from the right.';
   }
 
@@ -276,7 +352,7 @@ function t2Partition(rng) {
   distractors.push({ text: fmt(jumbledNum), misconception: 'digits-jumbled' });
 
   const correct = { text: correctText, misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), rng, 3);
+  const options = makeMcq(correct, shuffle(rng, distractors), rng, 3, { min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
@@ -367,15 +443,23 @@ function t2LargestSmallest(rng) {
 }
 
 function t2ValueOfDigitLarge(rng) {
-  // "the 7 in 37,410 is worth ___"
+  // "the 7 in 37,410 is worth ___" — digit must be unambiguous (unique in the number).
   const digitCount = pick(rng, [4, 5]);
-  let n;
+  let n, digs, candidatePlaces;
+  let tries = 0;
   do {
     n = rngInt(rng, digitCount === 4 ? 1000 : 10000, digitCount === 4 ? 9999 : 99999);
-  } while (String(n).length !== digitCount);
-  const digs = digitsOf(n);
-  const nonZeroPlaces = digs.map((d, i) => ({ d, i })).filter((x) => x.d !== '0');
-  const chosen = pick(rng, nonZeroPlaces);
+    if (String(n).length !== digitCount) continue;
+    digs = digitsOf(n);
+    candidatePlaces = uniqueValuePlaces(digs);
+    tries++;
+  } while (candidatePlaces.length === 0 && tries < 50);
+  if (candidatePlaces.length === 0) {
+    n = forceDistinctDigitNumber(rng, digitCount);
+    digs = digitsOf(n);
+    candidatePlaces = uniqueValuePlaces(digs);
+  }
+  const chosen = pick(rng, candidatePlaces);
   const placeIdx = chosen.i;
   const digit = Number(chosen.d);
   const correctVal = digit * Math.pow(10, placeIdx);
@@ -383,20 +467,17 @@ function t2ValueOfDigitLarge(rng) {
 
   const stem = `The <b>${digit}</b> in ${fmt(n)} is worth ___`;
 
-  const distractors = [];
-  distractors.push({ text: fmt(digit), misconception: 'digit-only' });
-  if (placeIdx > 0) distractors.push({ text: fmt(digit * Math.pow(10, placeIdx - 1)), misconception: 'wrong-throne' });
-  distractors.push({ text: fmt(digit * Math.pow(10, placeIdx + 1)), misconception: 'wrong-throne' });
-  distractors.push({ text: fmt(correctVal * 10), misconception: 'value-times-10-slip' });
+  const distractors = valueOfDigitDistractors(rng, n, placeIdx, digit, correctVal);
 
   const correct = { text: correctText, misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), rng, 3, { digit });
+  const options = makeMcq(correct, shuffle(rng, distractors), rng, 3, { digit, min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
     if (o.misconception === 'digit-only') whyWrong[o.text] = 'That’s the digit itself — its throne makes it worth more!';
     else if (o.misconception === 'wrong-throne') whyWrong[o.text] = 'That’s a neighbouring throne — count the seats again from the right.';
-    else if (o.misconception === 'value-times-10-slip') whyWrong[o.text] = 'Ten times too big — the throne only counts once.';
+    else if (o.misconception === 'times-10-slip') whyWrong[o.text] = 'Ten times too big — the throne only counts once.';
+    else if (o.misconception === 'near-miss-digit') whyWrong[o.text] = 'Wrong digit on the right throne — check which digit is actually sitting there.';
     else if (o.misconception === 'padded-place-shift') whyWrong[o.text] = 'Check which throne the digit sits on — count the seats from the right.';
   }
 
@@ -500,15 +581,24 @@ function t3WriteInFigures(rng) {
 }
 
 function t3ValueOfDigitAsNumber(rng) {
-  // value of digit as a number ("what is the 8 worth in 28,514" -> 8000)
+  // value of digit as a number ("what is the 8 worth in 28,514" -> 8000) — digit must be
+  // unambiguous (unique in the number), same fix as the T1/T2 value-of-digit templates.
   const digitCount = pick(rng, [4, 5]);
-  let n;
+  let n, digs, candidatePlaces;
+  let tries = 0;
   do {
     n = rngInt(rng, digitCount === 4 ? 1000 : 10000, digitCount === 4 ? 9999 : 99999);
-  } while (String(n).length !== digitCount);
-  const digs = digitsOf(n);
-  const nonZeroPlaces = digs.map((d, i) => ({ d, i })).filter((x) => x.d !== '0');
-  const chosen = pick(rng, nonZeroPlaces);
+    if (String(n).length !== digitCount) continue;
+    digs = digitsOf(n);
+    candidatePlaces = uniqueValuePlaces(digs);
+    tries++;
+  } while (candidatePlaces.length === 0 && tries < 50);
+  if (candidatePlaces.length === 0) {
+    n = forceDistinctDigitNumber(rng, digitCount);
+    digs = digitsOf(n);
+    candidatePlaces = uniqueValuePlaces(digs);
+  }
+  const chosen = pick(rng, candidatePlaces);
   const placeIdx = chosen.i;
   const digit = Number(chosen.d);
   const correctVal = digit * Math.pow(10, placeIdx);

@@ -264,6 +264,9 @@ export async function mount(root, ctx, params) {
   const engine = createLessonEngine({ topic, ctx });
   engineRef = engine;
   await engine.loadProgress();
+  // unmount() may have destroyed this engine while loadProgress() was pending
+  // (e.g. the child navigated away mid-load) — bail before touching DOM/state.
+  if (engine.isDestroyed()) return;
 
   function renderDots() {
     dots.innerHTML = '';
@@ -288,6 +291,7 @@ export async function mount(root, ctx, params) {
       if (advancing) return;
       advancing = true;
       const more = await engine.goNext();
+      if (engine.isDestroyed()) return; // unmounted while goNext() was pending
       if (more) {
         renderCurrent();
       } else {
@@ -315,6 +319,7 @@ export async function mount(root, ctx, params) {
   backBtn.addEventListener('click', async () => {
     ctx.audio.sfx('back');
     const went = await engine.goBack();
+    if (engine.isDestroyed()) return; // unmounted while goBack() was pending
     if (went) renderCurrent();
     else ctx.go(`#/topic/${topic.id}`);
   });

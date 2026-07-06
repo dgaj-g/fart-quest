@@ -5,6 +5,7 @@ const routes = []; // { pattern: RegExp, keys: string[], mod }
 let currentMod = null;
 let currentRoot = null;
 let ctx = null;
+let generation = 0; // monotonic token: guards against overlapping hashchange renders
 
 function compile(path) {
   const keys = [];
@@ -34,6 +35,7 @@ function parseHash() {
 }
 
 async function render() {
+  const myGen = ++generation; // claim this render; a later hashchange bumps `generation` again
   const path = parseHash();
   for (const route of routes) {
     const m = path.match(route.re);
@@ -51,6 +53,17 @@ async function render() {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('Screen mount failed:', path, e);
+    }
+    // A newer hashchange fired while the mount above was pending — that newer
+    // render call already unmounted us (or will, if it's still ahead of this
+    // point) and owns currentRoot/currentMod from here. We must not touch
+    // either: just unmount the module WE just mounted (it's the stale one)
+    // and bail out without clearing/repopulating anything.
+    if (myGen !== generation) {
+      if (route.mod && typeof route.mod.unmount === 'function') {
+        try { route.mod.unmount(); } catch (e) { /* swallow */ }
+      }
+      return;
     }
     return;
   }

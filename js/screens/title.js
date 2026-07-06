@@ -2,6 +2,7 @@
 
 let holdTimer = null;
 let holdStart = 0;
+let alive = false; // guards the deferred openParentGate call if we unmount mid-hold
 
 function buildWordmark() {
   const word = 'FART QUEST';
@@ -89,6 +90,7 @@ function rand(min, max) {
 }
 
 export function mount(root, ctx) {
+  alive = true;
   const screen = document.createElement('div');
   screen.className = 'title-screen screen enter-pop';
 
@@ -179,6 +181,7 @@ export function mount(root, ctx) {
   crest.addEventListener('pointerdown', () => {
     holdStart = Date.now();
     holdTimer = setTimeout(() => {
+      if (!alive) return; // title screen unmounted while the hold was pending
       ctx.audio.sfx('click');
       openParentGate(ctx);
     }, 2500);
@@ -192,6 +195,9 @@ export function mount(root, ctx) {
 }
 
 export function unmount() {
+  alive = false;
+  clearTimeout(holdTimer);
+  holdTimer = null;
   document.querySelectorAll('[data-puff-interval]').forEach((el) => {
     clearInterval(Number(el.dataset.puffInterval));
   });
