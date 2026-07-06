@@ -13,6 +13,21 @@ function regionBgFor(topic) {
   return region ? region.bg : 'linear-gradient(180deg,#1E3325,#2E4A33)';
 }
 
+// Minion/elite stages are fought against a random rank-and-file stinkling, never the
+// topic's boss creature — the boss only appears in the boss stage (§5 battle spec).
+function castCreatureFor(topic, stage) {
+  if (stage === 'boss') return { creature: topic.creature, isBoss: true };
+  const stinkling = pick(COMMONS);
+  return {
+    creature: {
+      id: stinkling.id,
+      name: `${stinkling.name} the Stinkling`,
+      image: stinkling.image,
+    },
+    isBoss: false,
+  };
+}
+
 let cleanupFns = [];
 
 export async function mount(root, ctx, params) {
@@ -20,6 +35,8 @@ export async function mount(root, ctx, params) {
   const topic = ctx.topics[params.id];
   const stage = params.stage;
   if (!topic || !STAGE_LABEL[stage]) { ctx.go(`#/topic/${params.id || ''}`); return; }
+
+  const { creature: castCreature, isBoss } = castCreatureFor(topic, stage);
 
   const screen = document.createElement('div');
   screen.className = 'battle-screen screen enter-pop';
@@ -37,7 +54,7 @@ export async function mount(root, ctx, params) {
       <span class="pong-meter-label">PONG METER</span>
       <div class="pong-meter"><div class="pong-meter-fill"></div></div>
     </div>
-    ${stage === 'boss' ? `<div class="boss-nameplate">${topic.creature.name}</div>` : ''}
+    ${isBoss ? `<div class="boss-nameplate">${castCreature.name}</div>` : ''}
   `;
   screen.appendChild(hud);
 
@@ -46,19 +63,20 @@ export async function mount(root, ctx, params) {
   streakPips.innerHTML = '<span class="streak-pip"></span><span class="streak-pip"></span><span class="streak-pip"></span>';
   screen.appendChild(streakPips);
 
-  const megaBanner = document.createElement('div');
-  megaBanner.className = 'mega-parp-banner';
-  megaBanner.textContent = 'MEGA PARP!';
-  screen.appendChild(megaBanner);
+  // MEGA PARP banner: only mounted into the DOM when a 3-streak actually fires
+  // (see triggerMegaBanner) — never present in the tree beforehand.
+  let megaBanner = null;
 
   const arena = document.createElement('div');
   arena.className = 'battle-arena';
 
   const creatureWrap = document.createElement('div');
   creatureWrap.className = 'battle-creature-wrap';
+  // Minion/elite stages fight a common stinkling, shown smaller than a boss
+  // (boss art is a 450px asset; stinklings are scaled to ~65% of that presentation).
   creatureWrap.innerHTML = `
-    <img class="idle-bob" src="${topic.creature.image}" alt="${topic.creature.name}">
-    <div class="battle-nameplate-under">${topic.creature.name}</div>
+    <img class="idle-bob" src="${castCreature.image}" alt="${castCreature.name}" style="${isBoss ? '' : 'transform:scale(.65); transform-origin:center bottom;'}">
+    <div class="battle-nameplate-under">${castCreature.name}</div>
   `;
   arena.appendChild(creatureWrap);
 
@@ -89,18 +107,46 @@ export async function mount(root, ctx, params) {
   });
 
   ctx.audio.music('battle');
-  if (stage === 'boss') ctx.audio.vo('boss-intro');
 
   const engine = createBattleEngine({ topic, stage, seed: Date.now() });
 
-  function updateGauge(refill) {
+  function updateGauge(refill, forceValue) {
     const fill = hud.querySelector('.pong-meter-fill');
-    fill.style.width = `${Math.round(engine.getState().gauge * 100)}%`;
+    const pct = forceValue !== undefined ? forceValue : Math.round(engine.getState().gauge * 100);
+    fill.style.width = `${pct}%`;
     if (refill) {
       fill.classList.remove('refill-flash');
       void fill.offsetWidth;
       fill.classList.add('refill-flash');
     }
+    return fill;
+  }
+
+  // Wait for the gauge's CSS width transition (300ms ease, see battle.css) to actually
+  // finish before continuing — used before showing the boss-capture end screen so the
+  // meter visibly reaches 0% rather than showing residual fill.
+  function waitForGaugeTransition(fill) {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => { if (done) return; done = true; fill.removeEventListener('transitionend', onEnd); resolve(); };
+      const onEnd = (e) => { if (e.propertyName === 'width') finish(); };
+      fill.addEventListener('transitionend', onEnd);
+      setTimeout(finish, 400); // safety fallback in case transitionend doesn't fire
+    });
+  }
+
+  // MEGA PARP banner is created and appended to the DOM only at the moment a 3-streak
+  // actually fires, then removed once its animation completes — it must never sit in
+  // the tree (even hidden) beforehand, so a DOM text dump right after card 1 is clean.
+  function triggerMegaBanner() {
+    if (megaBanner) megaBanner.remove();
+    megaBanner = document.createElement('div');
+    megaBanner.className = 'mega-parp-banner';
+    megaBanner.textContent = 'MEGA PARP!';
+    screen.appendChild(megaBanner);
+    requestAnimationFrame(() => megaBanner.classList.add('show'));
+    const el = megaBanner;
+    setTimeout(() => { el.remove(); if (megaBanner === el) megaBanner = null; }, 1400);
   }
 
   function updateStreakPips(streak) {
@@ -135,7 +181,22 @@ export async function mount(root, ctx, params) {
     formatHandle = formats[q.format].render(card, q, api);
   }
 
-  function firstQuestion() {
+  async function bossIntroBeat() {
+    // Nameplate slam-in (existing spring-pop entrance class, no new CSS needed) +
+    // VO + a double parp, then a beat before the first question appears.
+    const nameplate = hud.querySelector('.boss-nameplate');
+    if (nameplate) {
+      nameplate.classList.remove('enter-pop');
+      void nameplate.offsetWidth;
+      nameplate.classList.add('enter-pop');
+    }
+    ctx.audio.vo('boss-intro');
+    ctx.audio.parp(2);
+    await sleep(650);
+  }
+
+  async function firstQuestion() {
+    if (isBoss) await bossIntroBeat();
     renderQuestion(engine.nextQuestion());
   }
 
@@ -157,9 +218,7 @@ export async function mount(root, ctx, params) {
       if (outcome.isMegaParp) {
         ctx.audio.parp(3);
         ctx.audio.vo('streak');
-        megaBanner.classList.remove('show');
-        void megaBanner.offsetWidth;
-        megaBanner.classList.add('show');
+        triggerMegaBanner();
         updateGauge(false);
       } else {
         ctx.audio.vo('correct');
@@ -203,7 +262,7 @@ export async function mount(root, ctx, params) {
     overlay.innerHTML = `
       <div class="reteach-card">
         <div class="reteach-head">
-          <div class="wb-portrait">🧙</div>
+          <div class="wb-portrait"><img class="wb-img" src="assets/monsters/whiffbeard.png" alt=""></div>
           <h3>Ooof! Watch this…</h3>
         </div>
         <div class="reteach-body">
@@ -226,7 +285,24 @@ export async function mount(root, ctx, params) {
     });
   }
 
+  // Hide the question area and streak pips before any end screen shows — end screens
+  // are full-bleed overlays but the card/pips must not remain visible/behind them.
+  function hideQuestionArea() {
+    card.style.display = 'none';
+    card.innerHTML = '';
+    streakPips.style.display = 'none';
+    if (megaBanner) { megaBanner.remove(); megaBanner = null; }
+  }
+
   async function finishBattle(outcome) {
+    if (outcome.won) {
+      // Ensure the PONG METER visibly finishes draining to exactly 0% before any
+      // end screen appears — force the value and await the transition.
+      const fill = updateGauge(false, 0);
+      await waitForGaugeTransition(fill);
+    }
+    hideQuestionArea();
+
     if (stage === 'boss' && outcome.won) {
       await runCaptureSequence(outcome);
     } else if (stage === 'boss') {

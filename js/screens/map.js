@@ -8,6 +8,9 @@ function creatureImageFor(topic) {
   return topic.creature.image;
 }
 
+// vertical offsets so the trail snakes rather than sitting in a flat row
+const PAD_OFFSETS = [18, -32, 8, -22, 30, -14, 20, -30, 10, -18];
+
 export async function mount(root, ctx) {
   ctx.audio.music('map');
   const screen = document.createElement('div');
@@ -39,43 +42,63 @@ export async function mount(root, ctx) {
   scrollWrap.appendChild(stage);
   screen.appendChild(scrollWrap);
 
+  // ---- sky band: gradient (css), moon, stars, drifting clouds ----
+  const sky = document.createElement('div');
+  sky.className = 'map-sky';
+  sky.innerHTML = `
+    <div class="map-moon"></div>
+    <span class="map-star" style="left:8%; top:20%; --d:.2s;"></span>
+    <span class="map-star" style="left:18%; top:55%; --d:1.1s;"></span>
+    <span class="map-star" style="left:60%; top:15%; --d:.6s;"></span>
+    <span class="map-star" style="left:75%; top:45%; --d:1.6s;"></span>
+    <span class="map-star" style="left:92%; top:25%; --d:.9s;"></span>
+    <span class="map-star" style="left:40%; top:65%; --d:2s;"></span>
+  `;
+  stage.appendChild(sky);
+
   // background layers (parallax via scroll listener)
+  const STAGE_WIDTH = 5100;
   const hillsLayer = document.createElement('div');
   hillsLayer.className = 'map-layer layer-hills';
-  hillsLayer.innerHTML = `
-    <img src="assets/ui/hill-2.png" style="left:0;" alt="">
-    <img src="assets/ui/hill-1.png" style="left:600px;" alt="">
-    <img src="assets/ui/hill-2.png" style="left:1300px;" alt="">
-    <img src="assets/ui/hill-1.png" style="left:2000px;" alt="">
-  `;
+  hillsLayer.innerHTML = Array.from({ length: Math.ceil(STAGE_WIDTH / 700) }).map((_, i) => (
+    `<img src="assets/ui/hill-${i % 2 === 0 ? 2 : 1}.png" style="left:${i * 700}px;" alt="">`
+  )).join('');
   stage.appendChild(hillsLayer);
 
   const cloudsLayer = document.createElement('div');
   cloudsLayer.className = 'map-layer layer-clouds';
-  cloudsLayer.innerHTML = `
-    <img src="assets/ui/cloud-1.png" style="left:100px;" alt="">
-    <img src="assets/ui/cloud-2.png" style="left:700px;" alt="">
-    <img src="assets/ui/cloud-1.png" style="left:1400px;" alt="">
-    <img src="assets/ui/cloud-2.png" style="left:2100px;" alt="">
-  `;
+  cloudsLayer.innerHTML = Array.from({ length: Math.ceil(STAGE_WIDTH / 700) }).map((_, i) => (
+    `<img src="assets/ui/cloud-${i % 2 === 0 ? 1 : 2}.png" style="left:${i * 700 + 100}px;" alt="">`
+  )).join('');
   stage.appendChild(cloudsLayer);
+
+  // fireflies — tiny gold dots drifting on long loops
+  const fireflies = document.createElement('div');
+  fireflies.className = 'map-fireflies';
+  fireflies.innerHTML = Array.from({ length: 6 }).map((_, i) => (
+    `<span class="firefly" style="left:${(i * 17 + 6) % 100}%; bottom:${20 + (i * 13) % 40}%; animation-duration:${14 + i * 3}s; animation-delay:${i * 1.6}s;"></span>`
+  )).join('');
+  stage.appendChild(fireflies);
+
+  // region entrance sign
+  const regionSign = document.createElement('div');
+  regionSign.className = 'region-sign';
+  regionSign.innerHTML = 'NUMBER SWAMP 💨';
+  stage.appendChild(regionSign);
 
   const trail = document.createElement('div');
   trail.className = 'map-trail';
   stage.appendChild(trail);
 
-  // Number Swamp region — left third, 10 location pads
+  // Number Swamp region — left third, 10 location pads along a winding trail
   const swamp = REGIONS.find((r) => r.id === 'number-swamp');
   const regionWrap = document.createElement('div');
   regionWrap.className = 'map-region';
-  regionWrap.style.left = '20px';
-  regionWrap.style.display = 'flex';
-  regionWrap.style.flexDirection = 'row';
-  regionWrap.style.alignItems = 'flex-end';
 
-  swamp.locations.forEach((loc) => {
+  swamp.locations.forEach((loc, i) => {
     const pad = document.createElement('button');
     pad.className = 'map-pad';
+    pad.style.setProperty('--pad-offset', `${PAD_OFFSETS[i % PAD_OFFSETS.length]}px`);
 
     if (loc.live) {
       const topic = ctx.topics[loc.topicId];
@@ -109,26 +132,37 @@ export async function mount(root, ctx) {
       `;
     }
     regionWrap.appendChild(pad);
+
+    // a tree between pads for depth (skip after the last pad)
+    if (i < swamp.locations.length - 1) {
+      const tree = document.createElement('img');
+      tree.className = `map-between-tree ${i % 2 === 0 ? 'tree-a' : 'tree-b'}`;
+      tree.src = i % 3 === 0 ? 'assets/ui/tree-1.png' : 'assets/ui/tree-2.png';
+      tree.alt = '';
+      regionWrap.appendChild(tree);
+    }
   });
   stage.appendChild(regionWrap);
 
-  // Region boss — Countfather silhouette on a hill
+  // Region boss — Countfather silhouette on a hill with a purple glow aura
   const bossHill = document.createElement('div');
   bossHill.className = 'map-boss-hill';
   bossHill.innerHTML = `
+    <div class="boss-aura"></div>
     <img src="${swamp.boss.image}" alt="${swamp.boss.name}">
     <div class="boss-note">${swamp.boss.name}<br>${swamp.boss.note}</div>
   `;
   stage.appendChild(bossHill);
+  bossHill.addEventListener('click', () => {
+    ctx.audio.sfx('click');
+    const note = bossHill.querySelector('.boss-note');
+    note.classList.toggle('show');
+  });
 
   // Other 9 fogged regions (distant)
   const otherRegions = REGIONS.filter((r) => r.id !== 'number-swamp');
   const farWrap = document.createElement('div');
-  farWrap.style.position = 'absolute';
-  farWrap.style.left = '1750px';
-  farWrap.style.display = 'flex';
-  farWrap.style.gap = '30px';
-  farWrap.style.bottom = '60px';
+  farWrap.className = 'map-far-wrap';
   otherRegions.forEach((region) => {
     const block = document.createElement('div');
     block.className = 'map-region-far';
@@ -155,6 +189,7 @@ export async function mount(root, ctx) {
     const x = scrollWrap.scrollLeft;
     hillsLayer.style.transform = `translateX(${x * -0.3}px)`;
     cloudsLayer.style.transform = `translateX(${x * -0.15}px)`;
+    sky.style.transform = `translateX(${x * -0.08}px)`;
   };
   scrollWrap.addEventListener('scroll', onScroll, { passive: true });
 

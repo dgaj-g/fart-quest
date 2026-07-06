@@ -50,7 +50,7 @@ function renderTalkCard(card, ctx, onNext) {
   const wrap = document.createElement('div');
   wrap.className = 'lesson-card talk-card-wrap enter-up';
   wrap.innerHTML = `
-    <div class="wb-frame">🧙</div>
+    <div class="wb-frame"><img class="wb-img" src="assets/monsters/whiffbeard.png" alt=""></div>
     <div class="speech-bubble tap-hint"><span class="bubble-text"></span></div>
   `;
   const textEl = wrap.querySelector('.bubble-text');
@@ -61,16 +61,19 @@ function renderTalkCard(card, ctx, onNext) {
   else ctx.audio.vo('teach-generic');
 
   let doneTyping = false;
+  let advanced = false; // re-entry guard: ignore further activations once onNext has been triggered for this card
   const typer = typewriter(textEl, card.text, () => {
     doneTyping = true;
     bubble.classList.remove('tap-hint');
   });
 
   bubble.addEventListener('click', () => {
+    if (advanced) return;
     if (!doneTyping) {
       typer.complete();
       doneTyping = true;
     } else {
+      advanced = true;
       onNext();
     }
   });
@@ -102,7 +105,13 @@ function renderShowCard(card, ctx, onNext) {
     <button class="btn btn-gold" style="margin-top:18px; padding:14px 30px; font-size:17px;">Got it!</button>
   `;
   wireSlideDemo(wrap);
-  wrap.querySelector('button').addEventListener('click', () => { ctx.audio.sfx('click'); onNext(); });
+  const gotItBtn = wrap.querySelector('button');
+  gotItBtn.addEventListener('click', () => {
+    if (gotItBtn.disabled) return;
+    gotItBtn.disabled = true;
+    ctx.audio.sfx('click');
+    onNext();
+  });
   return wrap;
 }
 
@@ -258,7 +267,10 @@ export async function mount(root, ctx, params) {
 
   function renderDots() {
     dots.innerHTML = '';
-    for (let i = 0; i < engine.totalCards(); i++) {
+    // Dots must exactly match the authored lesson card count — read topic.lesson.length
+    // directly rather than trusting an intermediary so the two can never drift apart.
+    const total = topic.lesson.length;
+    for (let i = 0; i < total; i++) {
       const d = document.createElement('span');
       d.className = 'lesson-dot';
       if (i < engine.currentIndex()) d.classList.add('done');
@@ -271,7 +283,10 @@ export async function mount(root, ctx, params) {
     body.innerHTML = '';
     renderDots();
     const card = engine.currentCard();
+    let advancing = false; // re-entry guard: fresh per card render, blocks double-advance from rapid taps
     const onNext = async () => {
+      if (advancing) return;
+      advancing = true;
       const more = await engine.goNext();
       if (more) {
         renderCurrent();

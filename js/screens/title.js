@@ -92,19 +92,51 @@ export function mount(root, ctx) {
   const screen = document.createElement('div');
   screen.className = 'title-screen screen enter-pop';
 
+  const sky = document.createElement('div');
+  sky.className = 'title-sky';
+  sky.innerHTML = `
+    <span class="title-star" style="left:12%; top:14%; --d:0s;"></span>
+    <span class="title-star" style="left:22%; top:28%; --d:.6s;"></span>
+    <span class="title-star" style="left:82%; top:12%; --d:1.1s;"></span>
+    <span class="title-star" style="left:70%; top:22%; --d:1.8s;"></span>
+    <span class="title-star" style="left:90%; top:32%; --d:.3s;"></span>
+    <img class="title-cloud c1" src="assets/ui/cloud-1.png" alt="">
+    <img class="title-cloud c2" src="assets/ui/cloud-2.png" alt="">
+  `;
+  screen.appendChild(sky);
+
+  const fumesLeft = document.createElement('div');
+  fumesLeft.className = 'fumes title-fumes title-fumes-left';
+  fumesLeft.style.setProperty('--fume-scale', '.8');
+  fumesLeft.innerHTML = '<div class="blob"></div><div class="blob"></div><div class="blob"></div>';
+  screen.appendChild(fumesLeft);
+
+  const fumesRight = document.createElement('div');
+  fumesRight.className = 'fumes title-fumes title-fumes-right';
+  fumesRight.style.setProperty('--fume-scale', '.7');
+  fumesRight.innerHTML = '<div class="blob"></div><div class="blob"></div><div class="blob"></div>';
+  screen.appendChild(fumesRight);
+
   const hills = document.createElement('div');
   hills.className = 'title-hills';
   hills.innerHTML = `
     <img class="hill-back" src="assets/ui/hill-2.png" alt="">
+    <img class="title-tree tree-back-1" src="assets/ui/tree-2.png" alt="">
+    <img class="title-tree tree-back-2" src="assets/ui/tree-2.png" alt="">
+    <img class="stinkling stinkling-a idle-bob" src="assets/monsters/stinkling-2.png" alt="">
+    <img class="stinkling stinkling-b idle-bob" src="assets/monsters/stinkling-4.png" alt="">
     <img class="hill-front" src="assets/ui/hill-1.png" alt="">
+    <img class="title-tree tree-front-1" src="assets/ui/tree-1.png" alt="">
+    <img class="title-tree tree-front-2" src="assets/ui/tree-1.png" alt="">
+    <img class="stinkling stinkling-c idle-bob" src="assets/monsters/stinkling-6.png" alt="">
   `;
   screen.appendChild(hills);
 
-  const fumes = document.createElement('div');
-  fumes.className = 'fumes';
-  fumes.style.setProperty('--fume-scale', '1.4');
-  fumes.innerHTML = '<div class="blob"></div><div class="blob"></div><div class="blob"></div>';
-  screen.appendChild(fumes);
+  const whiff = document.createElement('img');
+  whiff.className = 'title-whiffbeard idle-bob';
+  whiff.src = 'assets/monsters/whiffbeard.png';
+  whiff.alt = 'Whiffbeard';
+  screen.appendChild(whiff);
 
   screen.appendChild(buildWordmark());
 
@@ -129,6 +161,10 @@ export function mount(root, ctx) {
   crest.textContent = '🛡️';
   crest.setAttribute('aria-label', 'Parent area');
   screen.appendChild(crest);
+
+  const vignette = document.createElement('div');
+  vignette.className = 'title-vignette';
+  screen.appendChild(vignette);
 
   root.appendChild(screen);
 
