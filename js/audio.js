@@ -1,0 +1,453 @@
+// FART QUEST — audio.js (AUDIO-ENGINE agent)
+// Vanilla ES module. No external deps. Must be safe to call before init (no-ops/queued).
+// No console noise in normal operation.
+
+// ---------- internal state ----------
+let ctx = null;                 // AudioContext
+let unlocked = false;
+let unlockAttached = false;
+
+let sfxMap = {};                 // name -> url, baked in / discoverable at runtime
+const sfxBufferCache = new Map(); // url -> decoded AudioBuffer (or a pending Promise)
+const sfxFailedUrls = new Set();  // urls we tried and failed to fetch/decode — don't retry
+
+let voManifestPromise = null;    // Promise<string[]> of vo file names, fetched once
+let lastVoFile = null;           // last played vo filename, to avoid immediate repeat
+let currentVoEl = null;          // the single <audio> element used for VO playback
+
+let musicEls = { a: null, b: null }; // two <audio> elements for crossfading
+let activeMusicSlot = 'a';
+let currentTrackName = null;
+let musicFailedTracks = new Set(); // track names we've tried & failed to load — don't retry this session
+let musicBaseVolume = 1;         // user-set music volume (0..1) before ducking
+let duckActive = false;
+
+let volumes = { music: 1, sfx: 1, vo: 1 };
+let fartOMeter = 2; // 0 = off/soft, 1 = silly, 2 = very silly (default mid)
+
+// candidate extensions to try for music files, in order
+const MUSIC_EXTS = ['mp3', 'm4a'];
+
+// ---------- helpers ----------
+
+function safeNoop() {}
+
+function nowMs() {
+  return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+}
+
+function ensureCtx() {
+  if (ctx) return ctx;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+  } catch (e) {
+    ctx = null;
+  }
+  return ctx;
+}
+
+function clamp01(v) {
+  v = Number(v);
+  if (Number.isNaN(v)) return 0;
+  return Math.max(0, Math.min(1, v));
+}
+
+// Fetch + decode an sfx url, caching the decoded buffer. Never throws — resolves null on failure.
+async function loadSfxBuffer(url) {
+  if (!url) return null;
+  if (sfxFailedUrls.has(url)) return null;
+  if (sfxBufferCache.has(url)) {
+    const cached = sfxBufferCache.get(url);
+    return cached instanceof Promise ? cached : cached;
+  }
+  const ac = ensureCtx();
+  if (!ac) return null;
+
+  const p = (async () => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('sfx fetch failed');
+      const arr = await res.arrayBuffer();
+      const buf = await ac.decodeAudioData(arr);
+      sfxBufferCache.set(url, buf);
+      return buf;
+    } catch (e) {
+      sfxFailedUrls.add(url);
+      sfxBufferCache.delete(url);
+      return null;
+    }
+  })();
+
+  sfxBufferCache.set(url, p);
+  return p;
+}
+
+function playDecodedBuffer(buf, { gain = 1 } = {}) {
+  const ac = ensureCtx();
+  if (!ac || !buf) return;
+  try {
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    const g = ac.createGain();
+    g.gain.value = clamp01(gain) * clamp01(volumes.sfx);
+    src.connect(g).connect(ac.destination);
+    src.start();
+  } catch (e) {
+    // swallow — no console noise
+  }
+}
+
+// Find sfx map keys that look like real fart samples, e.g. "fart-1", "fart-big-2"
+function realFartSampleNames() {
+  return Object.keys(sfxMap).filter((k) => /^fart-/i.test(k));
+}
+
+function pickRandom(arr) {
+  if (!arr || arr.length === 0) return undefined;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// ---------- synth parp ----------
+
+function synthParp(size, { poof = false } = {}) {
+  const ac = ensureCtx();
+  if (!ac) return;
+
+  const durationMap = { 1: 0.18, 2: 0.35, 3: 0.55 };
+  const baseDur = durationMap[size] || durationMap[2];
+  // slight random variance so no two parps are identical
+  const duration = Math.max(0.15, Math.min(0.6, baseDur + (Math.random() * 0.08 - 0.04)));
+
+  const t0 = ac.currentTime + 0.001;
+  const detune = (Math.random() * 24 - 12); // cents
+
+  try {
+    const osc = ac.createOscillator();
+    osc.type = poof ? 'sine' : 'sawtooth';
+    const startFreq = poof ? 220 : 90;
+    const endFreq = poof ? 120 : 45;
+    osc.frequency.setValueAtTime(startFreq, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t0 + duration);
+    if (osc.detune) osc.detune.setValueAtTime(detune, t0);
+
+    const filter = ac.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(poof ? 900 : 400, t0);
+    filter.Q.value = poof ? 0.5 : 1.2;
+
+    // LFO wobble on the filter cutoff
+    const lfo = ac.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = poof ? 4 : 9 + Math.random() * 4;
+    const lfoGain = ac.createGain();
+    lfoGain.gain.value = poof ? 60 : 120;
+    lfo.connect(lfoGain).connect(filter.frequency);
+
+    const amp = ac.createGain();
+    amp.gain.setValueAtTime(0.0001, t0);
+    amp.gain.exponentialRampToValueAtTime(clamp01(volumes.sfx) * (poof ? 0.5 : 0.9) + 0.0001, t0 + 0.02);
+    amp.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+
+    osc.connect(filter).connect(amp).connect(ac.destination);
+
+    osc.start(t0);
+    lfo.start(t0);
+    osc.stop(t0 + duration + 0.05);
+    lfo.stop(t0 + duration + 0.05);
+  } catch (e) {
+    // swallow
+  }
+}
+
+// ---------- public: attachUnlock ----------
+
+function startTitleMusic() {
+  // best-effort; music() itself tolerates missing files
+  music('title');
+}
+
+function attachUnlock() {
+  if (unlockAttached) return;
+  unlockAttached = true;
+
+  const handler = () => {
+    window.removeEventListener('pointerdown', handler, true);
+    unlocked = true;
+    const ac = ensureCtx();
+    if (ac && ac.state === 'suspended') {
+      ac.resume().catch(safeNoop);
+    }
+    startTitleMusic();
+  };
+
+  try {
+    window.addEventListener('pointerdown', handler, true);
+  } catch (e) {
+    // no-op if window unavailable
+  }
+}
+
+// ---------- public: sfx map ----------
+
+function setSfxMap(map) {
+  if (map && typeof map === 'object') {
+    sfxMap = Object.assign({}, map);
+  }
+}
+
+async function sfx(name) {
+  try {
+    const url = sfxMap[name];
+    if (!url) return;
+    const buf = await loadSfxBuffer(url);
+    if (buf) playDecodedBuffer(buf, { gain: 1 });
+  } catch (e) {
+    // swallow — never throw from sfx()
+  }
+}
+
+// ---------- public: parp ----------
+
+async function parp(size) {
+  size = [1, 2, 3].includes(size) ? size : 2;
+
+  if (fartOMeter === 0) {
+    synthParp(size, { poof: true });
+    return;
+  }
+
+  // always play the synth as guaranteed layer/fallback
+  synthParp(size, { poof: false });
+
+  // maybe layer/substitute a real sample if available
+  const samples = realFartSampleNames();
+  if (samples.length > 0 && Math.random() < 0.6) {
+    const chosen = pickRandom(samples);
+    try {
+      const buf = await loadSfxBuffer(sfxMap[chosen]);
+      if (buf) playDecodedBuffer(buf, { gain: 0.9 });
+    } catch (e) {
+      // swallow
+    }
+  }
+}
+
+// ---------- public: vo ----------
+
+async function fetchVoManifestOnce() {
+  if (voManifestPromise) return voManifestPromise;
+  voManifestPromise = (async () => {
+    try {
+      const res = await fetch('audio/vo/manifest.json', { cache: 'no-store' });
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (data && Array.isArray(data.files)) return data.files;
+      return [];
+    } catch (e) {
+      return [];
+    }
+  })();
+  return voManifestPromise;
+}
+
+function duck(active) {
+  duckActive = !!active;
+  applyMusicVolume();
+}
+
+async function vo(prefix) {
+  try {
+    if (!prefix) return;
+    const files = await fetchVoManifestOnce();
+    if (!files || files.length === 0) return; // resolve silently
+
+    const re = new RegExp('^vo-' + prefix);
+    let matches = files.filter((f) => re.test(f));
+    if (matches.length === 0) return; // resolve silently
+
+    // dedupe: never same file twice in a row (if more than one option)
+    if (matches.length > 1 && lastVoFile) {
+      const filtered = matches.filter((f) => f !== lastVoFile);
+      if (filtered.length > 0) matches = filtered;
+    }
+
+    const chosen = pickRandom(matches);
+    if (!chosen) return;
+    lastVoFile = chosen;
+
+    // single <audio> element — new vo interrupts old
+    if (currentVoEl) {
+      try {
+        currentVoEl.pause();
+        currentVoEl.src = '';
+      } catch (e) {
+        // swallow
+      }
+    }
+
+    const el = new Audio();
+    currentVoEl = el;
+    el.src = 'audio/vo/' + chosen;
+    el.volume = clamp01(volumes.vo);
+
+    duck(true);
+    const clearDuck = () => {
+      if (currentVoEl === el) {
+        duck(false);
+      }
+    };
+    el.addEventListener('ended', clearDuck);
+    el.addEventListener('error', clearDuck);
+
+    await el.play().catch(() => {
+      clearDuck();
+    });
+  } catch (e) {
+    // NEVER throw or console.error
+  }
+}
+
+// ---------- public: music ----------
+
+function applyMusicVolume() {
+  const factor = duckActive ? 0.25 : 1;
+  const target = clamp01(musicBaseVolume) * factor;
+  const activeEl = musicEls[activeMusicSlot];
+  if (activeEl) activeEl.volume = target;
+}
+
+function candidateMusicUrls(track) {
+  return MUSIC_EXTS.map((ext) => `audio/music/${track}.${ext}`);
+}
+
+async function tryLoadMusicEl(el, track) {
+  const urls = candidateMusicUrls(track);
+  for (const url of urls) {
+    const ok = await new Promise((resolve) => {
+      let settled = false;
+      const done = (val) => {
+        if (settled) return;
+        settled = true;
+        el.removeEventListener('canplaythrough', onOk);
+        el.removeEventListener('error', onErr);
+        resolve(val);
+      };
+      const onOk = () => done(true);
+      const onErr = () => done(false);
+      el.addEventListener('canplaythrough', onOk, { once: true });
+      el.addEventListener('error', onErr, { once: true });
+      try {
+        el.src = url;
+        el.load();
+      } catch (e) {
+        done(false);
+      }
+    });
+    if (ok) return true;
+  }
+  return false;
+}
+
+const TRACK_ALIASES = { title: 'map' }; // title screen shares the map theme
+
+async function music(track) {
+  try {
+    if (!track) return;
+    track = TRACK_ALIASES[track] || track;
+    if (track === currentTrackName) return; // already playing
+    if (musicFailedTracks.has(track)) return; // remembered failure, stay silent
+
+    const nextSlot = activeMusicSlot === 'a' ? 'b' : 'a';
+    if (!musicEls[nextSlot]) {
+      const el = new Audio();
+      el.loop = true;
+      el.preload = 'auto';
+      musicEls[nextSlot] = el;
+    }
+    const nextEl = musicEls[nextSlot];
+    const prevEl = musicEls[activeMusicSlot];
+
+    const loaded = await tryLoadMusicEl(nextEl, track);
+    if (!loaded) {
+      musicFailedTracks.add(track);
+      return; // stay silent, don't retry this track this session
+    }
+
+    nextEl.volume = 0;
+    try {
+      await nextEl.play();
+    } catch (e) {
+      musicFailedTracks.add(track);
+      return;
+    }
+
+    currentTrackName = track;
+
+    // 800ms JS crossfade
+    const steps = 16;
+    const stepMs = 800 / steps;
+    const targetVol = clamp01(musicBaseVolume) * (duckActive ? 0.25 : 1);
+    let i = 0;
+
+    activeMusicSlot = nextSlot;
+
+    await new Promise((resolve) => {
+      const iv = setInterval(() => {
+        i += 1;
+        const frac = i / steps;
+        nextEl.volume = clamp01(targetVol * frac);
+        if (prevEl) prevEl.volume = clamp01(targetVol * (1 - frac));
+        if (i >= steps) {
+          clearInterval(iv);
+          if (prevEl && prevEl !== nextEl) {
+            try {
+              prevEl.pause();
+              prevEl.src = '';
+            } catch (e) {
+              // swallow
+            }
+          }
+          resolve();
+        }
+      }, stepMs);
+    });
+  } catch (e) {
+    // swallow — music must never throw
+  }
+}
+
+// ---------- public: volumes / fart-o-meter ----------
+
+function setVolumes(v) {
+  if (!v || typeof v !== 'object') return;
+  if (typeof v.music === 'number') musicBaseVolume = clamp01(v.music);
+  if (typeof v.sfx === 'number') volumes.sfx = clamp01(v.sfx);
+  if (typeof v.vo === 'number') volumes.vo = clamp01(v.vo);
+  applyMusicVolume();
+  if (currentVoEl) currentVoEl.volume = clamp01(volumes.vo);
+}
+
+function setFartOMeter(v) {
+  const n = Number(v);
+  fartOMeter = Number.isFinite(n) ? n : fartOMeter;
+}
+
+// optional: allow late registration of sfx map (e.g. by loader that discovers files)
+function preinit() {
+  // reserved for future warm-up; safe no-op today
+}
+
+export default {
+  attachUnlock,
+  setSfxMap,
+  sfx,
+  parp,
+  vo,
+  music,
+  duck,
+  setVolumes,
+  setFartOMeter,
+  preinit,
+};
