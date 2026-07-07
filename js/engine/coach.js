@@ -34,7 +34,7 @@ function buildShell() {
     <div class="coach-cutout-ring" style="display:none;"></div>
     <button class="btn btn-ghost coach-skip">Skip tutorial ✕</button>
     <div class="coach-card enter-up">
-      <div class="coach-portrait">🦡</div>
+      <div class="coach-portrait"><img class="wb-img" src="assets/monsters/whiffbeard.png" alt="" style="width:100%;height:100%;object-fit:contain;"></div>
       <div class="coach-text"></div>
       <div class="coach-demo" style="display:none;"></div>
       <button class="btn btn-gold coach-next">Got it!</button>

@@ -19,7 +19,7 @@ const SCENES = [
   {
     id: 'scene-1',
     tint: 'tint-dawn',
-    caption: 'Once, the Kingdom of Pong was the freshest place for miles around…',
+    caption: 'Once, the Kingdom of Fart Quest was the freshest place for miles around…',
     voId: 'story-01',
     fumes: false,
     build(el) {
@@ -219,14 +219,14 @@ async function finish() {
     if (ctxRef && ctxRef.db) await ctxRef.db.put('meta', 'storySeen', true);
   } catch (e) { /* swallow — never block progression on a persistence hiccup */ }
 
-  if (!alive) return; // unmounted (e.g. user navigated away) mid-finish
-
-  try {
-    await coach.run(TUTORIAL_STEPS, ctxRef);
-  } catch (e) { /* coach.run never throws by contract, but stay defensive */ }
-
-  if (!alive) return;
-  ctxRef.go('#/map');
+  // Navigate to the map FIRST so the tutorial's spotlight targets (map pads,
+  // topic buttons) actually exist on screen — the coach overlay lives in
+  // #overlay and deliberately outlives this screen's unmount.
+  const ctx = ctxRef;
+  ctx.go('#/map');
+  setTimeout(() => {
+    coach.run(TUTORIAL_STEPS, ctx).catch(() => { /* coach.run never throws by contract */ });
+  }, 750);
 }
 
 export function mount(root, ctx, params) {
