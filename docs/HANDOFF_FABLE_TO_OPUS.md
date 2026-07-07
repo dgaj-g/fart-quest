@@ -72,3 +72,32 @@ Fable 5 gone/nearly gone. Opus 4.8 = the new judgement tier: use it ONLY for des
 
 ## ⏱ FABLE SIGN-OFF — 7 Jul 2026, end of final Fable session
 App is content-complete, shipped, and playtested across every new system listed above. All fixes committed and live. It has been an honour. Look after the little stink-berry. 💨
+
+## ⏱ AUDIO POLISH — 7 Jul 2026, 21:30 (post-ship fix pass)
+Damien reported: music kept playing through the story cinematic and the exam; first-play VO clips started late. Root causes confirmed in code before fixing: `story.js`/`exam.js` never called any music API (so whatever track was already playing just kept going), and `audio.js`'s `vo()` fetched each clip cold on first play with zero preloading.
+
+**Fixed in `js/audio.js`:**
+- Added `stopMusic(fadeMs = 600)` — fades whichever music slot(s) are currently playing down to silence over `fadeMs`, then pauses + clears `src` and resets `currentTrackName` so a later `music(track)` call (even for the SAME track) restarts cleanly instead of hitting the "already playing" early-return. Safe no-op when nothing is playing.
+- Added `preloadVo(prefixes)` — resolves the vo manifest (reused `fetchVoManifestOnce()`), fires a best-effort `fetch(url, {priority:'low'})` (never an `<audio>` element — this only warms `sw.js`'s runtime `audio/**` cache-first cache) for every manifest file matching any given prefix, capped at 12 files/call. Never throws.
+- Hardened `duck()`: `vo()`'s `clearDuck` now also fires on the VO element's `'pause'` event (covers programmatic/OS-level pauses that never reach `'ended'`/`'error'`), plus a 40s safety `setTimeout` that force-restores if no event ever fires. `clearDuck` is idempotent so overlapping triggers are harmless.
+- Added `getMusicState()` (debug-only, harmless, exported) — `{track, paused, volume}` readout of the active music element, used for preview verification below; left in since it costs nothing and is useful for any future audio debugging.
+
+**Fixed in screens (all three just call the above at mount):**
+- `js/screens/story.js` mount(): `ctx.audio.stopMusic(600)` + `ctx.audio.preloadVo(['story-', 'tutorial-'])`. The map screen it hands off to already calls `music('map')` on its own mount (unchanged) — since `stopMusic` cleared `currentTrackName`, that call now actually restarts the theme instead of being swallowed.
+- `js/screens/exam.js` mount(): `ctx.audio.stopMusic(400)` + `ctx.audio.preloadVo(['exam-'])`. Exam intentionally starts no music (matches ENGINE_SPEC_2 §E "the theme drops away"); all three exit paths (exam-back, exit-confirm "Leave for now", results "Back to Map") route to `#/map`, whose own `music('map')` restarts the theme — verified, no stuck silence.
+- `js/screens/lesson.js` mount(): after the existing `music('lesson')`, added `ctx.audio.preloadVo([firstCardVo, 'teach-generic', 'hint', 'weapon'])` where `firstCardVo` is `topic.lesson[0].vo` when present (it always is, in all 49 authored topics) — this is the exact same prefix string `renderTalkCard` later passes to `vo()`, so the cache-warm always matches the real playback fetch.
+- `js/engine/coach.js` — untouched (no music logic there; its step VO is already covered by story.js's `preloadVo(['story-','tutorial-'])` since tutorial steps use `vo-tutorial-*`).
+
+**Choices made where the spec was silent:** stopMusic doesn't try to cancel an in-flight `music()` crossfade interval if one happens to be running concurrently (no such overlap occurs in practice — stopMusic is only ever called once per mount, before any music() call) — noted here rather than adding untested concurrency-guard complexity. `preloadVo`'s `{priority:'low'}` fetch option is inert on current iPad Safari (Fetch Priority API not yet supported there) but harmless and forward-compatible; wrapped in try/catch regardless.
+
+**Verified (Claude Preview, launch config `fart-quest`, 1180×820, fresh profile — SW unregistered, caches cleared, IndexedDB `fartquest` deleted, then a real reload):**
+- First PLAY → story: `getMusicState()` showed the map theme faded to `{track:'map', paused:true, volume:0}` shortly after mount (caught a mid-fade sample at `volume:0.25`, settled to `0`/`paused:true`) — confirms `stopMusic(600)` actually silences the title/map theme during the cinematic. Network panel showed `vo-story-01..06.m4a` + `vo-tutorial-01..04.m4a` all fetched (200) at story mount, exactly matching `preloadVo(['story-','tutorial-'])`, followed by the real per-scene playback fetches.
+- Story finish → map: `getMusicState()` → `{track:'map', paused:false, volume:1}` — theme restarted cleanly and reached full volume, confirming the currentTrackName-clear fix works.
+- Seeded 4 cleansed regions via `state.recordRegionBoss(id,{won:true})` (number-swamp, measure-marsh, money-mines, shape-caves) to unlock Training Skirmish; entered it. `getMusicState()` inside the exam runner → `{track:null, paused:true, volume:0}` throughout (confirmed on the question-1 render of a real passage question, "The Lantern on Gull Island", proving the real `examProvider` is wired, not the stub). Network showed `vo-exam-01..03.m4a` fetched (200) at exam mount, no music fetch at all while in the exam.
+- Exit exam → "Leave for now" → map: `getMusicState()` → `{track:'map', paused:false, volume:1}` after the 800ms crossfade settled — no stuck silence on return, as required.
+- Lesson screen (`#/lesson/decimals-x10`, a topic with a real recorded teach clip): network showed `vo-teach-dec-01`, `vo-teach-generic-01..03`, `vo-hint-01..02`, `vo-weapon-01` all preload-fetched (200) at mount, followed shortly by the real `vo-teach-dec-01` playback fetch (206 partial) — confirms the topic-prefix derivation and cache-warm both work end to end.
+- Console stayed error-free across the entire session (title → story → map → tutorial-skip → region-seed → exam hub → skirmish runner → exit → map → lesson). `node --check` clean on all 5 owned files.
+
+**Not touched:** `sw.js` (no precache list change needed — audio was already runtime-cached, not precached; `CACHE_V` stays `fq-v5`). No other screens/files.
+
+Commit: see git log (message starts "Audio polish: music stops for story and exam, VO preloading, duck hardening").

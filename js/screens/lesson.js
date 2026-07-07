@@ -243,6 +243,15 @@ export async function mount(root, ctx, params) {
   const topic = ctx.topics[params.id];
   if (!topic) { ctx.go('#/map'); return; }
   ctx.audio.music('lesson');
+  // Warm the SW's runtime audio cache for this topic's first talk-card clip
+  // (falls back gracefully to 'teach-generic' at play time if unrecorded — see
+  // renderTalkCard below) plus the other clips this screen can play (hints,
+  // the weapon-unlock sting), so first playback doesn't stall on a cold fetch.
+  const firstCardVo = topic.lesson && topic.lesson[0] && topic.lesson[0].vo;
+  const preloadPrefixes = firstCardVo
+    ? [firstCardVo, 'teach-generic', 'hint', 'weapon']
+    : ['teach-generic', 'hint', 'weapon'];
+  ctx.audio.preloadVo(preloadPrefixes);
 
   const screen = document.createElement('div');
   screen.className = 'lesson-screen screen enter-pop';

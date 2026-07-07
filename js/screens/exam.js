@@ -441,6 +441,17 @@ const WHIFF_WIN_LINES = [
 export async function mount(root, ctx, params) {
   cleanupFns = [];
   alive = true;
+
+  // Fix (music bleed): Castle Clench used to run the whole exam over whatever
+  // music was already playing (map theme most of the time) — the paper is
+  // deliberately silent/plain per ENGINE_SPEC_2 §E, so kill it here rather
+  // than starting an exam track. Exit paths (exam-back, exit-confirm,
+  // results "Back to Map") all route to #/map, whose own mount() calls
+  // music('map') and restarts the theme cleanly since stopMusic() cleared
+  // currentTrackName — no stuck silence on return.
+  ctx.audio.stopMusic(400);
+  ctx.audio.preloadVo(['exam-']);
+
   if (session && !session.finished) {
     renderRunner(root, ctx);
   } else {

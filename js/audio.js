@@ -298,13 +298,26 @@ async function vo(prefix) {
     el.volume = clamp01(volumes.vo);
 
     duck(true);
+    // Fix (duck-hardening): a VO clip that stalls, gets interrupted at the OS
+    // level, or otherwise never fires 'ended'/'error' used to leave music ducked
+    // at 25% forever. Restoring on 'pause' too (covers programmatic/OS pauses)
+    // and a 40s safety timeout (covers the "no event ever fires" case) closes
+    // both gaps. clearDuck is idempotent so being called more than once (e.g.
+    // 'pause' then 'ended' on natural completion) is harmless.
+    let safetyTimer = null;
     const clearDuck = () => {
+      if (safetyTimer) {
+        clearTimeout(safetyTimer);
+        safetyTimer = null;
+      }
       if (currentVoEl === el) {
         duck(false);
       }
     };
+    safetyTimer = setTimeout(clearDuck, 40000);
     el.addEventListener('ended', clearDuck);
     el.addEventListener('error', clearDuck);
+    el.addEventListener('pause', clearDuck);
 
     await el.play().catch(() => {
       clearDuck();
@@ -313,6 +326,47 @@ async function vo(prefix) {
   } catch (e) {
     // NEVER throw or console.error
     return false;
+  }
+}
+
+// Warms the service worker's runtime audio cache (sw.js caches audio/** on
+// first fetch, cache-first thereafter — see sw.js isAudio()) for every vo
+// manifest file matching any of the given prefixes, so the FIRST real vo(prefix)
+// call on a screen doesn't stall on a cold network fetch. Deliberately does NOT
+// construct <audio> elements (that would be a real "preload", not a cache warm)
+// — just fires the fetch and lets the SW's fetch handler do the caching.
+// Capped at 12 files per call so a screen can't accidentally flood the network.
+async function preloadVo(prefixes) {
+  try {
+    if (!prefixes || prefixes.length === 0) return;
+    const files = await fetchVoManifestOnce();
+    if (!files || files.length === 0) return; // resolve silently, same as vo()
+
+    const matched = [];
+    for (const file of files) {
+      for (const prefix of prefixes) {
+        if (!prefix) continue;
+        const re = new RegExp('^vo-' + prefix);
+        if (re.test(file)) {
+          matched.push(file);
+          break;
+        }
+      }
+      if (matched.length >= 12) break;
+    }
+
+    matched.forEach((file) => {
+      try {
+        // best-effort, low-priority warm-up fetch — never awaited, never throws.
+        // `priority` is ignored (not thrown on) by engines that don't support the
+        // Fetch Priority API, iPad Safari included as of this writing.
+        fetch('audio/vo/' + file, { priority: 'low' }).catch(() => {});
+      } catch (e) {
+        // swallow
+      }
+    });
+  } catch (e) {
+    // NEVER throw — this is a best-effort optimisation only
   }
 }
 
@@ -425,6 +479,58 @@ async function music(track) {
   }
 }
 
+// Fades whichever music element(s) are currently playing down to silence over
+// fadeMs, then pauses + clears them and resets currentTrackName so a later
+// music(track) call — even for the SAME track that was just stopped — restarts
+// cleanly instead of being swallowed by the "already playing" early-return in
+// music() above. Safe no-op when nothing is playing.
+function stopMusic(fadeMs = 600) {
+  const els = [musicEls.a, musicEls.b].filter((el) => el && !el.paused);
+  if (els.length === 0) {
+    currentTrackName = null;
+    return;
+  }
+
+  const startVols = els.map((el) => el.volume);
+  const steps = 12;
+  const stepMs = Math.max(1, fadeMs) / steps;
+  let i = 0;
+
+  const iv = setInterval(() => {
+    i += 1;
+    const frac = i / steps;
+    els.forEach((el, idx) => {
+      el.volume = clamp01(startVols[idx] * (1 - frac));
+    });
+    if (i >= steps) {
+      clearInterval(iv);
+      els.forEach((el) => {
+        try {
+          el.pause();
+          el.src = '';
+        } catch (e) {
+          // swallow
+        }
+      });
+      currentTrackName = null;
+    }
+  }, stepMs);
+}
+
+// ---------- public: debug ----------
+
+// Harmless read-only readout of current music state, used by manual/preview
+// verification (no internal state is exposed via imports, so this is the only
+// way to confirm ducking/stopping is actually happening from outside the module).
+function getMusicState() {
+  const activeEl = musicEls[activeMusicSlot];
+  return {
+    track: currentTrackName,
+    paused: activeEl ? activeEl.paused : true,
+    volume: activeEl ? activeEl.volume : 0,
+  };
+}
+
 // ---------- public: volumes / fart-o-meter ----------
 
 function setVolumes(v) {
@@ -452,9 +558,12 @@ export default {
   sfx,
   parp,
   vo,
+  preloadVo,
   music,
+  stopMusic,
   duck,
   setVolumes,
   setFartOMeter,
   preinit,
+  getMusicState,
 };

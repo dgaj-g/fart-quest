@@ -235,6 +235,17 @@ export function mount(root, ctx, params) {
   sceneIndex = 0;
   ctxRef = ctx;
 
+  // Fix (music bleed): the story cinematic used to run entirely over whatever
+  // music was already playing (title theme most of the time). Stop it here so
+  // scenes 1-6 + the tutorial play against silence/VO only; the map screen
+  // this hands off to (see finish() below) calls music('map') on its own
+  // mount, which now restarts cleanly since currentTrackName was cleared.
+  ctx.audio.stopMusic(600);
+  // Warm the SW's runtime audio cache for every clip this screen (and the
+  // coach.js tutorial it hands off to) is about to play, so the first vo()
+  // call per scene doesn't stall on a cold network fetch.
+  ctx.audio.preloadVo(['story-', 'tutorial-']);
+
   const screen = document.createElement('div');
   screen.className = 'story-screen screen';
   screen.innerHTML = `
