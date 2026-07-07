@@ -12,7 +12,7 @@ export default {
     id: 'noun-hound',
     name: 'The Noun Hound',
     rarity: 'rare',
-    image: 'assets/monsters/noun-hound.png',
+    image: 'assets/monsters/the-noun-hound.png',
     bio: 'The Noun Hound bounds through the Kennels fetching only three things: people, places and things. Throw him a verb by mistake and he’ll just stare at you, deeply unimpressed.',
     factSneak: 'A noun NAMES a person, place or thing — nothing else. If it can’t answer “who?” or “what?”, the Hound won’t fetch it.',
   },

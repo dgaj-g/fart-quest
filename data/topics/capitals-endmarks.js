@@ -120,7 +120,7 @@ export default {
     {
       id: 'capitals-endmarks-t1-01', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'Jarlath kicked the ball' },
+        { text: 'jarlath kicked the ball' },
         { text: 'so hard during break' },
         { text: 'that it bounced twice' },
         { text: 'off the school wall.' },

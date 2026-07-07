@@ -73,7 +73,7 @@ export default {
       type: 'try',
       q: {
         id: 'tenses-try-1', topicId: 'tenses', tier: 1, format: 'clozebox',
-        stemParts: ['At football practice, the goalkeeper ', ' every single shot without trying.'],
+        stemParts: ['Yesterday at football practice, the goalkeeper ', ' every single shot without trying.'],
         options: [
           { text: 'caught', misconception: null },
           { text: 'catched', misconception: 'overregularised' },

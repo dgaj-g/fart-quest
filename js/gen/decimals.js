@@ -2,7 +2,7 @@
 // Topic: decimals-x10 (The Slide-o-Matic Swamp). generate(tier, rng) -> Question.
 import { rngInt, pick, shuffle } from '../rng.js';
 
-const RULE = 'The point NEVER moves. The DIGITS slide — left when you ×, right when you ÷.';
+const RULE = 'The point NEVER moves. The DIGITS slide — LEFT when you multiply (bigger), RIGHT when you divide (smaller). One slide per zero.';
 
 // Format a number to at most 2dp, trimming trailing zeros artefacts safely (no float noise).
 function fmt(n) {

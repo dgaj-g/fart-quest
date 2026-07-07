@@ -6,13 +6,13 @@ export default {
   name: 'The Goodest Bit',
   region: 'grammar-grotto',
   bankTopic: true,
-  tagline: 'The Goodest Boy is convinced he is “the most goodest dog” in the whole swamp. He is wrong on two separate counts.',
+  tagline: 'The Goodest Boy is convinced he is “the most goodest dog” in the whole swamp. That sentence breaks two rules at once.',
 
   creature: {
     id: 'goodest-boy',
     name: 'The Goodest Boy',
     rarity: 'rare',
-    image: 'assets/monsters/goodest-boy.png',
+    image: 'assets/monsters/the-goodest-boy.png',
     bio: 'The Goodest Boy is a very good dog who has never once used a comparative correctly. He is not the goodest — but he might, with your help, become the better one.',
     factSneak: 'Comparing TWO things needs -er or “more”; three or more needs -est or “most” — and you never use both endings on the same word, no matter how much this dog insists.',
   },
@@ -72,7 +72,7 @@ export default {
       type: 'try',
       q: {
         id: 'comp-try-1', topicId: 'comparatives', tier: 1, format: 'clozebox',
-        stemParts: ['Jarlath’s kite flew ', ' than Whiffbeard’s kite today.'],
+        stemParts: ['Jarlath’s kite flew ', ' than Whiffbeard’s kite at the school fair today.'],
         options: [
           { text: 'higher', misconception: null },
           { text: 'more high', misconception: 'more-not-needed' },
@@ -341,7 +341,7 @@ export default {
         worked: 'Difficult is a long word comparing just TWO puzzles — long words use MORE: more difficult.',
         whyWrong: {
           difficulter: 'Long words like difficult don’t take -er — use “more” instead.',
-          difficultest: 'That mixes a superlative ending onto a long word for only TWO puzzles — wrong on two counts.',
+          difficultest: 'That mixes a superlative ending onto a long word for only TWO puzzles — a slip on two counts.',
           'more difficulter': 'That stacks “more” with an -er-style ending on the same word — pick just one.',
           'most difficult': 'Most is for THREE OR MORE — here it’s just two puzzles.',
         },
@@ -571,7 +571,7 @@ export default {
           dangerousest: 'Long words like dangerous don’t take -est — use “most” instead.',
           'more dangerous': 'More compares just TWO things — here it’s against EVERY villain he’s faced.',
           'most dangerousest': 'That stacks “most” with an -est-style ending on the same word — pick just one.',
-          dangerouser: 'Long words like dangerous don’t take -er, and this is also the wrong degree for three-or-more.',
+          dangerouser: 'Long words like dangerous don’t take -er, and this also picks the mismatched degree for three-or-more.',
         },
       },
     },
@@ -753,7 +753,7 @@ export default {
         rule: 'Two things: -er (or \'more\'). Three or more: -est (or \'most\'). Never both at once — and it\'s fewer for things you can count.',
         worked: 'Comparing THREE routes needs the superlative: shortest.',
         whyWrong: {
-          'Of the three routes home, this one is more shorter.': 'That stacks “more” with -er, and it also uses the wrong degree — three routes need the superlative, not the comparative.',
+          'Of the three routes home, this one is more shorter.': 'That stacks “more” with -er, and it also picks the mismatched degree — three routes need the superlative, not the comparative.',
           'Of the three routes home, this one is shorter.': 'Shorter compares just TWO things — here there are THREE routes.',
           'Of the three routes home, this one is the most shortest.': 'That stacks “most” with -est on the same word — pick just one.',
         },
@@ -804,7 +804,7 @@ export default {
         whyWrong: {
           carefuller: 'Long words like careful don’t take -er — use “more” instead.',
           'most careful': 'Most is for THREE OR MORE — here it’s just comparing before and after the warning.',
-          carefulest: 'Long words don’t take -est, and this is also the wrong degree for comparing two states.',
+          carefulest: 'Long words don’t take -est, and this also picks the mismatched degree for comparing two states.',
           'more carefuller': 'That stacks “more” with an -er-style ending on the same word — pick just one.',
         },
       },
@@ -831,7 +831,7 @@ export default {
           excitingest: 'Long words like exciting don’t take -est — use “most” instead.',
           'more exciting': 'More compares just TWO things — here it’s against EVERY match this season.',
           'most excitingest': 'That stacks “most” with an -est-style ending on the same word — pick just one.',
-          excitinger: 'Long words don’t take -er, and this is also the wrong degree for three-or-more.',
+          excitinger: 'Long words don’t take -er, and this also picks the mismatched degree for three-or-more.',
         },
       },
     },

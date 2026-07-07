@@ -289,7 +289,7 @@ export default {
     {
       id: 'apostrophes-t1-10', tier: 1, format: 'errorspot',
       segments: [
-        { text: "The sister's bedroom" },
+        { text: "The two sister's bedroom" },
         { text: 'was painted bright pink' },
         { text: 'for their birthday party' },
         { text: 'last October half-term.' },
@@ -301,8 +301,8 @@ export default {
         whyN: null,
       },
       hintSteps: [
-        'Count the owners in segment A. Is it one sister, or more than one, sharing the bedroom?',
-        'The party is "their" birthday, plural — so more than one sister owns that bedroom.',
+        'Count the owners in segment A. Segment A itself says "two" — so is it one sister, or more than one, sharing the bedroom?',
+        'The party is "their" birthday, plural — matching the "two" sisters already named. More than one owner needs the apostrophe AFTER the s.',
       ],
     },
     {

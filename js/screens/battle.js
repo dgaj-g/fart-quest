@@ -42,7 +42,10 @@ function castCreatureFor(topic, stage) {
 // state.recordRegionBoss can grant the right creature id. Falls back to a synthesised id
 // so a region without a matching teaser entry still degrades gracefully instead of
 // silently failing to grant anything.
-function regionBossCreatureId(region) {
+// Exported (js/screens/collection.js reuses it — INTEGRATION_NOTES.md item 5) so the
+// Stink Vault's region-boss group always derives the SAME creature id this file grants
+// on a win, rather than risking a second, drifting copy of the name-matching logic.
+export function regionBossCreatureId(region) {
   const teaser = TEASERS.find((t) => t.name === region.boss.name);
   return teaser ? teaser.id : `${region.id}-boss`;
 }
@@ -80,17 +83,42 @@ function passageQuestionsForSkill(passages, skill) {
   return out;
 }
 
+// English content agents author `bank` as a FLAT array with a `tier` field on each item
+// (CONTENT_SPECS_ENGLISH bank-size convention: T1/T2/T3 sized separately within one list),
+// but js/engine/battle.js's bankForTier() expects `topic.bank` keyed BY tier
+// (`{1:[...], 2:[...], 3:[...]}` — see its own contract comment). Left as an array,
+// `topic.bank[1]` would silently return the array's second ELEMENT (a lone question
+// object) instead of the tier-1 subset, and state.unseenFrom() would then throw calling
+// .filter() on that non-array. Normalise once here so every bank-driven topic — drill
+// topics AND storybog's self-banked kinds-of-writing — reaches the engine in its
+// documented shape.
+function bankByTier(flatBank) {
+  const out = { 1: [], 2: [], 3: [] };
+  for (const item of flatBank) {
+    const t = item && item.tier != null ? item.tier : 1;
+    if (!out[t]) out[t] = [];
+    out[t].push(item);
+  }
+  return out;
+}
+
 // A topic is "battle-ready" as-is if it's generator-driven (genId) or already carries its
-// own authored bank (English drill topics, and storybog's kinds-of-writing — which per
-// CONTENT_SPECS_ENGLISH carries its own small mcq bank instead of drawing from passages).
-// Anything else with a `skill` tag is a storybog skill-topic: its minion/elite pool is
-// every passage question tagged with that skill, reused across all three tiers (the
-// passages don't stratify by tier — see ENGINE_SPEC_2 §B/§D).
+// bank pre-keyed by tier. Authored English content ships `bank` as a flat, per-item-tiered
+// array — normalise that to the engine's `{1:[],2:[],3:[]}` contract. Anything else with a
+// `passageSkill` tag (CONTENT_SPECS_ENGLISH's field name for storybog skill-topics —
+// reading-detective, between-lines, words-in-context, writers-tricks, poetry) draws its
+// minion/elite pool from every passage question tagged with that skill, reused across all
+// three tiers (the passages don't stratify by tier — see ENGINE_SPEC_2 §B/§D).
+//
+// FIX (INTEGRATION_NOTES.md item 6): this used to check `topic.skill`, a field no authored
+// topic ever sets (they all use `passageSkill`) — every storybog skill-topic's battle drew
+// an empty bank and crashed at drawFromTopic()'s "has no bank items for tier N" throw.
 async function resolveBattleTopic(topic) {
+  if (topic.bank && Array.isArray(topic.bank)) return { ...topic, bank: bankByTier(topic.bank) };
   if (topic.genId || topic.bank) return topic;
-  if (topic.skill) {
+  if (topic.passageSkill) {
     const passages = await loadPassagesModule();
-    const pool = passageQuestionsForSkill(passages, topic.skill);
+    const pool = passageQuestionsForSkill(passages, topic.passageSkill);
     return { ...topic, bank: { 1: pool, 2: pool, 3: pool } };
   }
   return topic; // unrecognised shape — engine's own guard will surface a clear error
@@ -175,7 +203,7 @@ export async function mount(root, ctx, params) {
   // (before bank-resolution below populates a synthetic bank for every skill-topic) so
   // kinds-of-writing — which DOES author its own bank — correctly plays an ordinary
   // bank-driven boss instead.
-  const isStorybogExamBoss = !isRegionBattle && stage === 'boss' && !!topic.skill && !topic.bank;
+  const isStorybogExamBoss = !isRegionBattle && stage === 'boss' && !!topic.passageSkill && !topic.bank;
 
   let battleTopics = [];
   let fixedQuestions = null;
@@ -206,7 +234,7 @@ export async function mount(root, ctx, params) {
   let passagesById = {};
   if (bossPassage) {
     passagesById = { [bossPassage.id]: bossPassage };
-  } else if (battleTopics.some((t) => t.skill)) {
+  } else if (battleTopics.some((t) => t.passageSkill)) {
     const passages = await loadPassagesModule();
     if (!alive) return;
     passagesById = Object.fromEntries(passages.map((p) => [p.id, p]));

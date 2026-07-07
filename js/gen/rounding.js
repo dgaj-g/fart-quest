@@ -2,7 +2,7 @@
 // Topic: rounding (Catapult Hill). generate(tier, rng) -> Question.
 import { rngInt, pick, shuffle } from '../rng.js';
 
-const RULE = 'Find the two camps. Look at the DECIDER digit only: 5 or more, fling UP. 4 or less, roll BACK.';
+const RULE = 'Find the two camps. Look at the DECIDER digit only: 5 or more → fling UP. 4 or less → roll BACK.';
 
 function fmt(n) {
   return Math.round(n).toLocaleString('en-GB');

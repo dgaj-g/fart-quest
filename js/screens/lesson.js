@@ -57,8 +57,13 @@ function renderTalkCard(card, ctx, onNext) {
   const bubble = wrap.querySelector('.speech-bubble');
   bubble.classList.add('lesson-bubble-text');
 
-  if (card.vo) ctx.audio.vo(card.vo);
-  else ctx.audio.vo('teach-generic');
+  // vo(prefix) resolves true only if a real recording exists for this prefix;
+  // fall back to the generic teach voice line for topics with no recording yet
+  // (INTEGRATION_NOTES.md #2). Fire-and-forget IIFE — this function stays sync
+  // so its DOM element can still be returned/appended synchronously above.
+  (async () => {
+    if (!(await ctx.audio.vo(card.vo))) ctx.audio.vo('teach-generic');
+  })();
 
   let doneTyping = false;
   let advanced = false; // re-entry guard: ignore further activations once onNext has been triggered for this card

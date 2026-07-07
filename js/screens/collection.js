@@ -1,5 +1,7 @@
 // FART QUEST — screens/collection.js (UI agent)
 import { COMMONS, TEASERS, RARITY_META } from '../../data/creatures.js';
+import { REGIONS } from '../../data/map.js';
+import { regionBossCreatureId } from './battle.js';
 
 function starsFor(rarity) {
   const meta = RARITY_META[rarity];
@@ -35,6 +37,7 @@ function openModal(ctx, owned, data) {
       <div class="stars">${starsFor(data.rarity)}</div>
       <p>${data.bio}</p>
       ${data.topicGuarded ? `<p><b>Topic guarded:</b> ${data.topicGuarded}</p>` : ''}
+      ${data.regionGuarded ? `<p><b>Region guarded:</b> ${data.regionGuarded}</p>` : ''}
     </div>
   `;
   overlay.appendChild(modal);
@@ -56,7 +59,13 @@ export function mount(root, ctx) {
 
   const commonsOwned = ctx.state.commonsOwned();
   let capturedTopics = 0;
-  const total = COMMONS.length + Object.keys(ctx.topics).length;
+  let capturedRegionBosses = 0;
+  // Fix (CRITICAL, teasers never counted): TEASERS (Skidmark King, Golden Turd) are granted
+  // via the same commonsOwned list as regular commons (see js/screens/exam.js's
+  // ctx.state.grantCommon('skidmark-king') on a King win), so `commonsOwned.length` below
+  // already includes any captured teasers — `total` just needs to add TEASERS.length so the
+  // denominator accounts for them too (previously they were excluded from both sides entirely).
+  const total = COMMONS.length + Object.keys(ctx.topics).length + REGIONS.length + TEASERS.length;
   const cardsHtml = [];
 
   // Commons
@@ -80,7 +89,26 @@ export function mount(root, ctx) {
     });
   });
 
-  const capturedCount = commonsOwned.length + capturedTopics;
+  // Region bosses (INTEGRATION_NOTES.md item 5) — all 10, silhouette/'???' until the
+  // region is cleansed (its boss beaten). rarity 'epic' per docs/ROSTER.md; no shiny
+  // variant (that's topic-boss-only, per the comment on imageFor() below).
+  REGIONS.forEach((region) => {
+    const owned = ctx.state.regionCleansed(region.id);
+    if (owned) capturedRegionBosses += 1;
+    cardsHtml.push({
+      owned,
+      data: {
+        id: regionBossCreatureId(region),
+        name: region.boss.name,
+        rarity: 'epic',
+        image: region.boss.image,
+        bio: region.boss.bio || `Guards ${region.name} — clean the whole region to face them.`,
+        regionGuarded: region.name,
+      },
+    });
+  });
+
+  const capturedCount = commonsOwned.length + capturedTopics + capturedRegionBosses;
 
   screen.innerHTML += `
     <h1 class="collection-title">The Stink Vault</h1>
@@ -106,18 +134,35 @@ export function mount(root, ctx) {
     grid.appendChild(plinth);
   });
 
-  // Locked teasers
+  // Teasers — locked plinth until legitimately earned (Skidmark King via a Castle Clench
+  // King win, Golden Turd has no capture mechanic yet), then rendered exactly like any other
+  // captured creature (image/name/stars + tappable modal), same as COMMONS/topic/region cards.
   TEASERS.forEach((t) => {
+    const owned = commonsOwned.includes(t.id);
     const plinth = document.createElement('button');
-    plinth.className = 'plinth locked-teaser';
+    plinth.className = `plinth ${owned ? '' : 'unowned locked-teaser'}`;
+    if (!owned) {
+      plinth.innerHTML = `
+        <div style="font-size:40px; margin-bottom:6px;">🔒</div>
+        <div class="plinth-name">${t.name}</div>
+        <div class="plinth-stars">${starsFor(t.rarity)}</div>
+      `;
+      plinth.addEventListener('click', () => {
+        ctx.audio.sfx('click');
+        ctx.toast(t.hint);
+      });
+      grid.appendChild(plinth);
+      return;
+    }
+    const data = t;
     plinth.innerHTML = `
-      <div style="font-size:40px; margin-bottom:6px;">🔒</div>
-      <div class="plinth-name">${t.name}</div>
-      <div class="plinth-stars">${starsFor(t.rarity)}</div>
+      <img class="idle-bob" src="${imageFor(owned, data)}" alt="${data.name}"${shinyOnerrorAttr(owned, data)}>
+      <div class="plinth-name">${data.name}</div>
+      <div class="plinth-stars">${starsFor(data.rarity)}</div>
     `;
     plinth.addEventListener('click', () => {
       ctx.audio.sfx('click');
-      ctx.toast(t.hint);
+      openModal(ctx, true, data);
     });
     grid.appendChild(plinth);
   });

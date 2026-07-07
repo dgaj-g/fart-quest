@@ -2,7 +2,7 @@
 // Topic: place-value (Place Value Palace). generate(tier, rng) -> Question.
 import { rngInt, pick, shuffle } from '../rng.js';
 
-const RULE = 'Every digit sits on a throne. The THRONE tells you what the digit is worth.';
+const RULE = 'Read the digit, then ask: WHICH THRONE is it sitting on? Digit × throne = its value.';
 
 // Format a whole number with UK thousands commas.
 function fmt(n) {
@@ -92,7 +92,13 @@ function makeMcq(correct, distractorPool, rng, n = 3, opts = {}) {
   const chosen = uniqueOptions(correct.text, distractorPool).slice(0, n);
   const options = [correct, ...chosen];
   const min = opts.min || n + 1;
-  if (options.length < min) {
+  // Fix (CRITICAL, invalid distractor injection): padDistractorCandidates() below builds
+  // multi-digit, "value of a digit" flavoured decoys (×10/÷10 slips, ±one-throne shifts). That's
+  // only valid for templates whose correct answer IS a place value. Single-digit-answer templates
+  // (e.g. "which digit is in the Hundreds place?") must opt out via opts.disablePad and supply
+  // their own digit-only padding, or this fallback can hand back a multi-digit answer (e.g. "106")
+  // to a question that only accepts a single digit 0-9 — and one with no whyWrong text to match.
+  if (options.length < min && !opts.disablePad) {
     const correctVal = Number(String(correct.text).replace(/,/g, ''));
     const digit = opts.digit;
     const padCandidates = shuffle(rng, padDistractorCandidates(correctVal, digit));
@@ -237,7 +243,10 @@ function t1WhichDigitInPlace(rng) {
   distractorDigits.push({ text: extra, misconception: 'not-present' });
 
   const correct = { text: correctDigit, misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractorDigits), rng, 3);
+  // disablePad: this template's answer is always a single digit — the generic numeric padder
+  // below produces multi-digit "value of a digit" distractors that are invalid here (and have no
+  // matching whyWrong text). The digit-only fallback just below handles topping up to 4 options.
+  const options = makeMcq(correct, shuffle(rng, distractorDigits), rng, 3, { disablePad: true });
 
   // Pad with unused single-digit "not-present" decoys if dedup left us short (single-digit
   // numbers give few distinct digits to draw from, so the standard numeric padder doesn't apply here).

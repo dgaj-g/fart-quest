@@ -64,7 +64,7 @@ export default {
           'The 7 is on the HUNDREDS throne. So it’s worth 7 × 100 = …?',
         ],
         explain: {
-          rule: 'Every digit sits on a throne. The THRONE tells you what the digit is worth.',
+          rule: 'Read the digit, then ask: WHICH THRONE is it sitting on? Digit × throne = its value.',
           worked: 'In 3,742 the 7 sits on the Hundreds throne. 7 × 100 = 700.',
           whyWrong: {
             '7': 'That’s the digit in its disguise — but its throne makes it 100 times bigger!',

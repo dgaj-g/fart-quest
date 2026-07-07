@@ -1,7 +1,7 @@
 // FART QUEST topic: Soundalike Sluice (The Spelling Sewers)
 // Authored content — implementation agents: read, never modify.
 
-const RULE = 'Same sound, different job: there = place, their = belonging, they’re = they are. Prove it by un-squeezing.';
+const RULE = 'Same sound, different job: there = place, their = belonging, they\'re = they are. Prove it by un-squeezing.';
 
 export default {
   id: 'homophones',

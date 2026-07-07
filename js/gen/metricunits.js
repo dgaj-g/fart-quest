@@ -38,8 +38,9 @@ function dedupe(correctText, list) {
 }
 
 // Pads with plausible near-miss numeric distractors (never random garbage) if the crafted set
-// left us short of the tier minimum after de-duplication.
-function padWithNearMiss(rng, options, minTotal, correctVal, spread) {
+// left us short of the tier minimum after de-duplication. unitSuffix (e.g. ' cm') is appended to
+// every generated option text so it matches the rest of the option set's formatting.
+function padWithNearMiss(rng, options, minTotal, correctVal, spread, unitSuffix = '') {
   const seen = new Set(options.map((o) => o.text));
   let tries = 0;
   const step = Math.max(1, Math.round(spread));
@@ -48,7 +49,7 @@ function padWithNearMiss(rng, options, minTotal, correctVal, spread) {
     const delta = rngInt(rng, 1, step * 3) * (rng() < 0.5 ? 1 : -1);
     const val = clean2dp(correctVal + delta);
     if (val < 0) continue;
-    const text = fmt(val);
+    const text = fmt(val) + unitSuffix;
     if (seen.has(text)) continue;
     seen.add(text);
     options.push({ text, misconception: 'padded-near-miss' });
@@ -279,12 +280,19 @@ function t2CmMm(rng) {
   const stem = `<b>${c.fromText} ${c.fromUnit}</b> = ___ ${c.toUnit}`;
 
   const confusedMilli = clean2dp(direction === 'toSmall' ? c.fromValue * 1000 : c.fromValue / 1000);
-  const distractors = dedupe(c.toText, [
+  // Fix (CRITICAL, no-answer-pattern-tell): these 4 candidates are all fixed powers-of-ten
+  // around the same base value, so with a single unit pair (always cm<->mm) and no other
+  // variety source, using all 4 every time makes the correct answer land on the exact same
+  // sorted rank (the geometric middle) in EVERY question — an exploitable tell. Only take a
+  // random 3-of-4 crafted candidates so padWithNearMiss's randomised near-miss ALWAYS fills the
+  // remaining slot, breaking the fixed geometric spacing.
+  const candidates = shuffle(rng, [
     { text: fmt(c.wrongDirectionVal), misconception: 'wrong-direction' },
     { text: fmt(c.wrongFactorVal), misconception: 'confused-with-centi' },
     { text: fmt(confusedMilli), misconception: 'wrong-place' },
     { text: fmt(c.fromValue), misconception: 'no-convert' },
-  ]);
+  ]).slice(0, 3);
+  const distractors = dedupe(c.toText, candidates);
   let options = [{ text: c.toText, misconception: null }, ...distractors];
   options = padWithNearMiss(rng, options, 5, c.toValue, Math.max(1, c.toValue * 0.1));
 
@@ -393,20 +401,24 @@ function t2ReverseWhichEquals(rng) {
   const bigValue = randomBigValue(rng, 1, 9);
   const correctSmall = clean2dp(bigValue * pair.factor);
   const stem = `Which of these equals <b>${fmt(bigValue)} ${pair.bigUnit}</b>?`;
+  // Fix (CRITICAL): options are values in pair.smallUnit, but nothing in the stem states that —
+  // every option MUST carry its own unit suffix or the question is unanswerable (a bare "3500"
+  // could mean anything). Append `unitSuffix` to every option text below.
+  const unitSuffix = ` ${pair.smallUnit}`;
 
   const wrongDiv = clean2dp(bigValue / pair.factor);
   const otherFactor = confusionFactor(pair.factor);
   const wrongOtherFactor = clean2dp(bigValue * otherFactor);
   const spread = Math.max(1, correctSmall * 0.1);
 
-  let distractors = dedupe(fmt(correctSmall), [
-    { text: fmt(wrongDiv), misconception: 'wrong-direction' },
-    { text: fmt(wrongOtherFactor), misconception: 'wrong-place' },
-    { text: fmt(clean2dp(correctSmall + spread)), misconception: 'padded-near-miss' },
-    { text: fmt(clean2dp(correctSmall - spread)), misconception: 'padded-near-miss' },
+  let distractors = dedupe(fmt(correctSmall) + unitSuffix, [
+    { text: fmt(wrongDiv) + unitSuffix, misconception: 'wrong-direction' },
+    { text: fmt(wrongOtherFactor) + unitSuffix, misconception: 'wrong-place' },
+    { text: fmt(clean2dp(correctSmall + spread)) + unitSuffix, misconception: 'padded-near-miss' },
+    { text: fmt(clean2dp(correctSmall - spread)) + unitSuffix, misconception: 'padded-near-miss' },
   ]);
-  let options = [{ text: fmt(correctSmall), misconception: null }, ...distractors];
-  options = padWithNearMiss(rng, options, 5, correctSmall, spread);
+  let options = [{ text: fmt(correctSmall) + unitSuffix, misconception: null }, ...distractors];
+  options = padWithNearMiss(rng, options, 5, correctSmall, spread, unitSuffix);
 
   const whyWrong = buildWhyWrong(options, 'toSmall');
   return {

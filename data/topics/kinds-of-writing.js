@@ -819,7 +819,7 @@ export default {
       ],
       correctIndex: 0,
       hintSteps: [
-        'Which of these proves an author's research, and would make no sense inside a made-up adventure story?',
+        "Which of these proves an author's research, and would make no sense inside a made-up adventure story?",
         'Fiction never needs to prove where its facts came from, because nothing in it is a fact.',
       ],
       explain: {

@@ -6,6 +6,7 @@ import state from './state.js';
 import audio from './audio.js';
 import router from './router.js';
 import { STAGE_CONFIG } from './engine/battle.js';
+import { createExamProvider } from './examProvider.js';
 
 import { TOPICS } from '../data/topics/index.js';
 
@@ -136,6 +137,10 @@ async function boot() {
     capabilities,
     go: (hash) => router.go(hash),
     toast: showToast,
+    // Real question source for Castle Clench (INTEGRATION_NOTES.md item 3) — draws
+    // from the maths generators, English drill banks and storybog passages instead
+    // of js/screens/exam.js's own createStubProvider() placeholder.
+    examProvider: createExamProvider(),
   };
 
   router.register('/title', titleScreen);

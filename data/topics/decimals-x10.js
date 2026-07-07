@@ -87,7 +87,7 @@ export default {
           'The 2 slides into the Tens throne, the 7 slides into the Units throne. What number is that?',
         ],
         explain: {
-          rule: 'The point NEVER moves. The DIGITS slide — left when you multiply, right when you divide.',
+          rule: 'The point NEVER moves. The DIGITS slide — LEFT when you multiply (bigger), RIGHT when you divide (smaller). One slide per zero.',
           worked: '2.7 × 10 → the 2 and the 7 each slide one throne left → 27.',
           whyWrong: {
             '2.70': 'The “add a zero” trap! 2.70 is the SAME size as 2.7 — nothing got bigger.',
@@ -138,7 +138,7 @@ export default {
           'The 4 lands on the tenths throne, and the seat-warmer zero guards the Units. So it’s zero point…?',
         ],
         explain: {
-          rule: 'The point NEVER moves. The DIGITS slide — left when you multiply, right when you divide.',
+          rule: 'The point NEVER moves. The DIGITS slide — LEFT when you multiply (bigger), RIGHT when you divide (smaller). One slide per zero.',
           worked: '4 ÷ 10 → the 4 slides one throne right, onto the tenths throne → 0.4.',
           whyWrong: {
             '40': 'That slid LEFT — that’s multiplying! Dividing makes numbers smaller.',

@@ -460,7 +460,7 @@ export default {
       options: [
         { text: 'The class lined up quietly outside the hall.' },
         { text: 'Waiting eagerly for the sports day results.' },
-        { text: 'Miss Andrews read out every winner’s name.' },
+        { text: 'Miss Andrews read out every single winner’s name.' },
         { text: 'Just after the very last race finished.' },
         { text: 'Cheering loudly from the muddy touchline.' },
       ],
@@ -471,7 +471,7 @@ export default {
       ],
       explain: {
         rule: RULE,
-        worked: '"The class lined up quietly outside the hall" and "Miss Andrews read out every winner’s name" both name a WHO and finish a whole action — complete sentences.',
+        worked: '"The class lined up quietly outside the hall" and "Miss Andrews read out every single winner’s name" both name a WHO and finish a whole action — complete sentences.',
         whyWrong: {
           'Waiting eagerly for the sports day results.': 'Nobody is named as doing the waiting — the verb is left dangling.',
           'Just after the very last race finished.': 'This sets up a moment in time but never finishes the thought.',

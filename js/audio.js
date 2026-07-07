@@ -257,15 +257,20 @@ function duck(active) {
   applyMusicVolume();
 }
 
+// Returns true if a matching vo recording was found and playback was attempted
+// (i.e. this prefix has a real recording), false if no recording exists for
+// this prefix. js/engine/lesson.js uses this to fall back to the
+// 'teach-generic' voice line when a topic-specific teach clip hasn't been
+// recorded yet — this must NEVER throw, every path below resolves.
 async function vo(prefix) {
   try {
-    if (!prefix) return;
+    if (!prefix) return false;
     const files = await fetchVoManifestOnce();
-    if (!files || files.length === 0) return; // resolve silently
+    if (!files || files.length === 0) return false; // resolve silently
 
     const re = new RegExp('^vo-' + prefix);
     let matches = files.filter((f) => re.test(f));
-    if (matches.length === 0) return; // resolve silently
+    if (matches.length === 0) return false; // resolve silently
 
     // dedupe: never same file twice in a row (if more than one option)
     if (matches.length > 1 && lastVoFile) {
@@ -274,7 +279,7 @@ async function vo(prefix) {
     }
 
     const chosen = pickRandom(matches);
-    if (!chosen) return;
+    if (!chosen) return false;
     lastVoFile = chosen;
 
     // single <audio> element — new vo interrupts old
@@ -304,8 +309,10 @@ async function vo(prefix) {
     await el.play().catch(() => {
       clearDuck();
     });
+    return true; // recording for this prefix exists and playback was attempted
   } catch (e) {
     // NEVER throw or console.error
+    return false;
   }
 }
 

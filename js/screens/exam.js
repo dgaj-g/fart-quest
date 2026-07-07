@@ -2,13 +2,15 @@
 // Castle Clench: the mock exam. #/exam.
 //
 // INTEGRATION NOTE (not done here — outside this agent's owned files):
-//   1. index.html   needs  <link rel="stylesheet" href="css/exam.css">
-//   2. js/main.js   needs  import * as examScreen from './screens/exam.js';
-//                          router.register('/exam', examScreen);
-//                          (and add '#/exam' to the app-frame route list)
-//   3. ctx.examProvider — a real {getQuestion(slotSpec)} implementation that draws
-//      from the maths generators / English banks. Until wired, this screen falls
-//      back to its own createStubProvider() so it is fully playable/testable alone.
+//   1. index.html   still needs  <link rel="stylesheet" href="css/exam.css">
+//      (verified missing as of this pass — js/main.js's own routing/loading side
+//      is already done: it dynamically imports this module via loadOptionalScreen()
+//      and registers '/exam', with a "coming soon" redirect fallback if this file
+//      is ever absent — no action needed here, just noting it for whoever wires css/exam.css in).
+//   2. ctx.examProvider — a real {getQuestion(slotSpec)} implementation that draws
+//      from the maths generators / English banks (see docs/INTEGRATION_NOTES.md
+//      item 3). Until wired, this screen falls back to its own createStubProvider()
+//      so it is fully playable/testable alone.
 //
 // ---------------------------------------------------------------------------
 // CONTRACTS this file defines/consumes
@@ -363,23 +365,25 @@ export function hpFraction(score, total) {
    ===================================================================== */
 
 /**
- * isRegionCleansed(region, getTopicRecord) -> bool
- * A region only counts once EVERY one of its listed locations has a real
- * topicId and that topic is captured — a region that isn't fully authored yet
- * (Phase 1: most regions have no `locations` at all, or placeholder entries
- * with no topicId) can never be prematurely marked cleansed.
+ * isRegionCleansed(region, regionCleansedFn) -> bool
+ * Fix (CRITICAL, wrong source of truth): a region counts as cleansed once its
+ * BOSS HAS ACTUALLY BEEN BEATEN — the canonical `regionCleansed` flag js/state.js
+ * persists and documents as "ENGINE_SPEC_2 §D: region marked cleansed once its
+ * boss is beaten" (js/state.js:426-429), only ever set by recordRegionBossAction()
+ * on a real boss win. This used to instead check "every listed location's topic
+ * is captured", which is a much looser, unrelated condition — all of a region's
+ * training topics can be captured via drilling without its boss ever being
+ * fought, which would let Training Skirmish / Skidmark King doors unlock early.
+ * `regionCleansedFn` is the single source of truth (pass ctx.state.regionCleansed
+ * bound to state, same as js/screens/collection.js already does).
  */
-export function isRegionCleansed(region, getTopicRecord) {
-  if (!region || !Array.isArray(region.locations) || region.locations.length === 0) return false;
-  return region.locations.every((loc) => {
-    if (!loc || !loc.topicId) return false;
-    const rec = getTopicRecord(loc.topicId);
-    return !!(rec && rec.captured);
-  });
+export function isRegionCleansed(region, regionCleansedFn) {
+  if (!region || !region.id) return false;
+  return !!(regionCleansedFn && regionCleansedFn(region.id));
 }
 
-export function countCleansedRegions(regions, getTopicRecord) {
-  return (regions || []).filter((r) => isRegionCleansed(r, getTopicRecord)).length;
+export function countCleansedRegions(regions, regionCleansedFn) {
+  return (regions || []).filter((r) => isRegionCleansed(r, regionCleansedFn)).length;
 }
 
 export function doorUnlocks(cleansedCount, totalRegions) {
@@ -401,6 +405,21 @@ let cleanupFns = [];
 // and IS torn down on unmount, then recreated on the next mount if `session`
 // is still live.
 let session = null;
+
+// Fix (IMPORTANT, orphaned overlay leak): showExitConfirm/showBlankCheckModal/showInfoModal
+// append their overlay directly to document.body (so it can sit on top of the whole app, not
+// just this screen's root), but nothing previously removed it if the screen unmounted while
+// it was still open (router navigation, e.g. browser back/forward, or the auto-submit timer
+// firing mid-modal) — it would float on top of whatever screen loaded next. Track every live
+// overlay here so unmount() can always sweep them, regardless of how they got left open.
+let liveOverlays = [];
+function trackOverlay(overlay) {
+  liveOverlays.push(overlay);
+  return overlay;
+}
+function untrackOverlay(overlay) {
+  liveOverlays = liveOverlays.filter((o) => o !== overlay);
+}
 
 function deferTimeout(fn, ms) {
   const id = setTimeout(fn, ms);
@@ -433,18 +452,18 @@ export function unmount() {
   alive = false;
   cleanupFns.forEach((fn) => { try { fn(); } catch (e) { /* swallow */ } });
   cleanupFns = [];
+  // Sweep any modal overlay still attached to document.body (see liveOverlays comment above)
+  // so navigating away while one is open never strands it on top of the next screen.
+  liveOverlays.forEach((o) => { try { if (o && o.isConnected) o.remove(); } catch (e) { /* swallow */ } });
+  liveOverlays = [];
 }
 
 export default { mount, unmount };
 
 /* ---------------------- HUB ---------------------- */
 
-function getTopicRecordFactory(ctx) {
-  return (topicId) => ctx.state.topic(topicId);
-}
-
 async function renderHub(root, ctx) {
-  const cleansedCount = countCleansedRegions(REGIONS, getTopicRecordFactory(ctx));
+  const cleansedCount = countCleansedRegions(REGIONS, (regionId) => ctx.state.regionCleansed(regionId));
   const totalRegions = REGIONS.length;
   const unlocks = doorUnlocks(cleansedCount, totalRegions);
 
@@ -527,6 +546,7 @@ function startExam(root, ctx, type) {
     startedAt,
     endsAt: examEndsAt(type, startedAt),
     firedNudges: new Set(),
+    lowTimeSoundFired: false,
     finished: false,
   };
   renderRunner(root, ctx);
@@ -537,7 +557,7 @@ function renderRunner(root, ctx) {
   screen.className = 'exam-screen exam-paper';
   screen.innerHTML = `
     <div class="exam-paper-topbar">
-      <button class="btn btn-ghost exam-exit-btn" style="padding:6px 12px;font-size:13px;">Exit</button>
+      <button class="btn btn-ghost exam-exit-btn">Exit</button>
       <div class="exam-progress">Question <span class="exam-progress-num"></span> of ${session.questions.length}</div>
       <div class="exam-timer"></div>
     </div>
@@ -546,7 +566,7 @@ function renderRunner(root, ctx) {
       <div class="exam-palette-wrap">
         <h4>Question palette</h4>
         <div class="exam-palette"></div>
-        <button class="btn btn-gold exam-finish-btn" style="margin-top:14px;width:100%;">Finish paper</button>
+        <button class="btn btn-gold exam-finish-btn">Finish paper</button>
       </div>
     </div>
   `;
@@ -564,16 +584,28 @@ function renderRunner(root, ctx) {
   const timerEl = screen.querySelector('.exam-timer');
   const intervalId = setInterval(tick, 1000);
   cleanupFns.push(() => clearInterval(intervalId));
+  // "Exam timer sounds" setting (ENGINE_SPEC_2 §I) gates BOTH timer-linked cues
+  // below: the low-time tick and the 30/50-min nudge chime. Defaults on (only an
+  // explicit `false` in saved prefs silences them) so older saves without the key
+  // still get sound, matching main.js's loadSettings() default of `true`.
+  const timerSoundsOn = () => !ctx.prefs || ctx.prefs.examTimerSounds !== false;
+
   function tick() {
     if (!alive || !session || session.finished) { clearInterval(intervalId); return; }
     const remaining = timeRemainingMs(session.endsAt, Date.now());
     timerEl.textContent = formatClock(remaining);
-    timerEl.classList.toggle('exam-timer-low', remaining <= 5 * 60 * 1000);
+    const isLow = remaining <= 5 * 60 * 1000;
+    timerEl.classList.toggle('exam-timer-low', isLow);
+    if (isLow && !session.lowTimeSoundFired) {
+      session.lowTimeSoundFired = true;
+      if (timerSoundsOn()) ctx.audio.sfx('tick');
+    }
 
     const elapsedMin = (Date.now() - session.startedAt) / 60000;
     for (const nudge of nudgesFor(session.type)) {
       if (elapsedMin >= nudge.atElapsedMin && !session.firedNudges.has(nudge.atElapsedMin)) {
         session.firedNudges.add(nudge.atElapsedMin);
+        if (timerSoundsOn()) ctx.audio.sfx('tick');
         showInfoModal(root, ctx, nudge.message);
       }
     }
@@ -663,6 +695,19 @@ function renderQuestion(screen, root, ctx, index) {
   });
 }
 
+// lineRef per ENGINE_SPEC_2 §B is `'12'` (single), `'21-36'` (range), or null —
+// this screen's own contract comment (top of file) inherits that shape from the
+// passage engine rather than restating it, so both forms must be handled here.
+export function lineInRef(lineNum, lineRef) {
+  if (lineRef === null || lineRef === undefined || lineRef === '') return false;
+  const s = String(lineRef);
+  if (s.includes('-')) {
+    const [a, b] = s.split('-').map(Number);
+    return lineNum >= Math.min(a, b) && lineNum <= Math.max(a, b);
+  }
+  return lineNum === Number(s);
+}
+
 function renderPassagePanel(passage, lineRef) {
   const wrap = document.createElement('div');
   wrap.className = 'exam-passage-panel';
@@ -675,7 +720,7 @@ function renderPassagePanel(passage, lineRef) {
     const lineNum = i + 1;
     const row = document.createElement('div');
     row.className = 'exam-passage-line';
-    if (String(lineNum) === String(lineRef)) row.classList.add('highlight');
+    if (lineInRef(lineNum, lineRef)) row.classList.add('highlight');
     const marginNum = lineNum % 5 === 0 ? `<span class="exam-line-num">${lineNum}</span>` : '<span class="exam-line-num"></span>';
     row.innerHTML = `${marginNum}<span class="exam-line-text">${line || '&nbsp;'}</span>`;
     linesWrap.appendChild(row);
@@ -749,6 +794,12 @@ function renderOMRStrip(q) {
     box.addEventListener('input', () => {
       session.answers[q.qNumber] = box.value;
       refreshPaletteBadge(q.qNumber);
+    });
+    // Fix (IMPORTANT, iOS Safari trap — docs/INTEGRATION_NOTES.md item 15): no autofocus,
+    // but DO scroll the box into view once the on-screen keyboard appears on focus, so it
+    // can't end up hidden behind the keyboard on a long errorspot/passage question card.
+    box.addEventListener('focus', () => {
+      box.scrollIntoView({ block: 'center', behavior: 'smooth' });
     });
     strip.appendChild(box);
     return strip;
@@ -854,6 +905,13 @@ function attemptFinish(root, ctx) {
   }
 }
 
+// Removes an overlay from the DOM AND from liveOverlays together, so unmount()'s sweep never
+// double-removes (or tries to remove) an overlay that already closed itself normally.
+function removeOverlay(overlay) {
+  untrackOverlay(overlay);
+  overlay.remove();
+}
+
 function showBlankCheckModal(root, ctx, blanks) {
   const overlay = document.createElement('div');
   overlay.className = 'exam-modal-overlay';
@@ -868,14 +926,15 @@ function showBlankCheckModal(root, ctx, blanks) {
     </div>
   `;
   document.body.appendChild(overlay);
+  trackOverlay(overlay);
   overlay.querySelector('.exam-modal-back').addEventListener('click', () => {
-    overlay.remove();
+    removeOverlay(overlay);
     const idx = session.questions.findIndex((q) => q.qNumber === blanks[0]);
     const screen = root.querySelector('.exam-paper');
     if (idx >= 0 && screen) { renderQuestion(screen, root, ctx, idx); renderPalette(screen, root, ctx); }
   });
   overlay.querySelector('.exam-modal-finish').addEventListener('click', () => {
-    overlay.remove();
+    removeOverlay(overlay);
     finishExam(root, ctx, { autoSubmitted: false });
   });
 }
@@ -892,8 +951,9 @@ function showInfoModal(root, ctx, message) {
     </div>
   `;
   document.body.appendChild(overlay);
-  overlay.querySelector('.exam-modal-ok').addEventListener('click', () => overlay.remove());
-  deferTimeout(() => { if (overlay.isConnected) overlay.remove(); }, 15000);
+  trackOverlay(overlay);
+  overlay.querySelector('.exam-modal-ok').addEventListener('click', () => removeOverlay(overlay));
+  deferTimeout(() => { if (overlay.isConnected) removeOverlay(overlay); }, 15000);
 }
 
 function showExitConfirm(root, ctx) {
@@ -910,9 +970,10 @@ function showExitConfirm(root, ctx) {
     </div>
   `;
   document.body.appendChild(overlay);
-  overlay.querySelector('.exam-modal-stay').addEventListener('click', () => overlay.remove());
+  trackOverlay(overlay);
+  overlay.querySelector('.exam-modal-stay').addEventListener('click', () => removeOverlay(overlay));
   overlay.querySelector('.exam-modal-leave').addEventListener('click', () => {
-    overlay.remove();
+    removeOverlay(overlay);
     ctx.go('#/map');
   });
 }
@@ -955,6 +1016,16 @@ async function finishExam(root, ctx, { autoSubmitted }) {
     try { await ctx.state.recordMock(record); } catch (e) { /* optional contract — safe to ignore */ }
   }
 
+  // ENGINE_SPEC_2 §E: "≥48 = he falls (captures Legendary Skidmark King…)". Reuses
+  // state.js's grantCommon — already documented there as a generic "add this
+  // creature id to the owned list" helper reused for epic region bosses — so the
+  // collection screen picks this up via the same ctx.state.commonsOwned() list it
+  // already reads, no extra wiring needed here. (Golden Turd is NOT this: per spec
+  // it's tied to all-10-regions Legend status, a separate system outside exam.js.)
+  if (session.type === 'king' && passed && ctx.state && typeof ctx.state.grantCommon === 'function') {
+    try { await ctx.state.grantCommon('skidmark-king'); } catch (e) { /* best-effort, same rationale as above */ }
+  }
+
   if (!alive) return;
   renderResults(root, ctx, record);
 }
@@ -974,7 +1045,7 @@ function renderResults(root, ctx, record) {
     <div class="exam-boss-card">
       <div class="exam-boss-emoji">${isKing ? '👑' : '🛡️'}</div>
       <div class="exam-boss-name">${isKing ? 'The Skidmark King' : 'The Royal Guard'}</div>
-      <div class="exam-hp-bar"><div class="exam-hp-fill" style="width:${Math.round(hp * 100)}%"></div></div>
+      <div class="exam-hp-bar"><div class="exam-hp-fill" style="width:100%"></div></div>
     </div>
     <div class="exam-score-line">Score: <b>${record.score} / ${record.total}</b></div>
     <p class="exam-flavour">${record.passed ? pick(WHIFF_WIN_LINES) : pick(WHIFF_LOW_LINES)}</p>
@@ -991,6 +1062,13 @@ function renderResults(root, ctx, record) {
   `;
   root.innerHTML = '';
   root.appendChild(screen);
+
+  // HP bar starts full (100%) in the markup above and is dropped to its real
+  // target on the next frame so the existing 900ms CSS transition (exam.css
+  // .exam-hp-fill) actually plays as a "drain by score" animation, matching
+  // ENGINE_SPEC_2 §E, instead of just appearing pre-drained.
+  const hpFill = screen.querySelector('.exam-hp-fill');
+  requestAnimationFrame(() => { hpFill.style.width = `${Math.round(hp * 100)}%`; });
 
   ctx.audio.sfx(record.passed ? 'capture' : 'confirm');
   ctx.audio.parp(record.passed ? 3 : 1);

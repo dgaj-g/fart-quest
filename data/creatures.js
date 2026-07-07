@@ -16,12 +16,22 @@ export const COMMONS = [
     bio: 'Half pong, half… actually no, he’s all pong.' },
 ];
 
+// Countfather deliberately does NOT appear here: he's a real, capturable region boss
+// (see data/map.js number-swamp.boss) rendered by js/screens/collection.js's region-boss
+// group alongside the other 9 — TEASERS is only for the two creatures with no in-game
+// capture mechanic of their own (INTEGRATION_NOTES.md item 5: "Skidmark King + Golden
+// Turd (locked teasers until earned)").
+// Fix (CRITICAL, ownership never renderable): each teaser now carries the `image`/`bio` a
+// captured plinth needs. skidmark-king IS actually grantable today (js/screens/exam.js grants
+// it via ctx.state.grantCommon('skidmark-king') on a King win) — js/screens/collection.js must
+// check ctx.state.commonsOwned() and render these like any other captured creature once owned,
+// instead of a permanent hard lock with no ownership check at all.
 export const TEASERS = [
-  { id: 'countfather', name: 'The Countfather', rarity: 'epic', locked: true,
-    hint: 'Rules the whole Number Swamp. Defeat all ten locations to make him an offer he can’t refuse.' },
-  { id: 'golden-turd', name: '???', rarity: 'mythic', locked: true,
+  { id: 'golden-turd', name: '???', rarity: 'mythic', locked: true, image: 'assets/monsters/the-golden-turd.png',
+    bio: 'A legend whispered in the swamp… something golden… something magnificent…',
     hint: 'A legend whispered in the swamp… something golden… something magnificent…' },
-  { id: 'skidmark-king', name: 'The Skidmark King', rarity: 'legendary', locked: true,
+  { id: 'skidmark-king', name: 'The Skidmark King', rarity: 'legendary', locked: true, image: 'assets/monsters/the-skidmark-king.png',
+    bio: 'The source of ALL the stink in Castle Clench — beaten, at last, by your own hand.',
     hint: 'The source of ALL the stink. He waits in Castle Clench. You are not ready. Yet.' },
 ];
 

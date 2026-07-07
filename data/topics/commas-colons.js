@@ -621,14 +621,14 @@ export default {
       id: 'commas-colons-t3-03', topicId: 'commas-colons', tier: 3, format: 'errorspot',
       segments: [
         { text: 'Without any warning' },
-        { text: 'at all,' },
+        { text: 'at all' },
         { text: 'the fire alarm rang' },
         { text: 'loudly through school.' },
       ],
       faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: '"Without any warning at all" sets the scene before the main action — the whole opener needs its comma right at the end, after "at all," which is missing here.',
+        worked: '"Without any warning at all" sets the scene before the main action — the whole opener needs its comma right at the end, after "at all", which is missing here.',
         whyN: null,
       },
       hintSteps: [

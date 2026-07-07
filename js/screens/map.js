@@ -220,6 +220,14 @@ export async function mount(root, ctx) {
 
   const dueCount = ctx.state.dueReviews().length;
 
+  // INTEGRATION_NOTES.md item 7: wire the bugle to a real 'patrol' battle stage IF the
+  // engine ships one (ctx.capabilities.patrol, feature-detected in js/main.js from
+  // STAGE_CONFIG); js/engine/battle.js has no 'patrol' stage yet, so today this is
+  // always false and the button is simply omitted — no disabled/dead button shown.
+  const patrolBtnHtml = ctx.capabilities.patrol
+    ? `<button class="hud-chip hud-btn" id="map-patrol-btn">🎺 Morning Patrol${dueCount > 0 ? ` (${dueCount})` : ''}</button>`
+    : '';
+
   hud.innerHTML = `
     <div class="hud-left">
       <div class="hud-chip">🛡️</div>
@@ -227,9 +235,7 @@ export async function mount(root, ctx) {
     </div>
     <div class="hud-right">
       <button class="hud-chip hud-btn" id="map-next-quest-btn">📍 Next quest</button>
-      <button class="hud-chip hud-btn hud-btn-disabled" id="map-patrol-btn" disabled title="Coming soon">
-        🎺 Morning Patrol${dueCount > 0 ? ` (${dueCount})` : ''}
-      </button>
+      ${patrolBtnHtml}
       <button class="crest-btn" id="map-settings-btn" aria-label="Settings">⚙️</button>
     </div>
   `;
@@ -332,8 +338,18 @@ export async function mount(root, ctx) {
     void targetPad.offsetWidth;
     targetPad.classList.add('next-quest-ping');
   });
-  // Morning Patrol button is intentionally inert until the battle engine ships
-  // a 'patrol' stage (ctx.capabilities.patrol) — see js/main.js.
+  // Morning Patrol: only wired up when ctx.capabilities.patrol is true (the button
+  // itself is omitted entirely otherwise — see patrolBtnHtml above, no dead UI).
+  if (ctx.capabilities.patrol) {
+    const patrolBtn = hud.querySelector('#map-patrol-btn');
+    if (patrolBtn) {
+      patrolBtn.addEventListener('click', () => {
+        ctx.audio.sfx('click');
+        ctx.audio.vo('patrol');
+        ctx.go('#/battle/patrol/patrol');
+      });
+    }
+  }
 
   // first-visit coach bubble — a lightweight legacy fallback. Suppressed if the
   // full spotlight tutorial (js/engine/coach.js, run via #/story) already played,
