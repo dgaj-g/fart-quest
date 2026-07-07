@@ -442,11 +442,17 @@ export async function mount(root, ctx, params) {
       arena.insertBefore(panelEl, card);
       passagePanelEl = panelEl;
       if (q.lineRef && typeof mod.lineRefChip === 'function') {
-        const chip = mod.lineRefChip(panelEl, q.lineRef);
-        if (chip) {
-          chip.classList.add('battle-lineref-chip');
-          card.insertBefore(chip, card.firstChild);
-          lineRefChipEl = chip;
+        // Chip failure must never cost us the panel itself — separate guard.
+        try {
+          const chip = mod.lineRefChip(q.lineRef, panelEl);
+          if (chip) {
+            chip.classList.add('battle-lineref-chip');
+            card.insertBefore(chip, card.firstChild);
+            lineRefChipEl = chip;
+          }
+        } catch (chipErr) {
+          // eslint-disable-next-line no-console
+          console.error('battle.js: lineRef chip failed, panel kept:', chipErr);
         }
       }
     } catch (err) {
