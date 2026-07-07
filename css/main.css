@@ -444,6 +444,8 @@ button {
 .title-secondary-row {
   display: flex;
   gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 .title-secondary-row .btn {
   font-size: 17px;
@@ -876,6 +878,147 @@ button {
 }
 
 /* =====================================================================
+   MAP SCREEN v2 — themed region bands, locked blocks, Castle Clench gate,
+   HUD next-quest/patrol buttons (ENGINE_SPEC_2 §G/§H/§I)
+   ===================================================================== */
+.map-hud { gap: 10px; }
+.hud-left, .hud-right { display: flex; align-items: center; gap: 10px; }
+.hud-btn {
+  border: none;
+  cursor: pointer;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 14px;
+}
+.hud-btn-disabled { opacity: .45; cursor: not-allowed; }
+
+.map-band {
+  position: absolute;
+  bottom: 0;
+  z-index: 3;
+  height: 66%;
+  border-top-left-radius: 44px;
+  border-top-right-radius: 44px;
+  box-shadow: inset 0 14px 30px rgba(0, 0, 0, .35);
+}
+.map-band.cleansed { filter: brightness(1.25) saturate(1.1); }
+
+.region-band-sign {
+  position: absolute;
+  left: 24px;
+  top: 7%;
+  background: #5a4632;
+  color: var(--parchment);
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  padding: 8px 18px;
+  border-radius: 6px;
+  transform: rotate(-3deg);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .35), 0 8px 16px rgba(0, 0, 0, .4);
+  border: 3px solid rgba(0, 0, 0, .3);
+  white-space: nowrap;
+  max-width: calc(100% - 48px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.band-pads-row {
+  position: absolute;
+  bottom: 6%;
+  left: 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  height: 46%;
+}
+
+/* boss hill inside a region band anchors to the band's own right edge
+   instead of the old fixed stage-wide left:2900px position. */
+.map-boss-hill.map-boss-hill-region {
+  left: auto;
+  right: 20px;
+  bottom: 14%;
+}
+.map-boss-hill-region img {
+  /* only Countfather's asset is a pre-baked silhouette; other region bosses
+     ship full-colour art and must not be flattened to black. */
+  filter: none;
+  opacity: 1;
+}
+
+.plank-creature {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: .85;
+}
+
+@keyframes next-quest-ping {
+  0% { box-shadow: 0 0 0 0 rgba(244, 197, 66, .9); }
+  100% { box-shadow: 0 0 0 26px rgba(244, 197, 66, 0); }
+}
+.next-quest-ping .pad-stone { animation: next-quest-ping 900ms ease-out 2; }
+
+.map-region-locked {
+  position: absolute;
+  bottom: 14%;
+  z-index: 2;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: .6;
+  filter: grayscale(.5) brightness(.75);
+}
+.map-region-locked .region-block {
+  width: 140px;
+  height: 150px;
+  border-radius: 16px;
+}
+.map-region-locked .closed-sign {
+  width: 220px;
+  font-size: 12px;
+}
+.locked-requirement {
+  margin-top: 0;
+  max-width: 220px;
+  background: var(--swamp-night);
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 12px;
+  border-radius: 8px;
+  text-align: center;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 220ms ease, opacity 220ms ease, padding 220ms ease, margin-top 220ms ease;
+}
+.locked-requirement.show {
+  margin-top: 8px;
+  max-height: 120px;
+  opacity: 1;
+  padding: 8px 12px;
+}
+
+.map-castle-gate { opacity: .85; filter: none; }
+.castle-block {
+  width: 160px;
+  height: 190px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #241a14, #120c08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52px;
+  box-shadow: inset 0 0 0 4px rgba(244, 197, 66, .25), 0 10px 0 rgba(0, 0, 0, .4);
+}
+.map-castle-gate .closed-sign { width: 260px; font-size: 13px; background: #241a14; }
+
+/* =====================================================================
    TOPIC SCREEN
    ===================================================================== */
 .topic-screen {
@@ -1209,6 +1352,42 @@ button {
 }
 .parent-table th { background: #e9e9e6; }
 
+.topic-reset-btn {
+  border: none;
+  background: #a12f2f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.parent-subhead {
+  max-width: 800px;
+  margin: 24px auto 10px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.parent-empty-note {
+  max-width: 800px;
+  margin: 0 auto 16px;
+  font-size: 13px;
+  color: #555;
+}
+.parent-mock-section {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.parent-export-note {
+  max-width: 800px;
+  margin: -12px auto 20px;
+  font-size: 12px;
+  color: #555;
+  text-align: center;
+}
+
 .parent-actions {
   max-width: 800px;
   margin: 0 auto 24px;
@@ -1337,6 +1516,12 @@ button {
 .text-size-btns button.active {
   background: var(--gold);
   box-shadow: 0 3px 0 var(--gold-deep);
+}
+
+.settings-replay-row {
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .settings-back {

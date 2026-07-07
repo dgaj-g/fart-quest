@@ -29,6 +29,10 @@ export function emptyTopicRecord() {
     reviewStage: 0,
     reviewDue: null,
     lastPlayed: null,
+    // ENGINE_SPEC_2 §D/§H: ids of bank/passage items already drawn this "cycle"
+    // (resets to [] once the whole bank has been seen — see unseenFrom/resetCycle
+    // below). Generator-driven (maths) topics never touch this field.
+    seenItems: [],
   };
 }
 
@@ -180,6 +184,47 @@ export function dueReviewsFrom(records, now) {
   return out;
 }
 
+/**
+ * markSeen(seenItems, itemId) -> NEW array with itemId appended (deduped).
+ * Used every time a bank/passage item is drawn into a battle, so it drops
+ * out of the "unseen" pool for the rest of this cycle (ENGINE_SPEC_2 §D).
+ */
+export function markSeen(seenItems, itemId) {
+  const list = seenItems || [];
+  if (itemId == null || list.includes(itemId)) return list.slice();
+  return [...list, itemId];
+}
+
+/**
+ * unseenFrom(bank, seenItems) -> the subset of `bank` (an array of items,
+ * each with an `id`) whose id is NOT in seenItems.
+ */
+export function unseenFrom(bank, seenItems) {
+  const seen = new Set(seenItems || []);
+  return (bank || []).filter((item) => !seen.has(item.id));
+}
+
+/**
+ * resetCycle() -> a fresh empty seenItems array. Called when a bank's unseen
+ * pool has been exhausted (every item has now been shown once this cycle) —
+ * the next draw starts a brand new cycle from the full bank again.
+ */
+export function resetCycle() {
+  return [];
+}
+
+/**
+ * regionCleansed map helpers — pure, persisted under meta key 'regionCleansed'
+ * as a plain { [regionId]: true } object (ENGINE_SPEC_2 §D/§G).
+ */
+export function isRegionCleansedIn(map, regionId) {
+  return !!(map && map[regionId]);
+}
+
+export function setRegionCleansedIn(map, regionId) {
+  return { ...(map || {}), [regionId]: true };
+}
+
 // ---------------------------------------------------------------------------
 // Stateful wrapper: in-memory map hydrated by state.load(db), persisted on
 // each mutation, with onChange listeners firing after every mutation.
@@ -188,6 +233,7 @@ export function dueReviewsFrom(records, now) {
 let _db = null;
 let _topics = {}; // topicId -> record
 let _commonsOwned = []; // global list of creatureIds, stored in meta store
+let _regionCleansed = {}; // regionId -> true, stored in meta store
 let _listeners = [];
 
 function notify() {
@@ -226,6 +272,17 @@ async function persistMeta() {
   }
 }
 
+async function persistRegionCleansed() {
+  if (!_db) return;
+  try {
+    await _db.put('meta', 'regionCleansed', _regionCleansed);
+  } catch (err) {
+    // Best-effort — see persistTopic's comment above; same rationale applies.
+    // eslint-disable-next-line no-console
+    console.error('state.js: persistRegionCleansed failed (in-memory state unaffected):', err);
+  }
+}
+
 /**
  * state.load(db) -> hydrates the in-memory map from the given db instance
  * (or fake db implementing get/put/getAll/del/exportAll/importAll).
@@ -234,15 +291,22 @@ async function load(db) {
   _db = db;
   _topics = {};
   _commonsOwned = [];
+  _regionCleansed = {};
   _listeners = _listeners; // keep existing listeners across reloads
 
   const allProgress = await _db.getAll('progress');
   for (const topicId of Object.keys(allProgress || {})) {
-    _topics[topicId] = allProgress[topicId];
+    // Merge onto a fresh empty record so topics persisted before this field
+    // existed (e.g. seenItems) still come back with a sane default rather
+    // than undefined.
+    _topics[topicId] = { ...emptyTopicRecord(), ...allProgress[topicId] };
   }
 
   const meta = await _db.get('meta', 'commonsOwned');
   _commonsOwned = Array.isArray(meta) ? meta.slice() : [];
+
+  const regionMeta = await _db.get('meta', 'regionCleansed');
+  _regionCleansed = regionMeta && typeof regionMeta === 'object' ? { ...regionMeta } : {};
 
   notify();
 }
@@ -309,6 +373,116 @@ function getDueReviews(now = Date.now()) {
   return dueReviewsFrom(_topics, now);
 }
 
+/**
+ * state.getSeenItems(id) -> current seenItems array for a topic (used to seed
+ * a battle engine's bank-sampling memory when a battle starts).
+ */
+function getSeenItems(id) {
+  return ensureTopic(id).seenItems.slice();
+}
+
+/**
+ * state.setSeenItems(id, seenItems) -> overwrites the topic's seenItems array
+ * and persists. The battle screen calls this as bank/passage items are drawn
+ * during a battle (and whenever a cycle resets), so progress survives a
+ * mid-battle app close.
+ */
+async function setSeenItemsAction(id, seenItems) {
+  const record = ensureTopic(id);
+  _topics[id] = { ...record, seenItems: Array.isArray(seenItems) ? seenItems.slice() : [] };
+  await persistTopic(id);
+  notify();
+  return topic(id);
+}
+
+/**
+ * state.resetTopic(id) -> full per-topic wipe (parent dashboard "Reset topic"
+ * action, ENGINE_SPEC_2 §H): clears the topic's progress record (including
+ * seenItems), its lesson-player progress meta key, and re-seeds an empty
+ * record so the UI reflects "never played" immediately.
+ */
+async function resetTopic(id) {
+  delete _topics[id];
+  if (_db) {
+    try {
+      await _db.del('progress', id);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('state.js: resetTopic failed to clear progress store:', err);
+    }
+    try {
+      await _db.del('meta', `lessonProgress-${id}`);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('state.js: resetTopic failed to clear lesson progress:', err);
+    }
+  }
+  ensureTopic(id); // re-seed a fresh empty record in memory
+  notify();
+  return topic(id);
+}
+
+/**
+ * state.regionCleansed(regionId) -> bool (ENGINE_SPEC_2 §D: region marked
+ * cleansed once its boss is beaten).
+ */
+function getRegionCleansed(regionId) {
+  return isRegionCleansedIn(_regionCleansed, regionId);
+}
+
+/**
+ * state.recordRegionBoss(regionId, {won, creatureId}) -> on a win, marks the
+ * region cleansed and (if a creatureId is supplied — the region boss's
+ * creature id, e.g. 'countfather') grants it into the shared owned-creatures
+ * list alongside commons, so the collection screen can recognise it later.
+ */
+async function recordRegionBossAction(regionId, { won, creatureId } = {}) {
+  if (won) {
+    _regionCleansed = setRegionCleansedIn(_regionCleansed, regionId);
+    await persistRegionCleansed();
+    if (creatureId) {
+      // grantCommon is a generic "add this creature id to the owned list"
+      // helper despite its name — reused here for epic region bosses too.
+      await grantCommon(creatureId);
+    }
+  }
+  notify();
+  return { regionCleansed: getRegionCleansed(regionId) };
+}
+
+/**
+ * state.recordMock(result) -> appends a Castle Clench mock-exam result to
+ * history. Writes to the db 'mocks' store when it exists (added by a later
+ * db-schema bump owned by another agent); if that store isn't present yet,
+ * falls back to an array kept under meta key 'mockHistory' so history is
+ * never silently lost while the two pieces of work land independently.
+ */
+async function recordMockAction(result, now = Date.now()) {
+  const entry = { ...result, ts: now };
+  if (_db) {
+    try {
+      await _db.put('mocks', String(now), entry);
+      notify();
+      return entry;
+    } catch (err) {
+      // 'mocks' store likely doesn't exist yet (or a transient failure) —
+      // fall back to meta so the result still isn't lost.
+      // eslint-disable-next-line no-console
+      console.error('state.js: recordMock could not write to "mocks" store, falling back to meta:', err);
+      try {
+        const history = (await _db.get('meta', 'mockHistory')) || [];
+        const nextHistory = Array.isArray(history) ? [...history, entry] : [entry];
+        await _db.put('meta', 'mockHistory', nextHistory);
+      } catch (err2) {
+        // eslint-disable-next-line no-console
+        console.error('state.js: recordMock fallback to meta also failed:', err2);
+      }
+    }
+  }
+  notify();
+  return entry;
+}
+
 async function grantCommon(creatureId) {
   if (!_commonsOwned.includes(creatureId)) {
     _commonsOwned = [..._commonsOwned, creatureId];
@@ -349,6 +523,12 @@ const state = {
   commonsOwned: getCommonsOwned,
   onChange,
   allTopics,
+  getSeenItems,
+  setSeenItems: setSeenItemsAction,
+  resetTopic,
+  regionCleansed: getRegionCleansed,
+  recordRegionBoss: recordRegionBossAction,
+  recordMock: recordMockAction,
 };
 
 export default state;

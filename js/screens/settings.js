@@ -50,6 +50,14 @@ export function mount(root, ctx) {
         <button data-size="A+" class="${ctx.prefs.textSize === 'A+' ? 'active' : ''}">A+</button>
       </div>
     </div>
+    <div class="settings-row">
+      <span class="settings-label">Exam timer sounds</span>
+      <button class="toggle-switch ${ctx.prefs.examTimerSounds ? 'on' : ''}" data-key="examTimerSounds"></button>
+    </div>
+    <div class="settings-row settings-replay-row">
+      <button class="btn btn-parchment" id="replay-story-btn" style="padding:10px 16px; font-size:14px;">📖 Replay story</button>
+      <button class="btn btn-parchment" id="replay-tutorial-btn" style="padding:10px 16px; font-size:14px;">🧭 Replay tutorial</button>
+    </div>
   `;
   screen.appendChild(panel);
   root.appendChild(screen);
@@ -77,6 +85,30 @@ export function mount(root, ctx) {
       ctx.audio.sfx('click');
       await persist(ctx);
     });
+  });
+
+  // Replay buttons clear the relevant meta flags and hand off — neither imports
+  // the story/tutorial internals, matching how title.js/map.js coordinate them.
+  panel.querySelector('#replay-story-btn').addEventListener('click', async () => {
+    ctx.audio.sfx('click');
+    try {
+      await ctx.db.del('meta', 'storySeen');
+      await ctx.db.del('meta', 'tutorialDone');
+    } catch (e) { /* ignore */ }
+    ctx.go('#/story');
+  });
+
+  panel.querySelector('#replay-tutorial-btn').addEventListener('click', async () => {
+    ctx.audio.sfx('click');
+    try {
+      await ctx.db.del('meta', 'tutorialDone');
+      await ctx.db.del('meta', 'mapCoachSeen');
+    } catch (e) { /* ignore */ }
+    // The spotlight tutorial (js/engine/coach.js) only ever runs at the end of
+    // #/story's scene sequence — there's no standalone entry point for it, so
+    // this is the only route that actually replays it (the story has its own
+    // Skip button for a child who just wants the tutorial part).
+    ctx.go('#/story');
   });
 }
 

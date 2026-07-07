@@ -1,0 +1,334 @@
+/* FART QUEST — css/story.css (UI agent) — #/story cold-open + coach.js tutorial overlay */
+
+/* =====================================================================
+   STORY SCREEN
+   ===================================================================== */
+.story-screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--swamp-night);
+}
+
+.story-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.story-stage.tint-dawn {
+  background:
+    radial-gradient(120% 70% at 50% 30%, rgba(244, 197, 66, .16), transparent 60%),
+    linear-gradient(180deg, #2c4a2f 0%, var(--swamp-mid) 45%, var(--swamp-deep) 100%);
+}
+.story-stage.tint-dusk {
+  background:
+    radial-gradient(120% 70% at 50% 70%, rgba(155, 89, 208, .22), transparent 60%),
+    linear-gradient(180deg, #120a18 0%, #1c1024 45%, #0d0812 100%);
+}
+.story-stage.tint-stink {
+  background:
+    radial-gradient(130% 80% at 50% 60%, rgba(199, 244, 100, .16), transparent 65%),
+    linear-gradient(180deg, #0e1a10 0%, var(--swamp-night) 50%, #1a0f22 100%);
+}
+
+.story-sky { position: absolute; inset: 0; z-index: 0; }
+
+.story-layer { position: absolute; inset: 0; z-index: 1; }
+.story-hill { position: absolute; bottom: 0; left: 0; width: 100%; object-fit: cover; object-position: bottom; }
+.story-hill.back { bottom: -2%; opacity: .85; filter: brightness(.7); }
+.story-hill.front { bottom: -4%; }
+.story-tree { position: absolute; bottom: 6%; width: 14%; max-width: 160px; filter: brightness(.85); }
+.story-tree.t1 { left: 8%; }
+.story-tree.t2 { right: 10%; bottom: 8%; width: 11%; }
+
+.story-cloud { position: absolute; top: 8%; width: 22%; max-width: 260px; opacity: .9; z-index: 1; }
+.story-cloud.c1 { left: -5%; }
+.story-cloud.c2 { right: -8%; top: 16%; width: 16%; }
+.story-cloud.drift { animation: story-cloud-drift 26s linear infinite; }
+.story-cloud.drift-slow { animation: story-cloud-drift 38s linear infinite reverse; }
+@keyframes story-cloud-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(6vw); }
+}
+
+.story-critter { position: absolute; bottom: 10%; width: 13%; max-width: 150px; z-index: 2; }
+.story-critter.a { left: 30%; }
+.story-critter.b { left: 55%; width: 11%; }
+.story-critter.c { left: 72%; width: 12%; }
+.story-critter.stink-tinted { filter: saturate(1.8) hue-rotate(-15deg) brightness(.9) drop-shadow(0 0 18px rgba(155, 89, 208, .5)); }
+
+/* scene 2/3 — the Skidmark King */
+.story-king {
+  position: absolute;
+  bottom: -4%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 46%;
+  max-width: 420px;
+  z-index: 3;
+  filter: brightness(.4) contrast(1.25) drop-shadow(0 0 50px rgba(155, 89, 208, .55));
+}
+.story-king.slide-up { animation: story-king-rise 1.6s var(--spring) both; }
+@keyframes story-king-rise {
+  0% { transform: translateX(-50%) translateY(60%); opacity: 0; }
+  100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+.story-king-glow {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 60%;
+  height: 40%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(155, 89, 208, .45), transparent 70%);
+  filter: blur(30px);
+  z-index: 2;
+  animation: story-glow-pulse 2.4s ease-in-out infinite alternate;
+}
+@keyframes story-glow-pulse {
+  from { opacity: .5; transform: translateX(-50%) scale(.9); }
+  to { opacity: .9; transform: translateX(-50%) scale(1.08); }
+}
+/* darker CSS-filtered variant — the King's influence looming over the spreading stink (scene 3) */
+.story-king.story-king-loom {
+  bottom: -12%;
+  width: 60%;
+  max-width: 560px;
+  opacity: .5;
+  filter: brightness(.16) contrast(1.4) saturate(1.3) drop-shadow(0 0 70px rgba(199, 244, 100, .35));
+  animation: story-loom-drift 9s ease-in-out infinite alternate;
+}
+@keyframes story-loom-drift {
+  from { transform: translateX(-52%) translateY(0); }
+  to { transform: translateX(-48%) translateY(-2%); }
+}
+
+.story-fumes { z-index: 4; }
+
+/* scene 4 — close-up mood swap (sad -> cheeky), no extra art needed */
+.story-closeup {
+  width: 46%;
+  max-width: 380px;
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, .4));
+  animation: story-closeup-in 500ms var(--spring) both;
+}
+@keyframes story-closeup-in {
+  from { transform: scale(.85) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+.story-closeup.sad-then-cheeky {
+  animation:
+    story-closeup-in 500ms var(--spring) both,
+    story-sad-droop 2.2s ease-in-out 500ms 1,
+    story-cheeky-wiggle 900ms ease-in-out 2.9s 1;
+}
+@keyframes story-sad-droop {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  50% { transform: rotate(-3deg) translateY(6px); }
+}
+@keyframes story-cheeky-wiggle {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(6deg) scale(1.05); }
+  50% { transform: rotate(-6deg) scale(1.05); }
+  75% { transform: rotate(4deg) scale(1.02); }
+}
+
+/* scene 5 — Whiffbeard arrives */
+.story-closeup.whiffbeard-arrive { width: 42%; max-width: 340px; }
+.story-sparkle-rays {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 55%, rgba(244, 197, 66, .35), transparent 60%);
+  z-index: 0;
+  animation: story-rays-pulse 2.6s ease-in-out infinite alternate;
+}
+@keyframes story-rays-pulse {
+  from { opacity: .6; }
+  to { opacity: 1; }
+}
+
+/* scene 6 — hero title card + slow zoom */
+.story-layer.zoom-in { animation: story-zoom 7s ease-out both; transform-origin: 50% 65%; }
+@keyframes story-zoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.22); }
+}
+.story-hero-card {
+  position: relative;
+  z-index: 5;
+  background: rgba(22, 36, 27, .55);
+  border: 2px solid var(--gold);
+  border-radius: var(--r-lg);
+  padding: 28px 44px;
+  box-shadow: var(--shadow-card);
+}
+.story-hero-title {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  font-size: clamp(28px, 5vw, 52px);
+  color: var(--gold);
+  text-align: center;
+  line-height: 1.25;
+  text-shadow: 0 3px 0 var(--gold-deep), 0 10px 24px rgba(0, 0, 0, .5);
+}
+
+/* chrome: skip, caption band, dots */
+.story-skip {
+  position: absolute;
+  top: calc(16px + var(--safe-t));
+  right: calc(16px + var(--safe-r));
+  z-index: 10;
+  padding: 10px 18px;
+  font-size: 15px;
+}
+
+.story-caption-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(28px + var(--safe-b));
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  padding: 0 24px;
+  pointer-events: none;
+}
+.story-caption-text {
+  max-width: 760px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1.45;
+  text-align: center;
+  padding: 16px 26px;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+}
+
+.story-dots {
+  position: absolute;
+  left: 50%;
+  bottom: calc(10px + var(--safe-b));
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+.story-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .3);
+}
+.story-dot.active { background: var(--gold); }
+
+/* =====================================================================
+   COACH OVERLAY (tutorial) — js/engine/coach.js
+   ===================================================================== */
+.coach-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.coach-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 14, 10, .68);
+}
+.coach-cutout-ring {
+  position: absolute;
+  border-radius: var(--r-md);
+  box-shadow: 0 0 0 4000px rgba(10, 14, 10, .68), 0 0 0 4px var(--gold), 0 0 24px 4px rgba(244, 197, 66, .6);
+  animation: coach-ring-pulse 1.6s ease-in-out infinite;
+  pointer-events: auto;
+  cursor: pointer;
+}
+@keyframes coach-ring-pulse {
+  0%, 100% { box-shadow: 0 0 0 4000px rgba(10, 14, 10, .68), 0 0 0 4px var(--gold), 0 0 20px 2px rgba(244, 197, 66, .5); }
+  50% { box-shadow: 0 0 0 4000px rgba(10, 14, 10, .68), 0 0 0 6px var(--gold), 0 0 32px 8px rgba(244, 197, 66, .8); }
+}
+.coach-skip {
+  position: absolute;
+  top: calc(16px + var(--safe-t));
+  right: calc(16px + var(--safe-r));
+  padding: 10px 16px;
+  font-size: 14px;
+  z-index: 2;
+}
+
+.coach-card {
+  position: absolute;
+  z-index: 2;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.coach-card.coach-card-centred {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.coach-card.coach-card-wide { width: 480px; }
+
+.coach-portrait { font-size: 30px; line-height: 1; }
+.coach-text { font-size: 18px; line-height: 1.4; font-weight: 600; }
+.coach-next { align-self: center; padding: 10px 26px; font-size: 16px; }
+
+/* battle-demo (step type 'battle-demo') */
+.coach-demo { display: flex; flex-direction: column; gap: 12px; }
+.coach-demo-arena {
+  position: relative;
+  background: linear-gradient(180deg, var(--swamp-mid), var(--swamp-deep));
+  border-radius: var(--r-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.coach-demo-creature { width: 84px; filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .4)); }
+.coach-demo-meter {
+  width: 100%;
+  height: 16px;
+  background: rgba(0, 0, 0, .35);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .5);
+}
+.coach-demo-meter-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--swamp-glow), var(--stink-lime));
+  transition: width 400ms ease;
+}
+.coach-demo-question { font-size: 17px; font-weight: 600; text-align: center; }
+.coach-demo-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.coach-demo-opt {
+  padding: 12px 10px;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.coach-demo-opt.is-correct { outline: 3px solid var(--correct); background: #eafff2; }
+.coach-demo-opt.is-wrong { outline: 3px solid var(--wrong); background: #ffefec; }
+.coach-demo-note { text-align: center; font-size: 12px; opacity: .6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .story-king.slide-up,
+  .story-layer.zoom-in,
+  .story-closeup.sad-then-cheeky,
+  .coach-cutout-ring { animation: none !important; }
+}

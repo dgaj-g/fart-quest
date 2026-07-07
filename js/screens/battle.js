@@ -1,10 +1,10 @@
 // FART QUEST — screens/battle.js (UI agent)
 import { createBattleEngine } from '../engine/battle.js';
 import formats from '../engine/formats/index.js';
-import { COMMONS } from '../../data/creatures.js';
+import { COMMONS, TEASERS } from '../../data/creatures.js';
 import { REGIONS } from '../../data/map.js';
 
-const STAGE_LABEL = { minion: 'Minion Battle', elite: 'Elite Battle', boss: 'BOSS BATTLE' };
+const STAGE_LABEL = { minion: 'Minion Battle', elite: 'Elite Battle', boss: 'BOSS BATTLE', regionboss: 'REGION BOSS' };
 
 // Whiffbeard's reteach-card heading rotates randomly so a wrong answer never feels
 // like the same scolding twice — re-rolled on every showReteach() call.
@@ -36,6 +36,66 @@ function castCreatureFor(topic, stage) {
   };
 }
 
+// ENGINE_SPEC_2 §D: the region boss creature is defined on data/map.js's REGIONS entry
+// (name/image/note only, no id) — match it against data/creatures.js's TEASERS list (which
+// DOES carry the id used everywhere else creatures are tracked/owned) by name so
+// state.recordRegionBoss can grant the right creature id. Falls back to a synthesised id
+// so a region without a matching teaser entry still degrades gracefully instead of
+// silently failing to grant anything.
+function regionBossCreatureId(region) {
+  const teaser = TEASERS.find((t) => t.name === region.boss.name);
+  return teaser ? teaser.id : `${region.id}-boss`;
+}
+
+// ---------------------------------------------------------------------------
+// Bank/passage resolution (ENGINE_SPEC_2 §D + §B)
+//
+// js/engine/battle.js is kept fully synchronous/pure so it stays node-testable — all the
+// async "where do these questions actually come from" work happens here instead, producing
+// a plain `{ ...topic, bank:{1:[],2:[],3:[]} }` shape the engine already understands
+// uniformly (see js/engine/battle.js's topicSourceKind).
+//
+// data/passages/* is being authored by another agent concurrently and its aggregating
+// index module may not exist yet — every access is wrapped so a missing/incomplete module
+// degrades to "no passage content available" rather than blocking or crashing a battle.
+// ---------------------------------------------------------------------------
+
+let _passagesModulePromise = null;
+function loadPassagesModule() {
+  if (!_passagesModulePromise) {
+    _passagesModulePromise = import('../../data/passages/index.js')
+      .then((mod) => (mod && (mod.PASSAGES || mod.default)) || [])
+      .catch(() => []);
+  }
+  return _passagesModulePromise;
+}
+
+function passageQuestionsForSkill(passages, skill) {
+  const out = [];
+  for (const p of passages) {
+    for (const q of p.questions || []) {
+      if (q.skill === skill) out.push({ ...q, passageId: p.id });
+    }
+  }
+  return out;
+}
+
+// A topic is "battle-ready" as-is if it's generator-driven (genId) or already carries its
+// own authored bank (English drill topics, and storybog's kinds-of-writing — which per
+// CONTENT_SPECS_ENGLISH carries its own small mcq bank instead of drawing from passages).
+// Anything else with a `skill` tag is a storybog skill-topic: its minion/elite pool is
+// every passage question tagged with that skill, reused across all three tiers (the
+// passages don't stratify by tier — see ENGINE_SPEC_2 §B/§D).
+async function resolveBattleTopic(topic) {
+  if (topic.genId || topic.bank) return topic;
+  if (topic.skill) {
+    const passages = await loadPassagesModule();
+    const pool = passageQuestionsForSkill(passages, topic.skill);
+    return { ...topic, bank: { 1: pool, 2: pool, 3: pool } };
+  }
+  return topic; // unrecognised shape — engine's own guard will surface a clear error
+}
+
 let cleanupFns = [];
 let alive = false; // false once unmounted — guards deferred (setTimeout/sleep) callbacks
 
@@ -48,18 +108,126 @@ function deferTimeout(fn, ms) {
   return id;
 }
 
+// Minimal layout-only CSS for the passage "interrogation" split (ENGINE_SPEC_2 §B) and the
+// line-ref chip's placement, injected once. css/battle.css (UI agent) and the concurrent
+// passage agent's css/passage.css own the actual visual styling of the panel/chip
+// themselves — this only owns the arena split this file is responsible for composing.
+let _stylesInjected = false;
+function ensureInterrogationStyles() {
+  if (_stylesInjected || document.getElementById('battle-interrogation-styles')) return;
+  _stylesInjected = true;
+  const style = document.createElement('style');
+  style.id = 'battle-interrogation-styles';
+  style.textContent = `
+    .battle-arena.interrogation-mode { align-items: stretch; gap: 20px; }
+    .battle-arena.interrogation-mode .battle-passage-panel { flex: 0 0 52%; max-width: 52%; max-height: 100%; overflow-y: auto; align-self: stretch; }
+    .battle-arena.interrogation-mode .battle-card { flex: 1 1 46%; max-width: 46%; align-self: center; }
+    .battle-lineref-chip { display: inline-block; margin-bottom: 12px; }
+    @media (max-width: 720px) {
+      .battle-arena.interrogation-mode { flex-direction: column; }
+      .battle-arena.interrogation-mode .battle-passage-panel,
+      .battle-arena.interrogation-mode .battle-card { max-width: 100%; flex: 1 1 auto; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+let _passageModulePromise = null;
+function loadPassageEngineModule() {
+  if (!_passageModulePromise) {
+    _passageModulePromise = import('../engine/passage.js').catch(() => null);
+  }
+  return _passageModulePromise;
+}
+
+let _diagramsModulePromise = null;
+function loadDiagramsModule() {
+  if (!_diagramsModulePromise) {
+    _diagramsModulePromise = import('../engine/diagrams.js').catch(() => null);
+  }
+  return _diagramsModulePromise;
+}
+
 export async function mount(root, ctx, params) {
   cleanupFns = [];
   alive = true;
-  const topic = ctx.topics[params.id];
-  const stage = params.stage;
-  if (!topic || !STAGE_LABEL[stage]) { ctx.go(`#/topic/${params.id || ''}`); return; }
 
-  const { creature: castCreature, isBoss } = castCreatureFor(topic, stage);
+  const isRegionBattle = !!params.regionId;
+  let topic = null;
+  let stage = params.stage;
+  let region = null;
+  let regionTopicsRaw = [];
+
+  if (isRegionBattle) {
+    stage = 'regionboss';
+    region = REGIONS.find((r) => r.id === params.regionId);
+    regionTopicsRaw = region ? Object.values(ctx.topics).filter((t) => t.region === region.id) : [];
+    // A region with no boss authored yet (data/map.js) or no live topics registered can't
+    // be fought — bail to the map rather than crash on a missing region.boss.name lookup.
+    if (!region || !region.boss || regionTopicsRaw.length === 0) { ctx.go('#/map'); return; }
+  } else {
+    topic = ctx.topics[params.id];
+    if (!topic || !STAGE_LABEL[stage]) { ctx.go(`#/topic/${params.id || ''}`); return; }
+  }
+
+  // Storybog topic-boss "one full passage" exam mode (ENGINE_SPEC_2 §D): stage==='boss' on
+  // a skill-topic with no authored bank of its own. Checked against the ORIGINAL topic
+  // (before bank-resolution below populates a synthetic bank for every skill-topic) so
+  // kinds-of-writing — which DOES author its own bank — correctly plays an ordinary
+  // bank-driven boss instead.
+  const isStorybogExamBoss = !isRegionBattle && stage === 'boss' && !!topic.skill && !topic.bank;
+
+  let battleTopics = [];
+  let fixedQuestions = null;
+  let bossPassage = null;
+
+  if (isStorybogExamBoss) {
+    const passages = await loadPassagesModule();
+    if (!alive) return; // unmounted while awaiting the passages module
+    if (passages.length === 0) {
+      ctx.toast("The Story Scrolls aren't ready yet — try again soon!");
+      ctx.go(`#/topic/${topic.id}`);
+      return;
+    }
+    bossPassage = pick(passages);
+    fixedQuestions = (bossPassage.questions || []).map((q) => ({ ...q, topicId: topic.id, passageId: bossPassage.id }));
+    battleTopics = [topic];
+  } else if (isRegionBattle) {
+    battleTopics = await Promise.all(regionTopicsRaw.map(resolveBattleTopic));
+    if (!alive) return; // unmounted while awaiting bank/passage resolution
+  } else {
+    topic = await resolveBattleTopic(topic);
+    if (!alive) return; // unmounted while awaiting bank/passage resolution
+    battleTopics = [topic];
+  }
+
+  // Only fetch the full passages list (for panel lookup while rendering) when something in
+  // play could actually be passage-tagged — a maths-only battle never pays this cost.
+  let passagesById = {};
+  if (bossPassage) {
+    passagesById = { [bossPassage.id]: bossPassage };
+  } else if (battleTopics.some((t) => t.skill)) {
+    const passages = await loadPassagesModule();
+    if (!alive) return;
+    passagesById = Object.fromEntries(passages.map((p) => [p.id, p]));
+  }
+
+  let castCreature;
+  let isBoss;
+  if (isRegionBattle) {
+    isBoss = true;
+    castCreature = { id: regionBossCreatureId(region), name: region.boss.name, image: region.boss.image };
+  } else {
+    ({ creature: castCreature, isBoss } = castCreatureFor(topic, stage));
+  }
+
+  const displayName = isRegionBattle ? region.name : topic.name;
+  const backHash = isRegionBattle ? '#/map' : `#/topic/${topic.id}`;
+  const tipsPool = isRegionBattle ? battleTopics.flatMap((t) => t.tips || []) : (topic.tips || []);
 
   const screen = document.createElement('div');
   screen.className = 'battle-screen screen enter-pop';
-  screen.style.background = regionBgFor(topic);
+  screen.style.background = isRegionBattle ? region.bg : regionBgFor(topic);
 
   const fumes = document.createElement('div');
   fumes.className = 'fumes';
@@ -122,12 +290,36 @@ export async function mount(root, ctx, params) {
 
   hud.querySelector('.battle-back').addEventListener('click', () => {
     ctx.audio.sfx('back');
-    ctx.go(`#/topic/${topic.id}`);
+    ctx.go(backHash);
   });
 
   ctx.audio.music('battle');
 
-  const engine = createBattleEngine({ topic, stage, seed: Date.now() });
+  // Bank-sampling memory (ENGINE_SPEC_2 §D `seenItems`), seeded from whatever's already
+  // persisted for each topic in play and handed to the engine; the engine's own copy is
+  // then persisted back out after every draw (see persistSeenItems below).
+  const seenItemsByTopic = {};
+  battleTopics.forEach((t) => { seenItemsByTopic[t.id] = ctx.state.getSeenItems(t.id); });
+
+  const engineOpts = { stage, seed: Date.now() };
+  if (isRegionBattle) {
+    engineOpts.topics = battleTopics;
+    engineOpts.seenItemsByTopic = seenItemsByTopic;
+  } else if (isStorybogExamBoss) {
+    engineOpts.fixedQuestions = fixedQuestions;
+    engineOpts.winThreshold = 10;
+  } else {
+    engineOpts.topic = topic;
+    engineOpts.seenItemsByTopic = seenItemsByTopic;
+  }
+  const engine = createBattleEngine(engineOpts);
+
+  function persistSeenItems() {
+    const map = engine.getState().seenItemsByTopic || {};
+    Object.keys(map).forEach((tid) => {
+      ctx.state.setSeenItems(tid, map[tid]).catch(() => {});
+    });
+  }
 
   function updateGauge(refill, forceValue) {
     const fill = hud.querySelector('.pong-meter-fill');
@@ -190,9 +382,81 @@ export async function mount(root, ctx, params) {
 
   let currentQuestion = null;
   let formatHandle = null;
+  let passagePanelEl = null;
+  let lineRefChipEl = null;
+  let diagramEl = null;
+
+  function removePassagePanel() {
+    if (passagePanelEl) { passagePanelEl.remove(); passagePanelEl = null; }
+    if (lineRefChipEl) { lineRefChipEl.remove(); lineRefChipEl = null; }
+    arena.classList.remove('interrogation-mode');
+  }
+
+  function removeDiagram() {
+    if (diagramEl) { diagramEl.remove(); diagramEl = null; }
+  }
+
+  // Passage "interrogation" layout (ENGINE_SPEC_2 §B): mounted whenever the current
+  // question carries a passageId. Dynamic-imported so a not-yet-ready (or missing)
+  // js/engine/passage.js never blocks or breaks a battle — it just renders without the
+  // panel, same as any question without a passageId would.
+  async function mountPassageForQuestion(q) {
+    const passage = passagesById[q.passageId];
+    if (!passage) return;
+    const mod = await loadPassageEngineModule();
+    if (!alive || currentQuestion !== q) return; // superseded by a later question already
+    if (!mod || typeof mod.passagePanel !== 'function') return;
+    try {
+      ensureInterrogationStyles();
+      const panelEl = mod.passagePanel(passage);
+      panelEl.classList.add('battle-passage-panel');
+      arena.classList.add('interrogation-mode');
+      arena.insertBefore(panelEl, card);
+      passagePanelEl = panelEl;
+      if (q.lineRef && typeof mod.lineRefChip === 'function') {
+        const chip = mod.lineRefChip(panelEl, q.lineRef);
+        if (chip) {
+          chip.classList.add('battle-lineref-chip');
+          card.insertBefore(chip, card.firstChild);
+          lineRefChipEl = chip;
+        }
+      }
+    } catch (err) {
+      // Never let a passage-engine quirk break the battle — drop back to a plain question.
+      removePassagePanel();
+      // eslint-disable-next-line no-console
+      console.error('battle.js: passage panel mount failed, continuing without it:', err);
+    }
+  }
+
+  // Diagram primitives (ENGINE_SPEC_2 §C): only needed when a question's visual is a bare
+  // spec ({kind,...}) rather than the Phase-1 pre-built {kind,html} shape formats already
+  // render themselves. Dynamic-imported with the same graceful-fallback contract as above.
+  async function mountDiagramForQuestion(q) {
+    if (!q.visual || q.visual.html || !q.visual.kind) return;
+    const mod = await loadDiagramsModule();
+    if (!alive || currentQuestion !== q) return;
+    if (!mod || typeof mod.renderDiagram !== 'function') return;
+    try {
+      const svg = mod.renderDiagram(q.visual);
+      if (!svg) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'fmt-visual fmt-visual-diagram';
+      wrap.appendChild(svg);
+      const stemEl = card.querySelector('.fmt-stem');
+      if (stemEl) stemEl.insertAdjacentElement('afterend', wrap);
+      else card.insertBefore(wrap, card.firstChild);
+      diagramEl = wrap;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('battle.js: diagram render failed, continuing without it:', err);
+    }
+  }
 
   function renderQuestion(q) {
     currentQuestion = q;
+    removePassagePanel();
+    removeDiagram();
     const api = {
       rng: Math.random, // battle engine already used seeded rng for generation; format shuffle just needs variety
       scaffold: false,
@@ -202,6 +466,9 @@ export async function mount(root, ctx, params) {
     const shuffleRng = (() => { let s = Date.now() ^ Math.floor(Math.random() * 1e9); return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return (s % 100000) / 100000; }; })();
     api.rng = shuffleRng;
     formatHandle = formats[q.format].render(card, q, api);
+    if (q.passageId) mountPassageForQuestion(q);
+    if (q.visual) mountDiagramForQuestion(q);
+    persistSeenItems();
   }
 
   async function bossIntroBeat() {
@@ -227,6 +494,7 @@ export async function mount(root, ctx, params) {
 
   function onAnswer(q, result) {
     const outcome = engine.recordAnswer(result.correct);
+    const answerTopicId = q.topicId || topic.id;
 
     if (result.correct) {
       ctx.audio.sfx('correct');
@@ -249,7 +517,7 @@ export async function mount(root, ctx, params) {
         ctx.audio.vo('correct');
       }
 
-      ctx.state.recordAnswer(topic.id, { correct: true, tier: q.tier }).catch(() => {});
+      ctx.state.recordAnswer(answerTopicId, { correct: true, tier: q.tier }).catch(() => {});
 
       if (outcome.finished) {
         deferTimeout(() => { if (!alive) return; finishBattle(outcome); }, 700);
@@ -267,9 +535,9 @@ export async function mount(root, ctx, params) {
       void creatureWrap.offsetWidth;
       creatureWrap.classList.add('wiggle');
       updateStreakPips(0);
-      if (stage === 'boss') updateGauge(true);
+      if (stage === 'boss' || stage === 'regionboss') updateGauge(true);
 
-      ctx.state.recordAnswer(topic.id, { correct: false, tier: q.tier }).catch(() => {});
+      ctx.state.recordAnswer(answerTopicId, { correct: false, tier: q.tier }).catch(() => {});
 
       showReteach(q, result);
 
@@ -316,6 +584,7 @@ export async function mount(root, ctx, params) {
   function hideQuestionArea() {
     card.style.display = 'none';
     card.innerHTML = '';
+    removePassagePanel();
     streakPips.style.display = 'none';
     if (megaBanner) { megaBanner.remove(); megaBanner = null; }
   }
@@ -331,31 +600,32 @@ export async function mount(root, ctx, params) {
     }
     hideQuestionArea();
 
-    if (stage === 'boss' && outcome.won) {
+    const isBossyStage = stage === 'boss' || stage === 'regionboss';
+    if (isBossyStage && outcome.won) {
       await runCaptureSequence(outcome);
-    } else if (stage === 'boss') {
+    } else if (isBossyStage) {
       await runBossNotYetScreen(outcome);
     } else {
       await runScrapEndScreen(outcome);
     }
   }
 
-  async function runBossNotYetScreen(outcome) {
+  async function runBossNotYetScreen() {
     ctx.audio.music('map');
     ctx.audio.sfx('confirm');
-    const tip = pick(topic.tips);
+    const tip = pick(tipsPool);
     const end = document.createElement('div');
     end.className = 'battle-end-screen enter-pop';
     end.innerHTML = `
       <h1 class="end-title">So close, hero!</h1>
-      <div class="end-tally">${topic.creature.name} held on — but only just. No progress lost, no lives gone. Have another go whenever you're ready!</div>
+      <div class="end-tally">${castCreature.name} held on — but only just. No progress lost, no lives gone. Have another go whenever you're ready!</div>
       <div class="wisdom-tip"><b>Whiff of Wisdom:</b> ${tip}</div>
-      <button class="btn btn-gold" style="padding:16px 36px; font-size:18px;">Back to ${topic.name}</button>
+      <button class="btn btn-gold" style="padding:16px 36px; font-size:18px;">Back to ${displayName}</button>
     `;
     screen.appendChild(end);
     end.querySelector('button').addEventListener('click', () => {
       ctx.audio.sfx('click');
-      ctx.go(`#/topic/${topic.id}`);
+      ctx.go(backHash);
     });
   }
 
@@ -382,14 +652,14 @@ export async function mount(root, ctx, params) {
       }
     }
 
-    const tip = pick(topic.tips);
+    const tip = pick(tipsPool);
 
     end.innerHTML = `
       <h1 class="end-title">${outcome.won ? 'SCRAP WON!' : 'Nearly there!'}</h1>
       <div class="end-tally">Hits landed: ${outcome.hitsLanded} / ${outcome.totalHitsNeeded}</div>
       ${dropHtml}
       <div class="wisdom-tip"><b>Whiff of Wisdom:</b> ${tip}</div>
-      <button class="btn btn-gold" style="padding:16px 36px; font-size:18px;">Back to ${topic.name}</button>
+      <button class="btn btn-gold" style="padding:16px 36px; font-size:18px;">Back to ${displayName}</button>
     `;
     screen.appendChild(end);
     ctx.audio.sfx('confirm');
@@ -397,7 +667,7 @@ export async function mount(root, ctx, params) {
 
     end.querySelector('button').addEventListener('click', () => {
       ctx.audio.sfx('click');
-      ctx.go(`#/topic/${topic.id}`);
+      ctx.go(backHash);
     });
   }
 
@@ -409,21 +679,33 @@ export async function mount(root, ctx, params) {
     await sleep(160);
     if (!alive) return; // unmounted during the white flash beat
     ctx.audio.sfx('capture');
-    ctx.audio.vo('boss-defeated');
+    ctx.audio.vo(isRegionBattle ? 'regionboss' : 'boss-defeated');
 
     const flawless = outcome.flawless;
-    // recordBoss persistence is best-effort (state.js never rejects post-fix, but we
-    // guard here too, belt-and-braces): a storage failure must never strand the child
-    // on the white-flash overlay with no way forward — always continue to the capture
-    // end screen regardless of whether the write succeeded.
-    try {
-      await ctx.state.recordBoss(topic.id, { won: true, flawless });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('battle.js: recordBoss failed, continuing capture sequence anyway:', err);
+    let shiny = false;
+    // recordBoss/recordRegionBoss persistence is best-effort (state.js never rejects
+    // post-fix, but we guard here too, belt-and-braces): a storage failure must never
+    // strand the child on the white-flash overlay with no way forward — always continue
+    // to the capture end screen regardless of whether the write succeeded.
+    if (isRegionBattle) {
+      try {
+        await ctx.state.recordRegionBoss(region.id, { won: true, creatureId: castCreature.id });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('battle.js: recordRegionBoss failed, continuing capture sequence anyway:', err);
+      }
+    } else {
+      try {
+        await ctx.state.recordBoss(topic.id, { won: true, flawless });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('battle.js: recordBoss failed, continuing capture sequence anyway:', err);
+      }
+      if (!alive) return; // unmounted while recordBoss was pending
+      shiny = !!ctx.state.topic(topic.id).shiny;
     }
-    if (!alive) return; // unmounted while recordBoss was pending
-    if (flawless) ctx.audio.vo('shiny');
+    if (!alive) return; // unmounted while the record* call was pending
+    if (shiny) ctx.audio.vo('shiny');
 
     spawnConfetti(screen);
     stamp.classList.add('show');
@@ -432,20 +714,20 @@ export async function mount(root, ctx, params) {
     if (!alive) return; // unmounted during the confetti/stamp beat
     ctx.audio.music('map');
 
-    const record = ctx.state.topic(topic.id);
-    const stars = record.shiny ? '⭐⭐⭐ SHINY!' : '⭐⭐';
-    const tip = pick(topic.tips);
+    const stars = shiny ? '⭐⭐⭐ SHINY!' : (isRegionBattle ? '⭐⭐⭐ EPIC!' : '⭐⭐');
+    const tip = pick(tipsPool);
     // Only place-value/decimals-x10/rounding bosses have a -shiny.png sibling (rare-rarity
     // topic bosses); show it once flawless, falling back to the normal image if missing.
-    const captureImage = record.shiny ? topic.creature.image.replace(/\.png$/, '-shiny.png') : topic.creature.image;
+    // Region bosses have no shiny variant at all (epic rarity is fixed, not flawless-gated).
+    const captureImage = shiny ? castCreature.image.replace(/\.png$/, '-shiny.png') : castCreature.image;
 
     const end = document.createElement('div');
     end.className = 'battle-end-screen enter-pop';
     end.innerHTML = `
       <h1 class="end-title">CAPTURED!</h1>
       <div class="end-creature-card">
-        <img src="${captureImage}" alt="${topic.creature.name}" onerror="this.onerror=null;this.src='${topic.creature.image}'">
-        <h2 style="font-family:'Fredoka',sans-serif; margin:6px 0;">${topic.creature.name}</h2>
+        <img src="${captureImage}" alt="${castCreature.name}" onerror="this.onerror=null;this.src='${castCreature.image}'">
+        <h2 style="font-family:'Fredoka',sans-serif; margin:6px 0;">${castCreature.name}</h2>
         <div class="stars">${stars}</div>
       </div>
       <div class="wisdom-tip"><b>Whiff of Wisdom:</b> ${tip}</div>
@@ -454,7 +736,7 @@ export async function mount(root, ctx, params) {
     screen.appendChild(end);
     end.querySelector('button').addEventListener('click', () => {
       ctx.audio.sfx('click');
-      ctx.go(`#/topic/${topic.id}`);
+      ctx.go(backHash);
     });
   }
 

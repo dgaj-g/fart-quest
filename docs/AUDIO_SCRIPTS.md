@@ -132,3 +132,69 @@ Feel free to improvise around any line — funnier beats accurate. The only rule
 - Priority B: 18 files → topic-specific intros + rich variety.
 - Priority C: 5 files → polish.
 The app picks randomly among however many variants exist, never repeats the same clip twice in a row, and stays silent (no errors) for anything not yet recorded.
+
+---
+
+# WAVE 2 — Story, Tutorial & Exam Day (recorded ✅ Wave 1 all installed)
+Same recording routine as before; same folder; same placement prompt afterwards. The story scenes play over animations — read them like a bedtime-story narrator who keeps corpsing. ~17 clips.
+
+## The Story (opening cinematic — one clip per scene)
+
+**vo-story-01** *(a beautiful kingdom, birdsong)*
+> "Long ago, the Kingdom was BEAUTIFUL. Fresh air! Green hills! You could breathe through your NOSE, Jarlath. Imagine that."
+
+**vo-story-02** *(darkness falls, a huge shape rises)*
+> "Then… HE came. The SKIDMARK KING. The foulest tyrant ever to squelch across a throne."
+
+**vo-story-03** *(green fog engulfs everything)*
+> "He unleashed… the GREAT STINK. It crept into every corner of the kingdom. Even the cheese complained."
+
+**vo-story-04** *(a sad little stinkling looks up)*
+> "Now listen carefully, my boy — the monsters you'll meet aren't wicked. They're just… unbelievably whiffy. De-stink them, and they'll JOIN you!"
+
+**vo-story-05** *(Whiffbeard appears in a sparkle)*
+> "And so I, Professor Whiffbeard — greatest wizard alive, worst-smelling beard in history — searched the land for a hero…"
+
+**vo-story-06** *(zoom towards the first stepping stone; title card)*
+> "…and I found YOU. Sir Jarlath! Brain of a champion! Nose of steel! The Kingdom of Fart Quest AWAITS!"
+
+## The Tutorial (Whiffbeard walks him round, one clip per step)
+
+**vo-tutorial-01**
+> "See those stinky stepping stones? Each one is a challenge. Tap one to begin, brave hero!"
+
+**vo-tutorial-02**
+> "ALWAYS read my Scout Report first. Learn the secret, THEN battle. Heroes who skip lessons get parped on."
+
+**vo-tutorial-03**
+> "In battle, right answers knock the pong clean out of them! Get three in a row and — well. You'll hear it."
+
+**vo-tutorial-04**
+> "Everything you de-stink joins your collection in the Stink Vault. Now off you go — the kingdom is HONKING."
+
+## Castle Clench (exam day)
+
+**vo-exam-01** *(the gates open)*
+> "Beyond this gate waits the Skidmark King himself. No jokes now, hero… well. Maybe ONE. Fifty-six questions. Sixty minutes. Show him what that magnificent brain can do."
+
+**vo-exam-02** *(victory)*
+> "HE'S DOWN! THE KING IS DE-STUNK! Sound the trumpets! Sound ALL the trumpets! You absolute LEGEND!"
+
+**vo-exam-03** *(so close)*
+> "He staggers… but he's still standing. Train, my boy, then come back stronger. His royal bottom TREMBLES at the thought of you."
+
+## Region conquered
+
+**vo-regionboss-01**
+> "A whole region — CLEANSED! Smell that? Nothing. Absolutely NOTHING. Magnificent!"
+
+## The one that got away (please record — it fronts every lesson that doesn't have its own intro, which is most of the new ones)
+
+**vo-teach-generic-01**
+> "Now listen up, you little smelly fart — class is in session, and old Professor Whiffbeard is about to make you DANGEROUSLY clever!"
+
+**vo-teach-generic-02**
+> "Class is in session, my crusty little apprentice! Ears open, nose closed — this bit is IMPORTANT."
+
+**vo-teach-generic-03**
+> "Gather round, gather round! Old Whiffbeard is about to hand you a secret worth its weight in gold. Which is a LOT — I am very heavy."

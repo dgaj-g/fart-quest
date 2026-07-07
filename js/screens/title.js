@@ -89,7 +89,12 @@ function rand(min, max) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-export function mount(root, ctx) {
+function hasAnyProgress(ctx) {
+  if (ctx.state.commonsOwned().length > 0) return true;
+  return Object.keys(ctx.topics).some((id) => ctx.state.topic(id).taught);
+}
+
+export async function mount(root, ctx) {
   alive = true;
   const screen = document.createElement('div');
   screen.className = 'title-screen screen enter-pop';
@@ -147,13 +152,16 @@ export function mount(root, ctx) {
   subtitle.textContent = 'The Kingdom needs YOU… it smells TERRIBLE.';
   screen.appendChild(subtitle);
 
+  const hasProgress = hasAnyProgress(ctx);
+
   const buttons = document.createElement('div');
   buttons.className = 'title-buttons';
   buttons.innerHTML = `
-    <button class="btn btn-gold title-play-btn">PLAY</button>
+    <button class="btn btn-gold title-play-btn">${hasProgress ? 'CONTINUE' : 'PLAY'}</button>
     <div class="title-secondary-row">
-      <button class="btn btn-ghost">Collection</button>
-      <button class="btn btn-ghost">Settings</button>
+      <button class="btn btn-ghost" data-nav="collection">Collection</button>
+      <button class="btn btn-ghost" data-nav="settings">Settings</button>
+      <button class="btn btn-ghost" data-nav="story">📖 Story</button>
     </div>
   `;
   screen.appendChild(buttons);
@@ -170,13 +178,19 @@ export function mount(root, ctx) {
 
   root.appendChild(screen);
 
-  buttons.querySelector('.title-play-btn').addEventListener('click', () => {
+  buttons.querySelector('.title-play-btn').addEventListener('click', async () => {
     ctx.audio.sfx('confirm');
-    ctx.go('#/map');
+    // First-run flow: a fresh profile (storySeen meta flag never set) chains
+    // PLAY -> story -> tutorial -> map (that hand-off is the story screen's
+    // own job once it exists; we only ever navigate to it here). Coordinated
+    // purely via the storySeen meta key — no import of story internals.
+    let storySeen = true;
+    try { storySeen = !!(await ctx.db.get('meta', 'storySeen')); } catch (e) { /* ignore */ }
+    ctx.go(storySeen ? '#/map' : '#/story');
   });
-  const secondaryBtns = buttons.querySelectorAll('.title-secondary-row button');
-  secondaryBtns[0].addEventListener('click', () => { ctx.audio.sfx('click'); ctx.go('#/collection'); });
-  secondaryBtns[1].addEventListener('click', () => { ctx.audio.sfx('click'); ctx.go('#/settings'); });
+  buttons.querySelector('[data-nav="collection"]').addEventListener('click', () => { ctx.audio.sfx('click'); ctx.go('#/collection'); });
+  buttons.querySelector('[data-nav="settings"]').addEventListener('click', () => { ctx.audio.sfx('click'); ctx.go('#/settings'); });
+  buttons.querySelector('[data-nav="story"]').addEventListener('click', () => { ctx.audio.sfx('click'); ctx.go('#/story'); });
 
   crest.addEventListener('pointerdown', () => {
     holdStart = Date.now();

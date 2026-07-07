@@ -4,13 +4,36 @@
 // since the actual game screens never run in node (tests use a fake db instead).
 
 const DB_NAME = 'fartquest';
-const DB_VERSION = 1;
-const STORES = ['progress', 'settings', 'meta'];
+// v1 -> v2: added the 'mocks' store (Castle Clench exam history, ENGINE_SPEC_2 §H).
+// Bumping this is additive-only — see runUpgrade()'s "preserving existing data" contract.
+const DB_VERSION = 2;
+const STORES = ['progress', 'settings', 'meta', 'mocks'];
 
 let _dbPromise = null;
 
 function hasIndexedDB() {
   return typeof indexedDB !== 'undefined' && indexedDB !== null;
+}
+
+/**
+ * runUpgrade(idb, oldVersion) — pure-ish upgrade step, deliberately factored out
+ * of openOnce() so it can be exercised in node with a fake `idb` object (no real
+ * indexedDB required): { objectStoreNames:{contains(name)}, createObjectStore(name) }.
+ *
+ * oldVersion 0 (fresh install): create every store.
+ * oldVersion 1 (pre-mocks installs): create ONLY 'mocks' — progress/settings/meta
+ *   are left completely untouched, so their existing data survives the upgrade
+ *   (IndexedDB never wipes an object store's contents just because onupgradeneeded
+ *   ran; only calling deleteObjectStore/clear would, and we never do that here).
+ * oldVersion >= 2: no-op.
+ */
+function runUpgrade(idb, oldVersion) {
+  const need = oldVersion < 1 ? STORES : oldVersion < 2 ? ['mocks'] : [];
+  for (const name of need) {
+    if (!idb.objectStoreNames.contains(name)) {
+      idb.createObjectStore(name);
+    }
+  }
 }
 
 function openOnce() {
@@ -20,13 +43,8 @@ function openOnce() {
       return;
     }
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const idb = req.result;
-      for (const name of STORES) {
-        if (!idb.objectStoreNames.contains(name)) {
-          idb.createObjectStore(name);
-        }
-      }
+    req.onupgradeneeded = (event) => {
+      runUpgrade(req.result, event.oldVersion);
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error || new Error('db.open failed.'));
@@ -167,4 +185,4 @@ async function importAll(obj) {
 }
 
 export default { open, get, put, getAll, del, exportAll, importAll };
-export { open, get, put, getAll, del, exportAll, importAll };
+export { open, get, put, getAll, del, exportAll, importAll, runUpgrade, DB_VERSION, STORES };

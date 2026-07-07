@@ -1,0 +1,141 @@
+/* FART QUEST — ENGINE agent (css/passage.css) */
+/* Parchment-scroll passage panel for Storybog "interrogation" battles. */
+
+.passage-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: linear-gradient(180deg, #ecdcb8, var(--parchment));
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.passage-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 2px dashed rgba(51, 38, 29, 0.18);
+  flex: 0 0 auto;
+}
+
+.passage-genre-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.passage-title-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.passage-title {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  margin: 0;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.passage-genre-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8c7a63;
+}
+
+.passage-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 18px 20px 26px;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .passage-scroll { scroll-behavior: auto; }
+}
+
+/* exam-calm: plain system text, no game font, no colour tricks */
+.passage-line {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink);
+  border-radius: 6px;
+  transition: background-color 200ms ease;
+}
+
+.passage-linenum {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a8946a;
+  padding-top: 0.15em;
+}
+
+.passage-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.passage-gap-para { height: 0.6em; }
+.passage-gap-stanza { height: 1.4em; }
+
+/* flash-highlight when a line-ref chip is tapped */
+.line-hit {
+  animation: passage-line-flash 1500ms ease-out;
+}
+@keyframes passage-line-flash {
+  0% { background-color: rgba(244, 197, 66, 0.85); }
+  100% { background-color: rgba(244, 197, 66, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .line-hit { animation: none; background-color: rgba(244, 197, 66, 0.45); }
+}
+
+/* line-ref chip — mounted by the battle screen next to a passage question */
+.line-ref-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 60px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: 0 4px 0 var(--gold-deep);
+  cursor: pointer;
+}
+.line-ref-chip::before {
+  content: '📜';
+  font-size: 16px;
+}
+.line-ref-chip:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--gold-deep);
+}
+
+@media (max-width: 640px) {
+  .passage-title { font-size: 16px; }
+  .passage-line { font-size: 16px; }
+}

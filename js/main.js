@@ -5,10 +5,9 @@ import db from './db.js';
 import state from './state.js';
 import audio from './audio.js';
 import router from './router.js';
+import { STAGE_CONFIG } from './engine/battle.js';
 
-import placeValueTopic from '../data/topics/place-value.js';
-import decimalsTopic from '../data/topics/decimals-x10.js';
-import roundingTopic from '../data/topics/rounding.js';
+import { TOPICS } from '../data/topics/index.js';
 
 import * as titleScreen from './screens/title.js';
 import * as mapScreen from './screens/map.js';
@@ -20,11 +19,7 @@ import * as armouryScreen from './screens/armoury.js';
 import * as parentScreen from './screens/parent.js';
 import * as settingsScreen from './screens/settings.js';
 
-export const TOPICS = {
-  'place-value': placeValueTopic,
-  'decimals-x10': decimalsTopic,
-  'rounding': roundingTopic,
-};
+export { TOPICS };
 
 const SFX_MAP = {
   'click': 'audio/sfx/click.m4a',
@@ -51,13 +46,41 @@ function showToast(msg) {
 }
 
 async function loadSettings() {
-  const defaults = { music: 1, sfx: 1, vo: 1, fartOMeter: 2, musicOn: true, sfxOn: true, voOn: true, textSize: 'A' };
+  const defaults = {
+    music: 1, sfx: 1, vo: 1, fartOMeter: 2, musicOn: true, sfxOn: true, voOn: true, textSize: 'A',
+    examTimerSounds: true,
+  };
   try {
     const saved = await db.get('settings', 'prefs');
     return Object.assign({}, defaults, saved || {});
   } catch (e) {
     return defaults;
   }
+}
+
+// Screens for #/story and #/exam are authored by other concurrent agents and
+// may not exist on disk yet — load them defensively via dynamic import so a
+// missing file degrades to a friendly redirect instead of a fatal boot error.
+// Once those files land, this same code picks them up with zero changes here.
+async function loadOptionalScreen(path) {
+  try {
+    const mod = await import(path);
+    if (mod && typeof mod.mount === 'function') return mod;
+    if (mod && mod.default && typeof mod.default.mount === 'function') return mod.default;
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function comingSoonScreen(message, redirectHash) {
+  return {
+    mount(root, ctx) {
+      ctx.toast(message);
+      ctx.go(redirectHash);
+    },
+    unmount() {},
+  };
 }
 
 async function boot() {
@@ -91,25 +114,48 @@ async function boot() {
 
   document.body.classList.toggle('text-size-large', prefs.textSize === 'A+');
 
+  const [storyMod, examMod] = await Promise.all([
+    loadOptionalScreen('./screens/story.js'),
+    loadOptionalScreen('./screens/exam.js'),
+  ]);
+
+  const capabilities = {
+    story: !!storyMod,
+    exam: !!examMod,
+    // Morning Patrol (§I) needs a 'patrol' battle stage the battle engine may
+    // not have wired up yet — feature-detect rather than assume.
+    patrol: !!(STAGE_CONFIG && STAGE_CONFIG.patrol),
+  };
+
   const ctx = {
     db,
     state,
     audio,
     topics: TOPICS,
     prefs,
+    capabilities,
     go: (hash) => router.go(hash),
     toast: showToast,
   };
 
   router.register('/title', titleScreen);
   router.register('/map', mapScreen);
+  // Specific region-battle path MUST be registered before the generic
+  // '/battle/:id/:stage' pattern below, or that pattern would swallow it
+  // (matching id='region', stage=':regionId').
+  router.register('/battle/region/:regionId', battleScreen);
+  router.register('/battle/:id/:stage', battleScreen);
   router.register('/topic/:id', topicScreen);
   router.register('/lesson/:id', lessonScreen);
-  router.register('/battle/:id/:stage', battleScreen);
   router.register('/collection', collectionScreen);
   router.register('/armoury', armouryScreen);
   router.register('/parent', parentScreen);
   router.register('/settings', settingsScreen);
+  router.register('/story', storyMod || comingSoonScreen("The kingdom's tale arrives soon!", '#/map'));
+  router.register('/exam', examMod || comingSoonScreen('Castle Clench opens once more of the kingdom is clean!', '#/map'));
+  // '/patrol' is deliberately NOT registered: the battle engine has no 'patrol'
+  // stage yet (see capabilities.patrol above). The map's Morning Patrol button
+  // stays disabled until that lands, rather than routing anywhere broken.
 
   const appRoot = document.getElementById('app');
   router.start(appRoot, ctx);

@@ -21,7 +21,29 @@ function unlockRequirementText(record, needed) {
   return '';
 }
 
-export function mount(root, ctx, params) {
+function lessonProgressKey(topicId) {
+  return `lessonProgress-${topicId}`;
+}
+
+async function readLessonProgress(ctx, topicId) {
+  try {
+    const saved = await ctx.db.get('meta', lessonProgressKey(topicId));
+    return typeof saved === 'number' ? saved : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function scoutReportLabel(record, savedIndex, totalCards) {
+  if (!record.taught && savedIndex != null) {
+    return { line: `Continue (card ${savedIndex + 1}/${totalCards})`, pulsing: true };
+  }
+  if (!record.taught) return { line: 'Start here!', pulsing: true };
+  if (record.captured) return { line: 'Re-read Scout Report', pulsing: false };
+  return { line: 'Revisit', pulsing: false };
+}
+
+export async function mount(root, ctx, params) {
   const topic = ctx.topics[params.id];
   if (!topic) {
     ctx.go('#/map');
@@ -42,6 +64,8 @@ export function mount(root, ctx, params) {
   const record = ctx.state.topic(topic.id);
   const level = ctx.state.masteryLevel(topic.id);
   const captured = record.captured;
+  const savedIndex = await readLessonProgress(ctx, topic.id);
+  const scoutLabel = scoutReportLabel(record, savedIndex, topic.lesson.length);
 
   const panel = document.createElement('div');
   panel.className = 'topic-panel';
@@ -73,9 +97,9 @@ export function mount(root, ctx, params) {
     <p class="topic-tagline">${topic.tagline}</p>
     <div class="mastery-ladder">${ladderHtml}</div>
     <div class="topic-actions">
-      <button class="btn btn-parchment topic-action-btn ${!record.taught ? 'pulsing' : ''}" data-action="lesson">
+      <button class="btn btn-parchment topic-action-btn ${scoutLabel.pulsing ? 'pulsing' : ''}" data-action="lesson">
         <span>📜 Scout Report</span>
-        <span class="lock-note">${record.taught ? 'Revisit' : 'Start here!'}</span>
+        <span class="lock-note">${scoutLabel.line}</span>
       </button>
       <button class="btn btn-parchment topic-action-btn" data-action="minion" ${!record.taught ? 'disabled' : ''}>
         <span>⚔️ Minion Battle</span>
