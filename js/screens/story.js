@@ -4,7 +4,14 @@
 
 import coach from '../engine/coach.js';
 
+// Fix (advance-on-VO-end, ENGINE_SPEC_2 §F): Damien's recorded story clips run
+// 8.5-11.5s, well past the old flat 7s timer — every scene was cutting his
+// narration off. AUTO_ADVANCE_MS is now only a fallback for scenes with no VO
+// (or where vo() reports no recording/playback attempt at all); a scene that
+// actually has a clip playing waits for it to end instead (see renderScene()).
 const AUTO_ADVANCE_MS = 7000; // fallback if VO has no measurable length / is silent
+const VO_END_BEAT_MS = 800;   // pause after the clip ends so the scene can breathe
+const VO_SAFETY_MS = 20000;  // in case a clip that started never fires 'ended'/'error'
 
 let alive = false;
 let sceneTimer = null;
@@ -12,6 +19,8 @@ let sceneIndex = 0;
 let ctxRef = null;
 let rootEl = null;
 let finished = false;
+let voEndedHandler = null; // current 'fq-vo-ended' listener, or null — one per scene
+let sceneToken = 0;        // guards stale vo()-promise continuations after tap-advance/skip/unmount
 
 // ---------- scene data ----------
 // Each scene is a declarative composition built from EXISTING assets only.
@@ -162,6 +171,10 @@ export const TUTORIAL_STEPS = [
 function clearTimers() {
   clearTimeout(sceneTimer);
   sceneTimer = null;
+  if (voEndedHandler) {
+    window.removeEventListener('fq-vo-ended', voEndedHandler);
+    voEndedHandler = null;
+  }
 }
 
 function renderScene(root, ctx, index) {
@@ -193,10 +206,31 @@ function renderScene(root, ctx, index) {
     try { scene.onEnter(ctx); } catch (e) { /* swallow — story must never crash the app */ }
   }
 
-  ctx.audio.vo(scene.voId);
-
   clearTimers();
+  const token = ++sceneToken;
+
+  // Default fallback — covers scenes with no voId, and stays in place until/unless
+  // vo() below reports a clip that actually started playing.
   sceneTimer = setTimeout(() => advance(), AUTO_ADVANCE_MS);
+
+  ctx.audio.vo(scene.voId).then((played) => {
+    // Stale guard: tap-to-advance (or skip/unmount) may already have moved the
+    // screen on while this promise was in flight — never act for an old scene.
+    if (token !== sceneToken || !alive || finished) return;
+    if (!scene.voId || !played) return; // no recording — keep the 7s fallback running
+
+    clearTimeout(sceneTimer);
+    voEndedHandler = () => {
+      window.removeEventListener('fq-vo-ended', voEndedHandler);
+      voEndedHandler = null;
+      clearTimeout(sceneTimer);
+      sceneTimer = setTimeout(() => advance(), VO_END_BEAT_MS);
+    };
+    window.addEventListener('fq-vo-ended', voEndedHandler);
+    // Safety net: a clip that started but stalls or is interrupted at the OS
+    // level (and so never fires 'ended'/'error') must not strand the player here.
+    sceneTimer = setTimeout(() => advance(), VO_SAFETY_MS);
+  });
 }
 
 function advance() {

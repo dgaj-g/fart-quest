@@ -257,6 +257,16 @@ function duck(active) {
   applyMusicVolume();
 }
 
+// Lets screens (e.g. story.js) react to a VO clip finishing without coupling
+// them to audio.js internals — never throws.
+function dispatchVoEnded(file) {
+  try {
+    window.dispatchEvent(new CustomEvent('fq-vo-ended', { detail: { file } }));
+  } catch (e) {
+    // swallow
+  }
+}
+
 // Returns true if a matching vo recording was found and playback was attempted
 // (i.e. this prefix has a real recording), false if no recording exists for
 // this prefix. js/engine/lesson.js uses this to fall back to the
@@ -305,6 +315,7 @@ async function vo(prefix) {
     // both gaps. clearDuck is idempotent so being called more than once (e.g.
     // 'pause' then 'ended' on natural completion) is harmless.
     let safetyTimer = null;
+    let started = false; // true once play() has actually resolved (real playback began)
     const clearDuck = () => {
       if (safetyTimer) {
         clearTimeout(safetyTimer);
@@ -314,12 +325,36 @@ async function vo(prefix) {
         duck(false);
       }
     };
+    // Fix (advance-on-VO-end, ENGINE_SPEC_2 §F): screens like story.js need to
+    // know when THIS clip is actually done so they can hold the scene for the
+    // full narration instead of a flat timer. Only fire for a clip that really
+    // played — 'pause' (used when a NEW vo() call interrupts this element) never
+    // dispatches, so an interrupted clip doesn't falsely signal "ended" to a
+    // listener that likely isn't even listening any more.
+    // Both handlers also gate on `currentVoEl === el`: live-verified on iPad
+    // Safari's engine that assigning `.src = ''` to the OLD element (a few lines
+    // up, when THIS vo() call interrupts a previous one) fires that old element's
+    // 'error' event asynchronously — even when the old clip had already finished
+    // naturally. Without this gate that stray error re-dispatched 'fq-vo-ended'
+    // for the PREVIOUS file just as the new scene's listener was attaching,
+    // which could cause a false-immediate advance. Once superseded, `el` is no
+    // longer `currentVoEl`, so the gate suppresses it.
+    const onEnded = () => {
+      clearDuck();
+      if (currentVoEl === el) dispatchVoEnded(chosen);
+    };
+    const onError = () => {
+      clearDuck();
+      if (started && currentVoEl === el) dispatchVoEnded(chosen); // mid-playback failure — treat as "done" too
+    };
     safetyTimer = setTimeout(clearDuck, 40000);
-    el.addEventListener('ended', clearDuck);
-    el.addEventListener('error', clearDuck);
+    el.addEventListener('ended', onEnded);
+    el.addEventListener('error', onError);
     el.addEventListener('pause', clearDuck);
 
-    await el.play().catch(() => {
+    await el.play().then(() => {
+      started = true;
+    }).catch(() => {
       clearDuck();
     });
     return true; // recording for this prefix exists and playback was attempted
