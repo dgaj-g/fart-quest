@@ -274,10 +274,10 @@ export default {
       } else {
         sfx.nudge();
         btn.classList.add('brl-shake');
-        setTimeout(() => { if (btn.isConnected) btn.classList.remove('brl-shake'); }, 400);
+        later(() => { if (btn.isConnected) btn.classList.remove('brl-shake'); }, 400);
         const msg = chip.kind === 'sameop'
           ? "That's the SAME operation Bertha's machine used FORWARDS — flip it to the OPPOSITE to undo it!"
-          : `Right idea, wrong number — Bertha's step here was really <b>${opLabel(win.fwd)}</b>.`;
+          : `Right idea, different number — Bertha's step here was really <b>${opLabel(win.fwd)}</b>.`;
         toast(stage, msg);
       }
     }
@@ -419,7 +419,15 @@ export default {
       const wasFlipping = phase === 'flip';
       clearFlipTimers();
       if (wasFlipping) { enterSolving(); return; }
-      if (phase === 'intro') { buildForwardDOM('intro'); positionTokenInstant(0, mission.inVal); return; }
+      if (phase === 'intro') {
+        // abandon any in-flight forward-run tween/step chain so RUN IT never
+        // stays stuck disabled after a mid-animation resize
+        busy = false;
+        buildForwardDOM('intro');
+        positionTokenInstant(0, mission.inVal);
+        showRunBtn(true);
+        return;
+      }
       if (phase === 'ready') { buildForwardDOM('ready'); positionTokenInstant(posEls.length - 1, mission.outVal); return; }
       if (phase === 'solving' || phase === 'done') {
         buildReverseDOM();

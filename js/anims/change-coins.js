@@ -310,6 +310,7 @@ export default {
     function win() {
       if (!sandboxMode) doneSet.add(mission.id);
       sfx.win(); party(stage);
+      sparkleBurst(barEl, geomState.barWidth, 26);
       paintChips();
       const phrase = WIN_PHRASES[Math.floor(Math.random() * WIN_PHRASES.length)];
       const coinsStr = mission.tiles.map((v) => `${v}p`).join(' + ');

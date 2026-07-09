@@ -191,6 +191,7 @@ export default {
     let g = null;
     let svgEl = null; let polyEl = null; let edgeLineEls = []; let labelEls = [];
     let prowlerEl = null; let hitEl = null;
+    let chipEls = {}; // edgeIndex -> its running-sum chip element (keeps strip in sync with the fence)
 
     function paintChips() {
       chiprow.innerHTML = '';
@@ -303,20 +304,34 @@ export default {
             sfx.tick(completed.size);
             const chip = el('div', 'ppw-chip', (strip.children.length ? '+' : '') + e.len);
             strip.append(chip);
+            chipEls[e.i] = chip;
             updateTotal();
           }
         } else if (!isDone && wasDone) {
           completed.delete(e.i);
           edgeLineEls[e.i].classList.remove('done');
           if (!mission.hiddenIdx.includes(e.i) || resolvedHidden.has(e.i)) labelEls[e.i].classList.remove('done');
+          // dragging the Prowler BACKWARD un-walks a side — the strip must drop
+          // back in step with the fence, or the total would quote a state the
+          // board is no longer showing (hard rule 2).
+          if (!instant && chipEls[e.i]) {
+            chipEls[e.i].remove();
+            delete chipEls[e.i];
+            updateTotal();
+          }
         }
       });
       if (instant) rebuildStrip();
     }
     function rebuildStrip() {
       strip.innerHTML = '';
+      chipEls = {};
       const ordered = edgeData.edges.filter((e) => completed.has(e.i));
-      ordered.forEach((e, i) => strip.append(el('div', 'ppw-chip', (i ? '+' : '') + e.len)));
+      ordered.forEach((e, i) => {
+        const chip = el('div', 'ppw-chip', (i ? '+' : '') + e.len);
+        strip.append(chip);
+        chipEls[e.i] = chip;
+      });
       updateTotal();
     }
     function updateTotal() {
@@ -409,6 +424,7 @@ export default {
       edgeData = edgesFor(mission.vertices);
       resolvedHidden = new Set();
       completed = new Set();
+      chipEls = {};
       Scm = 0; pendingS = 0; finished = false;
       optrow.innerHTML = ''; strip.innerHTML = ''; dash.innerHTML = '';
       paintChips();
@@ -448,6 +464,7 @@ export default {
         : 'Drag the Prowler along the fence — he can\'t leave it. Every side lights up as he walks it.';
       dash.innerHTML = '';
       strip.innerHTML = '';
+      chipEls = {};
       pendingS = 0;
       const from = Scm;
       cancelTween = tween((v) => setScm(v, false), from, 0, 380, () => { cancelTween = null; });
