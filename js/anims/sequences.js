@@ -261,7 +261,7 @@ export default {
       if (dist > 1) {
         sfx.nudge();
         const a = missionStones[earlier]; const b = missionStones[later2];
-        if (a != null && b != null) toast(stage, `\u{1F4CF} ${fmtNum(a)} and ${fmtNum(b)} are ${Math.abs(b - a)} apart — but that is TWO jumps, not one! Neighbours only.`);
+        if (a != null && b != null) toast(stage, `\u{1F4CF} ${fmtNum(a)} and ${fmtNum(b)} are ${Math.abs(b - a)} apart — but that is ${dist} jumps, not one! Neighbours only.`);
         else toast(stage, '\u{1F4CF} Neighbours only — stretch me to the very next stone.');
         clearElastic(false);
         return;

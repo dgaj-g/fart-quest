@@ -77,10 +77,10 @@ const MISSIONS = [
     id: 'setback', word: 'setback',
     before: 'The ', after: ' cost them the match.',
     plugs: [
-      { id: 'equipment', text: 'a piece of broken sports equipment', correct: false, famous: true,
+      { id: 'equipment', text: 'piece of broken sports equipment', correct: false, famous: true,
         why: 'Your brain jumps to something breaking — but nothing in the sentence says any equipment broke at all.' },
-      { id: 'problem', text: 'a problem or difficulty that gets in your way', correct: true },
-      { id: 'victory', text: 'a fantastic victory', correct: false, famous: false,
+      { id: 'problem', text: 'problem or difficulty that gets in your way', correct: true },
+      { id: 'victory', text: 'fantastic victory', correct: false, famous: false,
         why: 'That’s the OPPOSITE of a setback — a fantastic victory wouldn’t COST them the match!' },
     ],
     worked: '“setback” here means a problem or difficulty that gets in your way — nothing broke, and it’s certainly not a victory. Only the true meaning survives the swap.',

@@ -272,14 +272,12 @@ function makeBench(host, mission, opts) {
   B.getState = () => ({ openGap: idx.open, closeGap: idx.close });
   B.busy = () => settling.open || settling.close || openDrag.dragging() || closeDrag.dragging();
   B.nudge = function nudge(which, dir) {
-    console.log('DEBUG nudge called', which, dir);
-    if (which === 'open' ? openDrag.dragging() : closeDrag.dragging()) { console.log('DEBUG nudge blocked: dragging'); return; }
+    if (which === 'open' ? openDrag.dragging() : closeDrag.dragging()) return;
     const other = which === 'open' ? idx.close : idx.open;
     let lo = 0; let hi = gapX.length - 1;
     if (which === 'open') hi = Math.min(hi, other - 1); else lo = Math.max(lo, other + 1);
     const cur = idx[which];
     const target = Math.max(lo, Math.min(hi, cur + dir));
-    console.log('DEBUG nudge calc', { other, lo, hi, cur, target, gapXlen: gapX.length });
     if (target === cur) { sfx.nudge(); return; }
     goTo(which, target);
   };
@@ -436,8 +434,8 @@ export default {
 
     selOpen.addEventListener('click', () => { if (bench && bench.busy()) return; sfx.ui(); selectArm('open'); });
     selClose.addEventListener('click', () => { if (bench && bench.busy()) return; sfx.ui(); selectArm('close'); });
-    nl.addEventListener('click', () => { console.log('DEBUG nl click', selected, !!bench); bench && bench.nudge(selected, -1); });
-    nr.addEventListener('click', () => { console.log('DEBUG nr click', selected, !!bench); bench && bench.nudge(selected, 1); });
+    nl.addEventListener('click', () => { bench && bench.nudge(selected, -1); });
+    nr.addEventListener('click', () => { bench && bench.nudge(selected, 1); });
     resetBtn.addEventListener('click', () => { sfx.ui(); bench && bench.reset(); });
     checkBtn.addEventListener('click', checkHug);
 

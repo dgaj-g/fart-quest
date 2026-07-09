@@ -246,6 +246,12 @@ export default {
     function start(i) {
       mi = i;
       attempts = 0;
+      // A money-pour mid-flight (see runCoinPour) is driven by chained later()
+      // timers that read the live `mission` var when they fire. Cancel any
+      // in-flight pour outright on every navigation so it can't resolve
+      // against whatever mission is now on screen.
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
       clearExtras();
       if (dial) { dial.destroy(); dial = null; }
       paintChips();
@@ -373,6 +379,7 @@ export default {
     }
 
     function runCoinPour() {
+      const missionAtStart = mission; // snapshot: `mission` is reassigned by start() on every navigation
       const btn = moneybox._btn;
       btn.disabled = true;
       const share = mission.amount * VALUES[mission.targetIdx].v; // 60 * 0.25 = 15
@@ -381,13 +388,14 @@ export default {
       moneybox.append(readout, strip);
       let n = 0;
       const step = () => {
-        if (!alive) return;
+        if (!alive || mission !== missionAtStart) return;
         n += 1;
         strip.append(el('span', 'pdw-coin', '💰'));
         readout.querySelector('.pdw-coinnum').textContent = String(n);
         sfx.tick(0);
         if (n < share) later(step, 70);
         else later(() => {
+          if (mission !== missionAtStart) return;
           sfx.win(); party(stage);
           doneSet.add(mission.id);
           paintChips();
