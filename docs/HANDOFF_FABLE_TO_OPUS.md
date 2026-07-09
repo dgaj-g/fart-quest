@@ -1,5 +1,47 @@
-# FART QUEST — Succession handoff (Fable 5 → Opus 4.8)
-**If you are Opus 4.8 (or any later model) picking this up: this file + the docs it links are everything you need. Read this file first, fully. Written 7 Jul 2026 by Fable 5 mid-build, designed so the app can be finished without any Fable access.**
+# FART QUEST — LIVING SOURCE OF TRUTH (succession handoff, Fable 5 → Opus 4.8 → any future session)
+**Damien's standing instruction (9 Jul 2026): this file is THE source of truth for the entire app. Every session — whatever model — reads it FIRST and UPDATES IT CONTINUALLY as work lands: after every substantive step, not just at sign-off. Timestamped ⏱ sections, newest near the top, exceptional detail: exact file paths, run IDs, resume commands, decisions AND why, honest residuals. A future session must be able to pick up mid-task from this file alone.**
+
+Originally written 7 Jul 2026 by Fable 5 mid-build. Sections below are chronological logs; the NEWEST state supersedes older sections wherever they conflict.
+
+## ⏱ SCOUT-TECH HELPER ANIMATIONS — 9 Jul 2026 (IN PROGRESS — read this whole section before touching anything)
+
+**What/why:** Jarlath is progressing but not yet visualising concepts from text+static cards alone. Damien commissioned an interactive "helper animation" for EVERY topic's Scout Report — a machine the child DRIVES to feel the concept before the try-cards/battles. Proof of concept (decimals-x10, "The Slide-o-Matic 1000") was built standalone first, Damien approved it enthusiastically, requested two fixes (roller was obscuring the digits either side of the point → now a small wheel at the BASELINE like the dot in "3.5"; audio kept playing from a hidden tab → visibility-pause added in BOTH the app's audio.js music layer and the anims' synth), then said: embed it and build all topics.
+
+**Standalone PoC (Damien/Jarlath's copy, keep in sync when the machine changes):**
+`/Users/damiengartland/Desktop/Claude Work/Scout Report Animations/The Slide-o-Matic 1000.html` — fully self-contained (base64 Fredoka + Pointy PNG). Source template + rebuild script pattern: template with @@FREDOKA@@/@@POINTY@@ placeholders lives in the 9-Jul session scratchpad (`/private/tmp/claude-501/-Users-damiengartland-Desktop-Claude-Work/0d8fae63-359b-4251-b835-be6e4dbdd53f/scratchpad/slide-o-matic-swap.template.html`); rebuild = python replace placeholders with base64 of `assets/fonts/fredoka-500.woff2` + `assets/monsters/pointy-mcpoopants.png`. Its engine passed 429 node assertions; full mission suite browser-verified twice (incl. a 13-finding adversarial panel, all fixed).
+
+**In-app architecture (all committed in 30dd335):**
+- New lesson card type `{ type: 'anim', anim: '<topicId>' }` rendered by `js/screens/lesson.js` → `renderAnimCard()`: chip "🔧 SCOUT-TECH" + module title + host + always-enabled CARRY ON ➡ button (never gated — constitution can't-fail). Unknown/broken anim → card auto-skips via queueMicrotask(onNext). `animCleanup` module-scope var: run on card change AND unmount — an anim must never leak into the next card.
+- Registry `js/anims/index.js` maps topicId → module. GENERATED — regenerate, don't hand-edit (see integration script below).
+- Toolkit `js/anims/_kit.js` — ALL anims build on it: `el`, `sfx` (synthesised WebAudio: tick/tock rising-falling ratchets, drop, pop, sparkle, nudge, win/parp, ui, blip, thud, whoosh; suspends on document.hidden), `tween` (rAF ease-out-cubic + setTimeout guard so throttled rAF can never wedge state — THE fix for hidden-tab stalls), `makeDrag` (pointer-capture discipline, single-pointer, enabled() gate, abort()), `toast` (stacking), `bubble` (in-card explainer with queue, replaces full-screen popups), `sparkleBurst`, `party`, `injectCss(id, css)` (per-anim styles, idempotent — each module is fully self-contained).
+- Shared CSS `css/anims.css` (linked in index.html after story.css): anim-card/anim-stage/anim-controls/anim-nudge/anim-ghostbtn/anim-chiprow/anim-mchip + kit widget styles + the som-* Slide-o-Matic styles.
+- Reference implementation `js/anims/decimals-x10.js` (embedded Slide-o-Matic: 6 missions + free play; its anim card sits directly before the weapon card in `data/topics/decimals-x10.js`). Every other module must match its quality/structure.
+- `js/audio.js`: visibilitychange handler pauses playing music elements on hide, resumes them on return (Damien's hidden-tab music complaint — root cause was the app tab, not the PoC).
+
+**THE FIVE HARD RULES for anims** (each cost a real bug in the PoC; enforced in review):
+1. No transform transitions during live pointer drags — 1:1 tracking only.
+2. Feedback that quotes a number/word/state only when the display shows EXACTLY that state (gate on state equality, not event diffs).
+3. Repeat-tap controls act on the pending target, not the last settled state.
+4. All state movement via kit `tween()` (rAF-throttle-proof). No bare rAF loops.
+5. Warm-never-mocking, UK English, topic-file vocabulary verbatim; the weapon rule string is sacred.
+
+**Design source of truth: `docs/ANIM_BRIEFS.md`** — contract + the five rules + a Fable-authored brief per topic (Core mechanic / Guided missions with authoritative expected states / the Aha). 48 distinct mechanics — variation is deliberate and mandatory; never let two topics converge on the same interaction.
+
+**Build factory (multi-agent, Sonnet builders → Sonnet adversarial reviewers → Sonnet fixers):**
+- Workflow script: `/Users/damiengartland/.claude/projects/-Users-damiengartland-Desktop-Claude-Work/0d8fae63-359b-4251-b835-be6e4dbdd53f/workflows/scripts/anim-factory-wf_75ad28a0-6d9.js`, runId `wf_75ad28a0-6d9` (same-session resume: `Workflow({scriptPath, resumeFromRunId: 'wf_75ad28a0-6d9'})`; from a NEW session you cannot resume — instead diff `ls js/anims/*.js` against the 48 topic ids and dispatch per-topic agents using the implPrompt/reviewPrompt/fixPrompt templates INSIDE that script file, substituting the topic id).
+- Run 1 (9 Jul ~09:40): 13/48 modules built (place-value, mental-maths, written-methods, fractions, fdp, sequences, special-numbers, rounding, machines-mystery, change-coins, money-problems, perimeter, clocks-time) then Damien's session limit killed the remaining 35 builds and ALL reviews. All 13 on disk are node --check clean but UNREVIEWED.
+- Run 2 (resumed after credits returned, same day): in flight at time of writing — rebuilds/reviews everything not cached. When it lands: read the summary, check `skippedFixes`/`decisions` per topic, spot-read anything suspicious.
+- Builders write ONLY `js/anims/<id>.js` (never index.js/topic files/sw.js/anims.css) — integration is centralised, so parallel agents can't collide.
+
+**Integration script (run AFTER factory completes): `/private/tmp/claude-501/-Users-damiengartland-Desktop-Claude-Work/0d8fae63-359b-4251-b835-be6e4dbdd53f/scratchpad/integrate-anims.mjs`** (if the scratchpad is gone, recreate from this spec): ① node --check + import each `js/anims/*.js`, validate contract (default.id === filename, mount fn, title) ② regenerate `js/anims/index.js` ③ insert `{ type: 'anim', anim: '<id>' }` immediately before the `{ type: 'weapon' },` line in each `data/topics/<id>.js` (idempotent — skips files already containing `type: 'anim'`) ④ regenerate sw.js PRECACHE_URLS from disk (all assets minus audio, css, data, js) + bump `CACHE_V` → **'fq-v6'** ⑤ sweeps: node --check all JS, every relative import resolves, every precache entry exists, every `assets/*` string in anims exists on disk. Exit non-zero on any failure.
+
+**Remaining pipeline after integration (in order):**
+1. Browser spot-checks in Claude Preview (launch config `fart-quest` — NOTE: lives in `/Users/damiengartland/Desktop/Claude Work/.claude/launch.json` as a node static server on port 8874, NOT in this repo; hash-navigate, never location.reload). Fast-forward a lesson to its anim card by writing IndexedDB `fartquest` → store `meta` → key `lessonProgress-<topicId>` = index of the anim card in that topic's lesson[] (the anim card is second-to-last, weapon last). Spot-check ≥1 anim per mechanic family (drag-strip, tap-place, rotary, fold-3D, scale-dial, sentence-tap, scanner/proof, physics-roll) + any the reviewers flagged.
+2. Commit (Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>), push, poll https://dgaj-g.github.io/fart-quest/sw.js until fq-v6, spot-curl new js/anims/ URLs → 200.
+3. Update Damien's memory (`~/.claude/projects/-Users-damiengartland-Desktop-Claude-Work/memory/project_jarlath_seag_app.md`) + THIS file (final state section).
+4. Report to Damien: plain-text URLs, absolute paths, honest residuals.
+
+**Known open decisions/residuals for this workstream:** anim SFX volume is fixed (~0.2 peaks), not wired to the app's settings sfx slider (ctx.audio exposes no volume read) — acceptable v1, note if Damien mentions volume. VO: anims are caption-only by design (no new recordings needed). The 13 run-1 modules' reviews MUST complete in run 2 before ship — do not ship unreviewed anims. iPad real-device pass still outstanding app-wide (pre-dates this workstream).
 
 ## What this project is
 A complete SEAG transfer-test revision game ("Fart Quest") for Damien's son **Jarlath** (P6, sits the test Nov 2027). Teaching quality is the explicit #1 priority; comedy (affectionate poo/fart humour, VOICE lines spicier than written text) is the engagement engine. Live at https://dgaj-g.github.io/fart-quest/ · repo `dgaj-g/fart-quest` · local `/Users/damiengartland/Sites/fart-quest` (git, HTTPS remote, gh keyring auth works).

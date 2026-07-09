@@ -255,4 +255,15 @@ function pump(stage, q) {
   });
 }
 
-export default { el, sfx, tween, makeDrag, toast, sparkleBurst, party, bubble };
+// ---------- per-anim CSS injection (keeps each module self-contained) ----------
+const injectedCss = new Set();
+export function injectCss(id, cssText) {
+  if (injectedCss.has(id)) return;
+  injectedCss.add(id);
+  const s = document.createElement('style');
+  s.dataset.anim = id;
+  s.textContent = cssText;
+  document.head.appendChild(s);
+}
+
+export default { el, sfx, tween, makeDrag, toast, sparkleBurst, party, bubble, injectCss };
