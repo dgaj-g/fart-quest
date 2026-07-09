@@ -148,6 +148,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'decimals-x10' },
     { type: 'weapon' },
   ],
 

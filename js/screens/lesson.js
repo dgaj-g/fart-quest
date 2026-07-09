@@ -1,12 +1,22 @@
 // FART QUEST — screens/lesson.js (UI agent)
 import { createLessonEngine } from '../engine/lesson.js';
 import formats from '../engine/formats/index.js';
+import anims from '../anims/index.js';
+import { sfx as animSfx } from '../anims/_kit.js';
 import { mulberry32 } from '../rng.js';
 
 const TYPE_MS = 28;
 
 let engineRef = null;
 let typeTimer = null;
+let animCleanup = null; // active anim card's cleanup fn (see renderAnimCard)
+
+function runAnimCleanup() {
+  if (animCleanup) {
+    try { animCleanup(); } catch (e) { /* an anim must never break the lesson */ }
+    animCleanup = null;
+  }
+}
 
 function stripTags(html) {
   const div = document.createElement('div');
@@ -207,6 +217,47 @@ function renderTryCard(card, ctx, topic, onNext) {
   return wrap;
 }
 
+function renderAnimCard(card, ctx, topic, onNext) {
+  const wrap = document.createElement('div');
+  wrap.className = 'lesson-card anim-card enter-up';
+  const mod = anims[card.anim];
+  if (!mod) {
+    // unknown/missing anim — never block the lesson, just move on
+    queueMicrotask(onNext);
+    return wrap;
+  }
+  wrap.innerHTML = `
+    <div class="anim-chip">🔧 SCOUT-TECH</div>
+    <h2>${mod.title}</h2>
+  `;
+  const hostEl = document.createElement('div');
+  hostEl.className = 'anim-host';
+  wrap.appendChild(hostEl);
+  const carry = document.createElement('button');
+  carry.className = 'btn btn-gold anim-carry';
+  carry.textContent = 'CARRY ON ➡';
+  wrap.appendChild(carry);
+  try {
+    animCleanup = mod.mount(hostEl, {
+      audio: ctx.audio,
+      sfx: animSfx,
+      complete() { carry.classList.add('pulse'); },
+    });
+  } catch (e) {
+    // a broken anim must never trap the child in the lesson
+    queueMicrotask(onNext);
+    return wrap;
+  }
+  carry.addEventListener('click', () => {
+    if (carry.disabled) return;
+    carry.disabled = true;
+    ctx.audio.sfx('confirm');
+    runAnimCleanup();
+    onNext();
+  });
+  return wrap;
+}
+
 function renderWeaponCard(card, ctx, topic, onNext) {
   const overlay = document.createElement('div');
   overlay.className = 'weapon-fullscreen enter-pop';
@@ -297,6 +348,7 @@ export async function mount(root, ctx, params) {
   }
 
   async function renderCurrent() {
+    runAnimCleanup(); // leaving a card — an active anim must release its timers/listeners
     body.innerHTML = '';
     renderDots();
     const card = engine.currentCard();
@@ -318,6 +370,7 @@ export async function mount(root, ctx, params) {
     if (card.type === 'talk') el = renderTalkCard(card, ctx, onNext);
     else if (card.type === 'show') el = renderShowCard(card, ctx, onNext);
     else if (card.type === 'try') el = renderTryCard(card, ctx, topic, onNext);
+    else if (card.type === 'anim') el = renderAnimCard(card, ctx, topic, onNext);
     else if (card.type === 'weapon') {
       el = document.createElement('div');
       body.appendChild(el);
@@ -343,6 +396,7 @@ export async function mount(root, ctx, params) {
 
 export function unmount() {
   clearTimeout(typeTimer);
+  runAnimCleanup();
   if (engineRef) { engineRef.destroy(); engineRef = null; }
   const overlay = document.getElementById('overlay');
   overlay.querySelectorAll('.weapon-fullscreen').forEach((el) => el.remove());

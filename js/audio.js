@@ -552,6 +552,28 @@ function stopMusic(fadeMs = 600) {
   }, stepMs);
 }
 
+// ---------- page visibility: never play music from a hidden tab ----------
+// Damien report (9 Jul): theme kept playing from a backgrounded tab. Pause any
+// playing music element on hide; resume only those same elements on return.
+// stopMusic()/crossfade may clear an element's src while hidden — the resulting
+// play() rejection is swallowed, so the interaction is harmless.
+let hiddenPausedEls = [];
+try {
+  document.addEventListener('visibilitychange', () => {
+    try {
+      if (document.hidden) {
+        hiddenPausedEls = [musicEls.a, musicEls.b].filter((el) => el && !el.paused);
+        hiddenPausedEls.forEach((el) => { try { el.pause(); } catch (e) { /* swallow */ } });
+      } else {
+        hiddenPausedEls.forEach((el) => {
+          try { const p = el.play(); if (p && p.catch) p.catch(safeNoop); } catch (e) { /* swallow */ }
+        });
+        hiddenPausedEls = [];
+      }
+    } catch (e) { /* audio must never throw */ }
+  });
+} catch (e) { /* non-browser context */ }
+
 // ---------- public: debug ----------
 
 // Harmless read-only readout of current music state, used by manual/preview

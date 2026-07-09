@@ -1,0 +1,202 @@
+/* FART QUEST — css/anims.css
+   Scout Report helper animations: the shared "anim" lesson card + kit widgets
+   (toasts, sparkles, particles, explainer bubbles) + per-anim styles, all
+   scoped under .anim-card so nothing leaks into the rest of the app. */
+
+/* ---------- the lesson card that hosts an animation ---------- */
+.anim-card { width: 100%; max-width: 980px; margin: 0 auto; }
+.anim-card .anim-chip {
+  display: inline-block; background: var(--stink); color: #fff; font-weight: 700;
+  font-size: 12px; letter-spacing: .08em; padding: 6px 13px; border-radius: 999px;
+  box-shadow: 0 3px 0 rgba(0,0,0,.3); margin-bottom: 6px;
+}
+.anim-card h2 { margin: 2px 0 10px; }
+.anim-card .anim-carry {
+  margin-top: 16px; padding: 14px 30px; font-size: 17px;
+}
+.anim-card .anim-carry.pulse { animation: animCarryPulse 1.2s ease-in-out infinite; }
+@keyframes animCarryPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+/* ---------- the stage every anim mounts into ---------- */
+.anim-stage {
+  position: relative; background: var(--parchment); border-radius: 22px;
+  border: 3px solid rgba(51,38,29,.14); box-shadow: 0 8px 0 rgba(0,0,0,.15), 0 14px 30px rgba(0,0,0,.25);
+  padding: 14px 12px 16px; overflow: visible; touch-action: none;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* ---------- kit widgets ---------- */
+.anim-toast {
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 22;
+  background: rgba(36,29,21,.92); color: var(--parchment); padding: 8px 15px;
+  border-radius: 999px; font-size: 14px; font-weight: 500; white-space: nowrap;
+  max-width: 94%; overflow: hidden; text-overflow: ellipsis;
+  animation: animToastIn 2.6s ease both; pointer-events: none;
+}
+@keyframes animToastIn {
+  0% { opacity: 0; transform: translate(-50%, 8px); }
+  10%, 82% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+.anim-sparkler {
+  position: absolute; z-index: 24; font-size: 22px; pointer-events: none;
+  animation: animSparkFly .9s ease-out both;
+}
+@keyframes animSparkFly {
+  0% { transform: translate(0,0) scale(.6); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(1.25); opacity: 0; }
+}
+.anim-particle {
+  position: absolute; z-index: 24; font-size: 24px; pointer-events: none;
+  animation: animPartyFall var(--dur) ease-in both;
+}
+@keyframes animPartyFall {
+  0% { transform: translate(0,0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--fall)) rotate(var(--rot)); opacity: .6; }
+}
+.anim-bubble-veil {
+  position: absolute; inset: 0; z-index: 30; background: rgba(16,24,18,.55);
+  border-radius: 20px; display: flex; align-items: center; justify-content: center;
+  padding: 14px; animation: animVeilIn .22s ease both;
+}
+@keyframes animVeilIn { from { opacity: 0; } to { opacity: 1; } }
+.anim-bubble {
+  background: var(--card); border: 4px solid var(--gold); border-radius: 20px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.35); max-width: 460px; width: 100%;
+  padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start;
+  animation: animBubbleIn .34s var(--spring) both;
+}
+@keyframes animBubbleIn { from { transform: scale(.75) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+.anim-bubble img { width: 64px; flex: 0 0 auto; filter: drop-shadow(0 5px 8px rgba(0,0,0,.3)); }
+.anim-bubble .ab-title { font-weight: 700; font-size: 17px; color: var(--stink); margin-bottom: 4px; }
+.anim-bubble .ab-text { font-size: 14.5px; font-weight: 500; line-height: 1.4; }
+.anim-bubble .ab-text b { color: var(--gold-deep); }
+.anim-bubble .ab-btn { margin-top: 10px; padding: 10px 20px; font-size: 15px; }
+
+/* generic buttons/rows most anims share */
+.anim-controls { display: flex; align-items: center; justify-content: center; gap: 11px; margin-top: 13px; flex-wrap: wrap; }
+.anim-nudge {
+  width: 52px; height: 52px; border-radius: 15px; background: var(--swamp-mid);
+  color: var(--stink-lime); font-size: 24px; font-weight: 700; border: none; cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0,0,0,.35);
+}
+.anim-nudge:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.anim-ghostbtn {
+  background: transparent; border: 2.5px dashed rgba(51,38,29,.4); color: var(--ink);
+  padding: 9px 16px; border-radius: 13px; font-size: 14px; font-weight: 700; min-height: 44px; cursor: pointer;
+}
+.anim-ghostbtn:active { background: rgba(51,38,29,.08); }
+.anim-chiprow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+.anim-mchip {
+  background: var(--card); border: 2.5px solid var(--swamp-mid); color: var(--ink);
+  border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px;
+  min-height: 42px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.2);
+}
+.anim-mchip.active { background: var(--swamp-mid); color: var(--stink-lime); }
+.anim-mchip.done { border-color: var(--correct); }
+.anim-mchip.done::after { content: ' ✓'; color: var(--correct); }
+
+/* ============================================================
+   decimals-x10 — THE SLIDE-O-MATIC 1000
+   (classes prefixed som- and scoped to the stage)
+   ============================================================ */
+.som-q { text-align: center; font-weight: 700; font-size: clamp(20px, 3.4vw, 30px); margin-bottom: 2px; }
+.som-q .op { color: var(--stink); }
+.som-qsub { text-align: center; font-size: 12.5px; color: #6b5744; font-weight: 500; margin-bottom: 10px; }
+.som-board { position: relative; margin: 0 auto; }
+.som-heads { position: relative; display: flex; height: 40px; }
+.som-head {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; padding-bottom: 3px;
+  transition: transform .5s var(--spring), opacity .4s;
+}
+.som-head .hb { font-weight: 700; font-size: 14px; color: #7c6247; line-height: 1; }
+.som-head .hs { font-size: 8px; color: #a08c74; font-weight: 500; white-space: nowrap; }
+.som-head.units .hb, .som-head.units .hs { color: var(--gold-deep); }
+.som-head.fog .hb, .som-head.fog .hs { color: #b9ab97; font-style: italic; }
+.som-lane {
+  position: relative; border-radius: 14px; background: linear-gradient(180deg,#efe1c4,#e8d7b4);
+  box-shadow: inset 0 3px 8px rgba(51,38,29,.18); touch-action: none; overflow: visible;
+}
+.som-colbg { position: absolute; inset: 0; display: flex; border-radius: 14px; overflow: hidden; }
+.som-colbg .cb { flex: 0 0 auto; height: 100%; }
+.som-colbg .cb.units { background: rgba(244,197,66,.22); }
+.som-colbg .cb.fog-l { background: linear-gradient(90deg, rgba(51,38,29,.22), transparent); }
+.som-colbg .cb.fog-r { background: linear-gradient(270deg, rgba(51,38,29,.22), transparent); }
+.som-colbg .cb + .cb { border-left: 1.5px dashed rgba(51,38,29,.09); }
+.som-fence {
+  position: absolute; top: -5px; bottom: -5px; width: 0;
+  border-left: 3px dashed #8a6d3b; opacity: .55; z-index: 3; transition: opacity .5s;
+}
+.som-pads { position: absolute; inset: 0; z-index: 2; transition: opacity .25s; }
+.som-machine.dragging .som-pads { opacity: .25; }
+.som-rail { position: absolute; inset: 0; z-index: 2; will-change: transform; }
+.som-hit { position: absolute; left: 0; right: 0; top: -12px; bottom: -12px; z-index: 5; cursor: grab; }
+.som-machine.dragging .som-hit { cursor: grabbing; }
+.som-tile {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border: 3px solid var(--ink); border-radius: 11px;
+  color: var(--ink); font-weight: 700; box-shadow: 0 3px 0 rgba(51,38,29,.3);
+}
+.som-tile.pad { background: #FFF3D0; border-color: var(--gold-deep); color: var(--gold-deep); box-shadow: 0 3px 0 rgba(217,162,27,.4); }
+.som-tile.offduty { opacity: .35; border-style: dashed; box-shadow: none; }
+.som-tile .zzz { position: absolute; top: -12px; right: -6px; font-size: 11px; }
+.som-tile.dropping { animation: somDropIn .62s cubic-bezier(.22,1.2,.36,1) both; }
+@keyframes somDropIn {
+  0% { transform: translateY(calc(-50% - 200px)) scale(.7); opacity: 0; }
+  55% { transform: translateY(-50%) scale(1); opacity: 1; }
+  72% { transform: translateY(calc(-50% - 14px)) scale(1.06,.92); }
+  100% { transform: translateY(-50%) scale(1); }
+}
+.som-tile.bowing { animation: somBowOut .55s ease-in both; }
+@keyframes somBowOut {
+  0% { transform: translateY(-50%) rotate(0); }
+  35% { transform: translateY(calc(-50% - 18px)) rotate(-14deg); }
+  100% { transform: translate(-38px, calc(-50% - 70px)) rotate(-40deg); opacity: 0; }
+}
+.som-roller {
+  position: absolute; z-index: 6; transform: translate(-50%,-50%);
+  pointer-events: none; transition: opacity .5s, scale .5s;
+}
+.som-roller svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
+.som-hat { position: absolute; z-index: 7; transform: translateX(-50%); pointer-events: none; transition: opacity .5s; }
+.som-machine.mystery .som-roller, .som-machine.mystery .som-hat, .som-machine.mystery .som-fence { opacity: 0; }
+.som-machine.mystery .som-roller { scale: .3; }
+.som-machine.mystery .som-head { transform: translateY(-8px); opacity: 0; }
+.som-machine.mystery .som-colbg .cb { border-left-color: transparent; }
+.som-machine.mystery .som-colbg .cb.units { background: transparent; }
+.som-zones { position: absolute; inset: 0; z-index: 8; }
+.som-zone {
+  position: absolute; top: 50%; width: 44px; height: 44px; transform: translate(-50%,-50%);
+  border: 3px dashed rgba(155,89,208,.65); border-radius: 50%;
+  background: rgba(155,89,208,.1); cursor: pointer;
+  animation: somZonePulse 1.5s ease-in-out infinite;
+}
+.som-zone:active { background: rgba(155,89,208,.3); }
+@keyframes somZonePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(155,89,208,.3); } 50% { box-shadow: 0 0 0 7px rgba(155,89,208,.12); } }
+.som-zone.wrongzone { animation: somWobble .5s ease; }
+@keyframes somWobble { 0%,100% { transform: translate(-50%,-50%) rotate(0); } 25% { transform: translate(-50%,-50%) rotate(-9deg); } 60% { transform: translate(-50%,-50%) rotate(8deg); } }
+.som-dash { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.som-readout {
+  background: #241d15; border-radius: 12px; padding: 6px 18px; min-width: 150px; text-align: center;
+  box-shadow: inset 0 3px 10px rgba(0,0,0,.6); border: 3px solid #4a3b28;
+}
+.som-readout .rl { font-size: 9px; letter-spacing: .2em; color: #8f7a5e; font-weight: 700; }
+.som-readout .rn { font-size: clamp(22px, 3.4vw, 30px); font-weight: 700; color: var(--stink-lime); letter-spacing: .05em; line-height: 1.1; text-shadow: 0 0 12px rgba(199,244,100,.35); }
+.som-readout .rn .sw { color: var(--gold); }
+.som-readout .rn .pt { color: #fff; }
+.som-counter {
+  background: var(--swamp-mid); color: var(--parchment); border-radius: 12px; padding: 9px 15px;
+  font-weight: 700; font-size: clamp(13px, 2vw, 15px); box-shadow: 0 3px 0 rgba(0,0,0,.3);
+  text-align: center; min-width: 180px;
+}
+.som-counter b { color: var(--stink-lime); }
+.som-win {
+  margin-top: 12px; text-align: center; background: linear-gradient(180deg,#E9FBEF,#D3F3DF);
+  border: 3px solid var(--correct); border-radius: 14px; padding: 10px 14px;
+  animation: animBubbleIn .34s var(--spring) both;
+}
+.som-win .wp { font-weight: 700; color: #1d8f4e; font-size: 16px; }
+.som-win .wk { font-size: 13.5px; color: #4d6b58; font-weight: 500; margin-top: 2px; }
+.som-lockrow .btn { font-size: 16px; padding: 12px 24px; }
