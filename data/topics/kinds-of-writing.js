@@ -118,6 +118,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'kinds-of-writing' },
     { type: 'weapon' },
   ],
 

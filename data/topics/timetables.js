@@ -145,6 +145,7 @@ export default {
       type: 'talk',
       text: 'One last stop before you get the Finger-Track for keeps. Bogface also has to plan his shifts across a WHOLE MONTH — and months are sneaky, because they don’t all have the same number of days. October has 31. November only has 30. If you’re counting days forward and you run out of the current month, don’t panic — count how many days are LEFT in this month first, then carry the rest into the next one. Same trick as counting past an hour, just bigger camps! Say October has 31 days, and today is the 24th — what date is it 12 days later? First, how many days are LEFT in October? 31 − 24 = 7 days. That uses up 7 of your 12 days, leaving 12 − 7 = 5 days to carry into November. So the answer is the 5th of November. See? Exactly the same trick, just with days instead of minutes!',
     },
+    { type: 'anim', anim: 'timetables' },
     { type: 'weapon' },
   ],
 

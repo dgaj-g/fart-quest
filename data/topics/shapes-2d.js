@@ -185,6 +185,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'shapes-2d' },
     { type: 'weapon' },
   ],
 

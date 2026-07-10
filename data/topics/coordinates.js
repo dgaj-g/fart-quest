@@ -171,6 +171,7 @@ ${miniGrid(6, 6, [{ x: 2, y: 4, label: 'A' }, { x: 2, y: 2, label: 'A′' }])}
         },
       },
     },
+    { type: 'anim', anim: 'coordinates' },
     { type: 'weapon' },
   ],
 

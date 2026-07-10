@@ -136,6 +136,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'between-lines' },
     { type: 'weapon' },
   ],
 

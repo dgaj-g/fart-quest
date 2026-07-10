@@ -203,6 +203,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'fractions' },
     { type: 'weapon' },
   ],
 

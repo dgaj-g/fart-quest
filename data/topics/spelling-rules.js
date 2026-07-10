@@ -109,6 +109,7 @@ export default {
         ],
       },
     },
+    { type: 'anim', anim: 'spelling-rules' },
     { type: 'weapon' },
   ],
 

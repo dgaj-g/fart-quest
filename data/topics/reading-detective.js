@@ -129,6 +129,7 @@ export default {
       type: 'talk',
       text: "You see it now, don't you? Every single time: find the line, put your finger on it, read ONLY those words, answer. Never invent, never remember, never skim past the exact spot. Inspector Sniff has never once been fooled doing it this way — and now, neither will you.",
     },
+    { type: 'anim', anim: 'reading-detective' },
     { type: 'weapon' },
   ],
 

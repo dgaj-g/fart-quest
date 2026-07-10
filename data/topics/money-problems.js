@@ -156,6 +156,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'money-problems' },
     { type: 'weapon' },
   ],
 

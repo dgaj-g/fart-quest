@@ -167,6 +167,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'turns-compass' },
     { type: 'weapon' },
   ],
 

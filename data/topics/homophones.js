@@ -98,6 +98,7 @@ export default {
       type: 'talk',
       text: 'One last warning, brave stinker: sometimes the sewer is a trap in the OTHER direction — every single twin sitting perfectly in its correct seat, and nothing out of place at all. Read every word before you shout an answer, or you’ll accuse an innocent sentence!',
     },
+    { type: 'anim', anim: 'homophones' },
     { type: 'weapon' },
   ],
 

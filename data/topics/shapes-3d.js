@@ -170,6 +170,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'shapes-3d' },
     { type: 'weapon' },
   ],
 

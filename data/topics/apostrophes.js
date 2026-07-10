@@ -101,6 +101,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'apostrophes' },
     { type: 'weapon' },
   ],
 

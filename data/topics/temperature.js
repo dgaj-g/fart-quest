@@ -153,6 +153,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'temperature' },
     { type: 'weapon' },
   ],
 

@@ -113,6 +113,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'place-value' },
     { type: 'weapon' },
   ],
 

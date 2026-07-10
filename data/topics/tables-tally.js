@@ -211,6 +211,7 @@ ${miniTable(TABLE_3, TABLE_3_ROWS, [[1, 3]])}
         },
       },
     },
+    { type: 'anim', anim: 'tables-tally' },
     { type: 'weapon' },
   ],
 

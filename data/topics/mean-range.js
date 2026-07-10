@@ -207,6 +207,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'mean-range' },
     { type: 'weapon' },
   ],
 

@@ -145,6 +145,7 @@ export default {
       type: 'talk',
       text: "See how it works now? Spot the SIGNAL — like/as for a simile, a flat IS for a metaphor, three-or-more things piled up for a list — and then always, ALWAYS ask the real question: what EFFECT is this having on me, the reader? Get that habit into your bones and Emily's tricks will never catch you out again.",
     },
+    { type: 'anim', anim: 'writers-tricks' },
     { type: 'weapon' },
   ],
 

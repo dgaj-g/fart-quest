@@ -105,6 +105,7 @@ export default {
         ],
       },
     },
+    { type: 'anim', anim: 'commas-colons' },
     { type: 'weapon' },
   ],
 

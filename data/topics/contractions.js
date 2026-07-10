@@ -130,6 +130,7 @@ export default {
 <div class="law-scroll">📜 ${WEAPON_RULE}</div>
 <p>This test works every single time, on every squeeze in the whole passage.</p>`,
     },
+    { type: 'anim', anim: 'contractions' },
     { type: 'weapon' },
   ],
 

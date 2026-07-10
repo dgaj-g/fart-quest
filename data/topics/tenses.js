@@ -123,6 +123,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'tenses' },
     { type: 'weapon' },
   ],
 

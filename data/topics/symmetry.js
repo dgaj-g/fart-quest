@@ -181,6 +181,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'symmetry' },
     { type: 'weapon' },
   ],
 

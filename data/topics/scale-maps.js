@@ -146,6 +146,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'scale-maps' },
     { type: 'weapon' },
   ],
 

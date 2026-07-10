@@ -160,6 +160,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'mental-maths' },
     { type: 'weapon' },
   ],
 

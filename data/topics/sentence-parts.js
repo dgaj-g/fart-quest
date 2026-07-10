@@ -126,6 +126,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'sentence-parts' },
     { type: 'weapon' },
   ],
 

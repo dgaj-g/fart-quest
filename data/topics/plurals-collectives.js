@@ -125,6 +125,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'plurals-collectives' },
     { type: 'weapon' },
   ],
 

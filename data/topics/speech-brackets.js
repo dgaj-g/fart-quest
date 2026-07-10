@@ -103,6 +103,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'speech-brackets' },
     { type: 'weapon' },
   ],
 

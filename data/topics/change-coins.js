@@ -158,6 +158,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'change-coins' },
     { type: 'weapon' },
   ],
 

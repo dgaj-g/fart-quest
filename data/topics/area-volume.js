@@ -176,6 +176,7 @@ export default {
       type: 'talk',
       text: 'One last trick, and it’s a good one: the Tile-and-Stack Kit runs BACKWARDS too! Already know the AREA and one side? Just DIVIDE instead of multiply to find the missing side. Area 36 cm², one side is 9 cm? Then <b>36 ÷ 9 = 4 cm</b> is the missing side. Same kit, opposite direction — examiners LOVE asking it this way round.',
     },
+    { type: 'anim', anim: 'area-volume' },
     { type: 'weapon' },
   ],
 

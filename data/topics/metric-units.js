@@ -161,6 +161,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'metric-units' },
     { type: 'weapon' },
   ],
 

@@ -124,6 +124,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'comparatives' },
     { type: 'weapon' },
   ],
 

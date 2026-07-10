@@ -262,6 +262,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'written-methods' },
     { type: 'weapon' },
   ],
 

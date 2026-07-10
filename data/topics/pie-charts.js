@@ -162,6 +162,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'pie-charts' },
     { type: 'weapon' },
   ],
 

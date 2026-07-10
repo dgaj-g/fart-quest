@@ -237,6 +237,7 @@ ${miniPictogram([['Sam', 10], ['Priya', 4], ['Tom', 6]], '🍕', 2)}
 ${miniVenn('Maths', 'Art', 8, 5, 6, 3)}
 <p>"How many like Maths <b>only</b>?" means the left circle WITHOUT the overlap: <b>8</b>. Don’t add the middle number in — that group already likes BOTH, so they’re counted separately. "How many like <b>neither</b>?" is the number sitting completely outside both circles: <b>3</b>. Add every region together (8 + 5 + 6 + 3 = 22) and you get the whole class — a great way to check you’ve read it right.</p>`,
     },
+    { type: 'anim', anim: 'graphs-charts' },
     { type: 'weapon' },
   ],
 

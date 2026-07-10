@@ -171,6 +171,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'special-numbers' },
     { type: 'weapon' },
   ],
 

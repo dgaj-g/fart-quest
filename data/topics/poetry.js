@@ -131,6 +131,7 @@ export default {
       type: 'talk',
       text: "You've got it, nose-soldier! Two verses, eight lines, one golden order: read for the STORY first — what's actually happening, who feels what — and only THEN go hunting the rhymes at each line's end. Do it backwards, rhyme first, and you'll answer a completely different question than the one being asked. Ribbit, and well sniffed!",
     },
+    { type: 'anim', anim: 'poetry' },
     { type: 'weapon' },
   ],
 

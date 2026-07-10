@@ -189,6 +189,7 @@ export default {
 </table>
 <p>And watch for <b>reverse</b> problems: sometimes the Prowler gives you the TOTAL perimeter instead of the sides, plus a clue linking length and width (like "the length is 3 m more than the width"). Halve the perimeter first to get one length + one width, then use the clue to split that in two.</p>`,
     },
+    { type: 'anim', anim: 'perimeter' },
     { type: 'weapon' },
   ],
 

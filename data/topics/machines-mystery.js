@@ -155,6 +155,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'machines-mystery' },
     { type: 'weapon' },
   ],
 

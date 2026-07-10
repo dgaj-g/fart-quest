@@ -149,6 +149,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'rounding' },
     { type: 'weapon' },
   ],
 

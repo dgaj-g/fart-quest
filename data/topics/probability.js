@@ -167,6 +167,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'probability' },
     { type: 'weapon' },
   ],
 

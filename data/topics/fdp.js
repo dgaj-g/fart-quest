@@ -175,6 +175,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'fdp' },
     { type: 'weapon' },
   ],
 

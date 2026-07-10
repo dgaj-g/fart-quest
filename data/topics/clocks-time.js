@@ -263,6 +263,7 @@ export default {
 </div>
 <p>A quest starts at <b>3:20</b> and lasts <b>25 minutes</b>. Count on: 20 + 25 = 45. It finishes at <b>3:45</b> — the hour never had to change, so it stays lovely and simple.</p>`,
     },
+    { type: 'anim', anim: 'clocks-time' },
     { type: 'weapon' },
   ],
 

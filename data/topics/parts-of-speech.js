@@ -120,6 +120,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'parts-of-speech' },
     { type: 'weapon' },
   ],
 

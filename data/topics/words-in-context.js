@@ -146,6 +146,7 @@ export default {
       type: 'talk',
       text: "You've got it! Every single time a question asks what a word means IN THIS LINE, resist the meaning you already know best — swap your best guess right into the sentence, read the whole thing aloud, and trust only the one that survives. That's the Swap-In Tester, and Sinead has never once been caught out by it.",
     },
+    { type: 'anim', anim: 'words-in-context' },
     { type: 'weapon' },
   ],
 

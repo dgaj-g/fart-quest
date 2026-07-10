@@ -114,6 +114,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'tricky-words' },
     { type: 'weapon' },
   ],
 

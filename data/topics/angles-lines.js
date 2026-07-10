@@ -208,6 +208,7 @@ export default {
         },
       },
     },
+    { type: 'anim', anim: 'angles-lines' },
     { type: 'weapon' },
   ],
 
