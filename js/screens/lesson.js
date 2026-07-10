@@ -117,10 +117,17 @@ function renderShowCard(card, ctx, onNext) {
   wrap.innerHTML = `
     <h2>${card.title || ''}</h2>
     <div class="lesson-html">${card.html}</div>
-    <button class="btn btn-gold" style="margin-top:18px; padding:14px 30px; font-size:17px;">Got it!</button>
   `;
   wireSlideDemo(wrap);
-  const gotItBtn = wrap.querySelector('button');
+  // Built as a direct reference, never wrap.querySelector('button'): card.html is
+  // data-authored and may embed its own buttons (the .slide-replay cards do), and
+  // a first-button query hands the advance handler to THAT button instead —
+  // replay advances the lesson while the real Got it! sits dead.
+  const gotItBtn = document.createElement('button');
+  gotItBtn.className = 'btn btn-gold';
+  gotItBtn.style.cssText = 'margin-top:18px; padding:14px 30px; font-size:17px;';
+  gotItBtn.textContent = 'Got it!';
+  wrap.appendChild(gotItBtn);
   gotItBtn.addEventListener('click', () => {
     if (gotItBtn.disabled) return;
     gotItBtn.disabled = true;
