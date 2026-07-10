@@ -1,5 +1,7 @@
 // FART QUEST — screens/settings.js (UI agent)
 
+import { sfx as animSfx } from '../anims/_kit.js';
+
 async function persist(ctx) {
   await ctx.db.put('settings', 'prefs', ctx.prefs);
   ctx.audio.setVolumes({
@@ -7,6 +9,10 @@ async function persist(ctx) {
     sfx: ctx.prefs.sfxOn ? ctx.prefs.sfx : 0,
     vo: ctx.prefs.voOn ? ctx.prefs.vo : 0,
   });
+  // The Scout-Tech anims synthesise their own WebAudio (js/anims/_kit.js), fully
+  // outside ctx.audio's volume model — mirror the Sounds toggle onto that synth
+  // or anim sound keeps playing with Sounds switched off.
+  animSfx.setEnabled(ctx.prefs.sfxOn !== false);
   ctx.audio.setFartOMeter(ctx.prefs.fartOMeter);
   document.body.classList.toggle('text-size-large', ctx.prefs.textSize === 'A+');
 }

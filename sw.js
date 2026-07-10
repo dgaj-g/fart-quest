@@ -1,5 +1,5 @@
 // FART QUEST — sw.js (UI agent)
-const CACHE_V = 'fq-v6';
+const CACHE_V = 'fq-v7';
 
 const PRECACHE_URLS = [
   './',
@@ -320,13 +320,15 @@ const PRECACHE_URLS = [
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_V).then((cache) => cache.addAll(PRECACHE_URLS).catch(() => {
-      // best-effort: cache what we can individually so one missing file
-      // doesn't block install entirely.
-      return Promise.all(
-        PRECACHE_URLS.map((url) => cache.add(url).catch(() => {}))
-      );
-    }))
+    // Atomic on purpose: if ANY precache file is missing, the whole install fails
+    // and the previous version keeps serving. A half-populated cache must never
+    // activate — a "best-effort" partial install is exactly how the app once went
+    // blank for real visitors (fq-v6 activated without js/anims/_kit.js).
+    // {cache:'reload'} bypasses the HTTP cache so a stale CDN/browser copy can't
+    // poison a fresh version's precache.
+    caches.open(CACHE_V).then((cache) =>
+      cache.addAll(PRECACHE_URLS.map((url) => new Request(url, { cache: 'reload' })))
+    )
   );
 });
 
@@ -383,17 +385,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // everything else (shell): cache-first, fall back to network, then update cache
+  // everything else (shell): cache-first, version-pinned. Shell files are written
+  // ONLY at install time — never refreshed at runtime — so one running version can
+  // never serve a mix of old and new files (a stale worker background-refreshing
+  // its own cache is how clients ended up on a broken old/new hybrid). Updates
+  // arrive solely via a new sw.js with a bumped CACHE_V — every deploy that
+  // changes any shell file MUST bump CACHE_V.
   event.respondWith(
-    caches.match(req).then((cached) => {
-      const networkFetch = fetch(req).then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE_V).then((cache) => cache.put(req, copy));
-        }
-        return res;
-      }).catch(() => cached);
-      return cached || networkFetch;
-    })
+    caches.match(req).then((cached) => cached || fetch(req))
   );
 });

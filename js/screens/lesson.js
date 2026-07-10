@@ -237,6 +237,10 @@ function renderAnimCard(card, ctx, topic, onNext) {
   carry.className = 'btn btn-gold anim-carry';
   carry.textContent = 'CARRY ON ➡';
   wrap.appendChild(carry);
+  // The anim synth lives outside ctx.audio's volume model — apply the child's
+  // saved Sounds pref here so a toggle made before this session's first anim
+  // (or in a previous session) is honoured.
+  animSfx.setEnabled(ctx.prefs.sfxOn !== false);
   try {
     animCleanup = mod.mount(hostEl, {
       audio: ctx.audio,

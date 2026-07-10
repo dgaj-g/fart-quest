@@ -61,16 +61,42 @@ function positionCutout(wrap, rect) {
   ring.style.width = `${rect.width + pad * 2}px`;
   ring.style.height = `${rect.height + pad * 2}px`;
 
-  // place the card below the target if there's room, else above
+  // Place the card beside the cutout WITHOUT ever covering it: try below, above,
+  // right, left — first candidate that fits fully on screen wins (vertical
+  // candidates clear the ring vertically, side candidates clear it horizontally,
+  // so a fitting candidate can never overlap the spotlit target). If nothing
+  // fits, dock to the screen corner farthest from the target. The old
+  // below-else-above logic clamped to the top of the screen when neither fitted,
+  // which parked the card exactly on top of the target — and on 'tap-target'
+  // steps that soft-locked the whole tutorial.
+  const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const spaceBelow = vh - rect.bottom;
-  const cardH = card.offsetHeight || 220;
-  card.style.left = `${Math.max(16, Math.min(rect.left, window.innerWidth - 340))}px`;
-  if (spaceBelow > cardH + 24) {
-    card.style.top = `${rect.bottom + pad + 12}px`;
-  } else {
-    card.style.top = `${Math.max(16, rect.top - cardH - pad - 12)}px`;
+  const margin = 16;
+  const gap = 12;
+  const cardW = card.offsetWidth || 320;
+  const cardH = card.offsetHeight || 240;
+  const ringBox = { top: rect.top - pad, left: rect.left - pad, right: rect.left + rect.width + pad, bottom: rect.top + rect.height + pad };
+  const midX = Math.max(margin, Math.min(rect.left + rect.width / 2 - cardW / 2, vw - cardW - margin));
+  const midY = Math.max(margin, Math.min(rect.top + rect.height / 2 - cardH / 2, vh - cardH - margin));
+  const candidates = [
+    { top: ringBox.bottom + gap, left: midX },
+    { top: ringBox.top - gap - cardH, left: midX },
+    { top: midY, left: ringBox.right + gap },
+    { top: midY, left: ringBox.left - gap - cardW },
+  ];
+  let pos = candidates.find((c) =>
+    c.top >= margin && c.left >= margin && c.top + cardH <= vh - margin && c.left + cardW <= vw - margin
+  );
+  if (!pos) {
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    pos = {
+      top: cy < vh / 2 ? vh - cardH - margin : margin,
+      left: cx < vw / 2 ? vw - cardW - margin : margin,
+    };
   }
+  card.style.top = `${Math.round(pos.top)}px`;
+  card.style.left = `${Math.round(pos.left)}px`;
 }
 
 // ---------- self-contained battle demo (step type 'battle-demo') ----------
@@ -151,6 +177,16 @@ function run(steps, ctx) {
     let stepIndex = 0;
     let resizeTimer = null;
     let finished = false;
+
+    // The portrait PNG loads async — if it lands after a step was positioned it
+    // changes the card's height, so re-run placement for the current step.
+    const portraitImg = wrap.querySelector('.coach-portrait img');
+    if (portraitImg && !portraitImg.complete) {
+      portraitImg.addEventListener('load', () => {
+        const step = steps[stepIndex];
+        if (!finished && step && step.type !== 'battle-demo') positionCutout(wrap, rectOf(step.target));
+      }, { once: true });
+    }
 
     function cleanup() {
       window.removeEventListener('resize', onResize);

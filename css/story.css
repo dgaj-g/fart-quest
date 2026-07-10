@@ -283,7 +283,10 @@
 }
 .coach-card.coach-card-wide { width: 480px; }
 
-.coach-portrait { font-size: 30px; line-height: 1; }
+/* Fixed box: the portrait is a full-size monster PNG (width:100% inline) — without
+   an explicit size it fills the card's width and balloons the card so tall it
+   covers the very thing the tutorial is spotlighting. */
+.coach-portrait { width: 72px; height: 72px; flex: none; align-self: center; font-size: 30px; line-height: 1; }
 .coach-text { font-size: 18px; line-height: 1.4; font-weight: 600; }
 .coach-next { align-self: center; padding: 10px 26px; font-size: 16px; }
 
