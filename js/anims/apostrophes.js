@@ -106,6 +106,7 @@ export default {
   title: "IT'S-ITS JUNCTION",
 
   mount(host, ctx) {
+    injectCss('apostrophes', CSS);
     let alive = true;
     let mi = 0;
     let mission = MISSIONS[0];
@@ -317,4 +318,3 @@ const CSS = `
   font-weight: 700; max-width: 980px; margin-left: auto; margin-right: auto;
 }
 `;
-injectCss('apostrophes', CSS);

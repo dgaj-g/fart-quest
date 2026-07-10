@@ -157,6 +157,7 @@ export default {
   title: 'THE TWIN SCANNER',
 
   mount(host, ctx) {
+    injectCss('homophones', CSS);
     let alive = true;
     let mi = 0; let gi = 0;
     let loaded = null; let scanningWord = null; let busy = false;
@@ -436,4 +437,3 @@ const CSS = `
   font-weight: 700; max-width: 980px; margin-left: auto; margin-right: auto;
 }
 `;
-injectCss('homophones', CSS);

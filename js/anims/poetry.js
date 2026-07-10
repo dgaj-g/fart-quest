@@ -61,7 +61,7 @@ const CSS = `
 .srs-line { display:flex; gap:8px; align-items:baseline; padding:2px 0; font-size:14.5px; line-height:1.55; }
 .srs-lnum { flex:0 0 auto; width:18px; font-size:10px; font-weight:700; color:#9c8768; text-align:right; }
 .srs-ltext { color:var(--ink); }
-.srs-w { cursor:pointer; padding:1px 3px; border-radius:6px; }
+.srs-w { cursor:pointer; padding:5px 4px; border-radius:6px; }
 .srs-w.picked { background:var(--gold); color:#4a3200; animation:srsPop .25s var(--spring) both; }
 .srs-w.strung { background:rgba(46,204,113,.28); color:#1d8f4e; font-weight:700; }
 .srs-w.wrong { animation:srsShake .4s ease; background:rgba(231,76,60,.22); }
@@ -97,11 +97,11 @@ export default {
     const chiprow = el('div', 'anim-chiprow');
     const phaseHost = el('div');
     stage.append(chiprow, phaseHost);
-    host.append(stage);
 
     const ruleCard = el('div', 'goldcard', RULE);
     ruleCard.style.cssText = 'margin-top:12px;font-size:13.5px;line-height:1.35;background:linear-gradient(180deg,#FFF3CE,#FBE29A);border:3px solid var(--gold-deep);border-radius:14px;padding:10px 14px;color:#5a4408;font-weight:700;';
-    host.append(ruleCard);
+    stage.append(ruleCard);
+    host.append(stage);
 
     let phase = 1;
     let unlockedPhase = 1;
@@ -226,6 +226,13 @@ export default {
           },
         });
         phaseCleanups.push(() => drag.destroy());
+        // Unconditionally cancel any in-flight fly-to-verse tween on teardown
+        // (phase switch or full unmount) — reset() below is guarded by
+        // `placed` for the resize-abandons-live-drag case, but a correct drop
+        // sets placed=true before the tween starts, so it would otherwise
+        // survive teardown and fire revealVerse()/phase1Complete() against a
+        // detached stage.
+        phaseCleanups.push(() => { if (animCancel) { animCancel(); animCancel = null; } });
         tokenCtrls.push({
           reset() {
             if (placed) return;
@@ -244,13 +251,19 @@ export default {
     function phase1Complete(wrap) {
       doneSet.add(1); unlockedPhase = Math.max(unlockedPhase, 2); paintChips();
       sfx.win();
-      later(() => {
+      const tid = later(() => {
+        if (phase !== 1) return;
         bubble(stage, {
           title: 'TWO VERSES FOUND! 📜',
           text: `${RULE}<br><br>Eight lines, split into two neat groups of four — you just SAW it happen.`,
           img: SIMON_IMG,
         }).then(() => { if (alive && phase === 1) addNextButton(wrap, 2, 'NEXT: STRING THE RHYMES ➡'); });
       }, 300);
+      // The 300ms delay lets the win-jingle land before the modal veil — but
+      // paintChips() above already unlocked chip ②, so the child can navigate
+      // away before this fires. Cancel it on phase teardown (the phase===1
+      // guard above is belt-and-suspenders for the same reason).
+      phaseCleanups.push(() => clearTimeout(tid));
     }
 
     /* ===================== PHASE 2 — rhyme strings ===================== */
@@ -336,13 +349,15 @@ export default {
     function phase2Complete(wrap) {
       doneSet.add(2); unlockedPhase = Math.max(unlockedPhase, 3); paintChips();
       sfx.win(); party(stage);
-      later(() => {
+      const tid = later(() => {
+        if (phase !== 2) return;
         bubble(stage, {
           title: 'ALL FOUR RHYMES STRUNG! 🎵',
           text: 'Every string landed on a LINE-END word — that\'s where rhymes live. Now for the hardest part: what did the poem actually SAY?',
           img: SIMON_IMG,
         }).then(() => { if (alive && phase === 2) addNextButton(wrap, 3, 'NEXT: READ THE STORY ➡'); });
       }, 300);
+      phaseCleanups.push(() => clearTimeout(tid));
     }
 
     /* ===================== PHASE 3 — the story question ===================== */

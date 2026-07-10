@@ -175,12 +175,25 @@ function makeBoard(host, mission, opts) {
       sfx.nudge();
       blater(() => {
         if (!boardAlive) return;
-        setSocketState('sis-idle', mission.word, '\u{1F50C}');
-        plug.el.style.opacity = '1';
-        returnToTray(plug, plug.curX, plug.curY);
-        Object.values(plugMap).forEach((p) => p.el.classList.remove('sis-locked'));
-        busy = false;
-        opts.onWrong(mission, plug);
+        // Keep the socket + rejected plug exactly as shown (sis-wrong,
+        // plug.text still seated) until the explanation bubble — which
+        // quotes this exact swapped sentence — has been read and dismissed.
+        // Reverting to idle / ejecting the plug here would let the bubble
+        // quote a sentence the board is no longer displaying (Rule 2).
+        opts.onWrong(mission, plug, () => {
+          if (!boardAlive) return;
+          setSocketState('sis-idle', mission.word, '\u{1F50C}');
+          // A relayout during the (now longer, bubble-gated) wait can have
+          // already forced this plug back into the tray via layout()'s own
+          // "abandon live tween" path — only fly it home if that hasn't
+          // happened, so we don't double-return the same plug.
+          if (plug.status === 'testing') {
+            plug.el.style.opacity = '1';
+            returnToTray(plug, plug.curX, plug.curY);
+          }
+          Object.values(plugMap).forEach((p) => p.el.classList.remove('sis-locked'));
+          busy = false;
+        });
       }, SPARK_MS);
     }
   }
@@ -327,6 +340,7 @@ export default {
     let alive = true;
     let board = null;
     let mi = 0;
+    let gen = 0;
     let ahaShown = false;
     const doneSet = new Set();
     const timers = new Set();
@@ -358,25 +372,32 @@ export default {
 
     function startMission(i) {
       mi = i;
+      gen += 1;
       const mission = MISSIONS[i];
       winBox.innerHTML = '';
       destroyBoard();
       paintChips();
+      const myGen = gen;
       board = makeBoard(boardHost, mission, {
         onSolved() { win(mission); },
-        onWrong(m, plug) { showWrong(m, plug); },
+        onWrong(m, plug, revert) { showWrong(m, plug, revert, myGen); },
       });
     }
 
-    function showWrong(mission, plug) {
+    function showWrong(mission, plug, revert, myGen) {
       const swapped = `${mission.before}${plug.text}${mission.after}`;
       later(() => {
-        if (!alive) return;
+        // The mission-select chips stay clickable during this short window
+        // (the full-stage veil only appears once the bubble itself opens),
+        // so guard against a chip-tap having already switched to a
+        // different mission — showing this swap's feedback over a board
+        // that's moved on would quote a sentence that's no longer displayed.
+        if (!alive || myGen !== gen) return;
         bubble(stage, {
           title: plug.famous ? 'THE FAMOUS TRAP! ⭐' : 'SPARKED! ⚡',
           text: `“${swapped}” — ${plug.why}`,
           img: SINEAD_IMG,
-        });
+        }).then(() => { if (alive && myGen === gen) revert(); });
       }, 80);
     }
 

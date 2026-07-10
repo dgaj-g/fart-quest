@@ -478,6 +478,7 @@ export default {
     /* ===== mission flow ===== */
     function start(i) {
       clearActive();
+      timers.forEach((t) => clearTimeout(t)); timers.clear();
       mi = i; mission = MISSIONS[i];
       winBox.innerHTML = '';
       actionBtn.onclick = null; actionBtn.style.display = 'none';

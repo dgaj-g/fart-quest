@@ -184,6 +184,13 @@ export default {
     }
 
     function start(i) {
+      // Cancel any in-flight completion timer (700ms winGap / 500ms winColon,
+      // or the decoy/leaf/scurry cosmetics) before switching — otherwise a
+      // mission-switch tap during the delay lets a stale timer fire against
+      // the NEWLY reassigned `mission`, falsely marking an untouched mission
+      // done and showing its "CAUGHT HIM!" explanation for the wrong board.
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
       mi = i;
       mission = MISSIONS[i];
       foundSet = new Set();
@@ -416,7 +423,7 @@ export default {
       const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));
       if (nextIdx !== -1) {
         const nb = el('button', 'btn btn-gold', 'NEXT ONE ➡');
-        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
         nb.addEventListener('click', () => { sfx.ui(); start(nextIdx); });
         w.append(nb);
       } else if (!completed) {

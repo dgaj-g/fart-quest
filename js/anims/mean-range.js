@@ -298,11 +298,15 @@ export default {
         paintTowers(false, to);
         if (!everShown.has('total')) {
           everShown.add('total');
-          later(() => bubble(stage, {
-            title: 'SHARING MOVES, NEVER MAKES! 🥄',
-            text: `The Meanie insists you watch the TOTAL chip — it's still <b>${state.total}</b>, no matter how many blocks you scoop! Sharing moves blocks around, it never makes new ones.`,
-            img: MEANIE_IMG,
-          }), 260);
+          const totalSnap = st.total; const bubbleGen = myGen;
+          later(() => {
+            if (bubbleGen !== genToken) return; // mission switched before this fired — don't quote a total that's no longer on screen (or doesn't exist on a range state)
+            bubble(stage, {
+              title: 'SHARING MOVES, NEVER MAKES! 🥄',
+              text: `The Meanie insists you watch the TOTAL chip — it's still <b>${totalSnap}</b>, no matter how many blocks you scoop! Sharing moves blocks around, it never makes new ones.`,
+              img: MEANIE_IMG,
+            });
+          }, 260);
         }
         checkLevelled();
       });
@@ -327,11 +331,15 @@ export default {
       onMissionDone();
       if (mission.id === 'm3' && !everShown.has('recap')) {
         everShown.add('recap');
-        later(() => bubble(stage, {
-          title: 'THE RITUAL, PROVEN! 🥄',
-          text: `That's The Meanie's whole rulebook in one go: ${RULE} You just watched it happen with your own hands — <b>${state.total} ÷ ${state.n} = ${state.mean}</b>.`,
-          img: MEANIE_IMG,
-        }), 500);
+        const totalSnap = state.total; const nSnap = state.n; const meanSnap = state.mean; const bubbleGen = genToken;
+        later(() => {
+          if (bubbleGen !== genToken) return; // mission switched before this fired (e.g. child tapped NEXT ONE straight into m4) — skip rather than quote figures from a state that's no longer showing
+          bubble(stage, {
+            title: 'THE RITUAL, PROVEN! 🥄',
+            text: `That's The Meanie's whole rulebook in one go: ${RULE} You just watched it happen with your own hands — <b>${totalSnap} ÷ ${nSnap} = ${meanSnap}</b>.`,
+            img: MEANIE_IMG,
+          });
+        }, 500);
       }
     }
 

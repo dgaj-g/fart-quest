@@ -119,6 +119,7 @@ export default {
   title: 'THE CLONING CRANK',
 
   mount(host, ctx) {
+    injectCss('plurals-collectives', CSS);
     let alive = true;
     let mi = 0;
     let mission = MISSIONS[0];
@@ -475,4 +476,3 @@ const CSS = `
   font-weight: 700; max-width: 980px; margin-left: auto; margin-right: auto;
 }
 `;
-injectCss('plurals-collectives', CSS);

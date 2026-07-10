@@ -202,6 +202,7 @@ export default {
     let alive = true;
     let wheel = null;
     let mi = 0; // current mission index; MISSIONS.length === free play
+    let gen = 0; // bumped on every start() so stale later() bubbles can't fire over a switched-away mission
     const doneSet = new Set();
     const timers = new Set();
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); };
@@ -317,6 +318,7 @@ export default {
 
     function start(i) {
       mi = i;
+      gen += 1;
       attempts = 0;
       predicted = null;
       winBox.innerHTML = '';
@@ -424,6 +426,8 @@ export default {
     });
 
     function win(angle) {
+      const myGen = gen; // snapshot so a mission switch during the delayed bubbles below can't fire them over the wrong screen
+      const predictedAtWin = predicted;
       doneSet.add(mission.id);
       if (wheel) wheel.setDisabled(true);
       lock.disabled = true;
@@ -442,9 +446,10 @@ export default {
 
       if (mission.trap) {
         later(() => {
+          if (!alive || gen !== myGen) return;
           bubble(stage, {
-            title: predicted === 'right' ? 'YOU CALLED IT! 🎯' : 'NOW YOU’VE SEEN IT! 👀',
-            text: predicted === 'right'
+            title: predictedAtWin === 'right' ? 'YOU CALLED IT! 🎯' : 'NOW YOU’VE SEEN IT! 👀',
+            text: predictedAtWin === 'right'
               ? 'Spot on — 50% OF 36 is <b>18</b>, never 50. The pie is only ever the <b>36 pupils Pie-Face actually asked</b>, wearing a circle costume.'
               : 'The pie proves it: 50% OF 36 is <b>18</b>, not 50. The pie is only ever the <b>36 pupils Pie-Face actually asked</b> — never assume the percentage is out of 100 people.',
             img: PIEFACE_IMG,
@@ -455,6 +460,7 @@ export default {
       if (doneSet.size === MISSIONS.length) {
         ctx.complete();
         later(() => {
+          if (!alive || gen !== myGen) return;
           bubble(stage, {
             title: 'THE WHOLE PIE! 🥧',
             text: 'Every pie is the TOTAL ASKED wearing a circle costume. A slice’s fraction is always a fraction of THAT total — never 100, never a guess.',

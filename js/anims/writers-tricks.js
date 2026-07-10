@@ -104,6 +104,7 @@ function makeScanBoard(host, mission, opts) {
   let solved = false;
   let selected = null;
   let cancelTween = null;
+  let lockFinishPending = null;
   const pending = new Set();
   const later = (fn, ms) => { const id = setTimeout(() => { pending.delete(id); if (alive) fn(); }, ms); pending.add(id); };
 
@@ -176,12 +177,9 @@ function makeScanBoard(host, mission, opts) {
     const first = evEls[0];
     if (first) {
       const cr = card.getBoundingClientRect(); const fr = first.getBoundingClientRect();
-      cancelTween = tween((v) => {
-        glass.style.left = (v * (fr.left - cr.left + fr.width / 2) + (1 - v) * (card.clientWidth / 2)) + 'px';
-        glass.style.top = (v * (fr.top - cr.top + fr.height / 2) + (1 - v) * glass.offsetTop) + 'px';
-      }, 0, 1, 260, () => {
-        cancelTween = null;
-        if (!alive) return;
+      const startTop = glass.offsetTop; // captured once — reading it live inside apply() would compound frame-on-frame
+      const revealEvidence = () => {
+        lockFinishPending = null;
         evEls.forEach((eEl, i) => {
           later(() => { if (alive) { eEl.classList.add('etd-glow'); sfx.pop(); } }, i * 150);
         });
@@ -189,6 +187,20 @@ function makeScanBoard(host, mission, opts) {
         sparkleBurst(opts.stage, b.left - opts.stageRect().left + b.width / 2, b.top - opts.stageRect().top + 14, 8);
         later(() => { glass.style.opacity = '0'; }, evEls.length * 150 + 300);
         later(() => { if (alive) { busy = false; opts.onSolved(mission); } }, evEls.length * 150 + 500);
+      };
+      // if a resize/layout() cancels the fly-to-evidence tween before it lands, the
+      // mission must still complete (skip straight to the reveal) — otherwise the
+      // card is stuck "solved" internally but never recorded in doneSet (no NEXT
+      // CARD button, EFFECTS card never unlocks) with no way to recover except
+      // re-scanning the whole card from scratch.
+      lockFinishPending = revealEvidence;
+      cancelTween = tween((v) => {
+        glass.style.left = (v * (fr.left - cr.left + fr.width / 2) + (1 - v) * (card.clientWidth / 2)) + 'px';
+        glass.style.top = (v * (fr.top - cr.top + fr.height / 2) + (1 - v) * startTop) + 'px';
+      }, 0, 1, 260, () => {
+        cancelTween = null;
+        if (!alive) return;
+        revealEvidence();
       });
     } else {
       busy = false; opts.onSolved(mission);
@@ -211,7 +223,10 @@ function makeScanBoard(host, mission, opts) {
 
   return {
     layout() {
-      if (cancelTween) { cancelTween(); cancelTween = null; }
+      if (cancelTween) {
+        cancelTween(); cancelTween = null;
+        if (lockFinishPending) { const fn = lockFinishPending; lockFinishPending = null; fn(); }
+      }
       busy = false;
       if (!solved) resetGlass(); else glass.style.opacity = '0';
     },
@@ -408,7 +423,7 @@ const CSS = `
 @keyframes etdFizzleFlash { 0%,100% { box-shadow: inset 0 3px 8px rgba(51,38,29,.18); } 30% { box-shadow: inset 0 0 0 3px var(--wrong), inset 0 3px 8px rgba(51,38,29,.18); } }
 @keyframes etdShake { 0%,100% { transform:translateX(0); } 20% { transform:translateX(-7px); } 45% { transform:translateX(7px); } 70% { transform:translateX(-4px); } 88% { transform:translateX(3px); } }
 .etd-foot { display:flex; justify-content:center; margin-top:14px; }
-.etd-scanbtn { font-size:15px; padding:11px 26px; }
+.etd-scanbtn { font-size:15px; padding:11px 26px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 .etd-win { margin-top:14px; text-align:center; background:linear-gradient(180deg,#E9FBEF,#D3F3DF); border:3px solid var(--correct); border-radius:14px; padding:10px 14px; animation:animBubbleIn .34s var(--spring) both; }
 .etd-wp { font-weight:700; color:#1d8f4e; font-size:16px; }
 .etd-wk { font-size:13.5px; color:#4d6b58; font-weight:500; margin-top:2px; }
@@ -523,7 +538,7 @@ export default {
       winBox.append(w);
       const nextIdx = SCAN_MISSIONS.findIndex((m) => !doneSet.has(m.id));
       const btn = el('button', 'btn btn-gold', nextIdx !== -1 ? 'NEXT CARD ➡' : 'MATCH THE EFFECTS \u{1F3AF}');
-      btn.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+      btn.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
       btn.addEventListener('click', () => { sfx.ui(); startMission(nextIdx !== -1 ? nextIdx : 3); });
       w.append(btn);
     }

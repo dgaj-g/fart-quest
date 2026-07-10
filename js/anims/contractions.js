@@ -315,7 +315,7 @@ export default {
         settleLever(0, () => { leverBusy = false; });
         bubble(stage, {
           title: 'JAMMED! 🚨',
-          text: `OF was NEVER in there! It's could HAVE! "${jammedWord} of" has never once come out of this press — <b>of never goes in, so it never comes out.</b>`,
+          text: `OF was NEVER in there! It's ${jammedWord.toUpperCase()} HAVE! "${jammedWord} of" has never once come out of this press — <b>of never goes in, so it never comes out.</b>`,
           img: COLIN_IMG,
         }).then(() => { if (alive) resetTray(); });
       }, 480);

@@ -324,8 +324,9 @@ horizontal / two diagonals.
 betray you"). (2) square: all 4 work — golden fanfare. (3) complete-the-twin: half a
 rocket on squared paper, child paints mirror squares on the other side, then folds to
 check — mismatched squares glow red and can be repainted (place-all-then-check, genuine
-consequence). (4) letter parade: tap the letters with a vertical mirror line
-(A H M T — not F, G).
+consequence). (4) mirror or myth: tap every named fold (rectangle vertical, square
+diagonal, rhombus diagonal — genuine; rectangle diagonal, parallelogram diagonal,
+trapezium diagonal — trap lines).
 **Aha:** symmetry is a physical fold where every point finds its twin; rectangles have 2
 lines, never 4.
 

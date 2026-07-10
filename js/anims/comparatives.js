@@ -211,6 +211,7 @@ export default {
     let mission = MISSIONS[0];
     let runners = 2;
     let partialShown = false;
+    let stateGen = 0;
     let plateWordEl = null; let suffixSlotEl = null; let prefixSlotEl = null;
     let posterLocked = false; let posterAttempts = 0; let selected = new Set(); let tokenEls = [];
 
@@ -260,6 +261,7 @@ export default {
       if (!alive || mission.kind !== 'build') return;
       if (runners >= mission.runnersNeed) return;
       runners += 1;
+      stateGen += 1;
       sfx.pop();
       partialShown = false;
       winBox.innerHTML = '';
@@ -377,14 +379,19 @@ export default {
         if (!partialShown) {
           partialShown = true;
           const need = mission.runnersNeed;
+          const genAtSchedule = stateGen;
+          const shownRunners = runners;
           const guidance = runners < need
             ? `Tap <b>+ ADD A RACER</b> until there are ${need}, then build it again for the crowd.`
             : `Tap <b>↩ RESET</b> to bring it back down to ${need} — that's what this round needs.`;
-          later(() => bubble(stage, {
-            title: 'RIGHT FOR NOW! 🎉',
-            text: `Spot on for <b>${runners}</b> — that's <b>${outcome.word.toUpperCase()}</b>! But this round wants exactly <b>${need}</b>. ${guidance}`,
-            img: CREATURE_IMG,
-          }), 250);
+          later(() => {
+            if (stateGen !== genAtSchedule) return; // board has moved on (racer added / mission switched / reset) — the quoted numbers would no longer match what's on screen
+            bubble(stage, {
+              title: 'RIGHT FOR NOW! 🎉',
+              text: `Spot on for <b>${shownRunners}</b> — that's <b>${outcome.word.toUpperCase()}</b>! But this round wants exactly <b>${need}</b>. ${guidance}`,
+              img: CREATURE_IMG,
+            });
+          }, 250);
         }
       }
     }
@@ -455,6 +462,7 @@ export default {
     function start(i) {
       mi = i;
       mission = MISSIONS[i];
+      stateGen += 1;
       winBox.innerHTML = '';
       chipCtrls.forEach((c) => c.destroy()); chipCtrls.length = 0;
       paintChips();

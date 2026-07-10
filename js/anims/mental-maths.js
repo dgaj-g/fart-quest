@@ -240,6 +240,7 @@ export default {
   title: 'THE TEN-FRIEND TRAMPOLINE',
 
   mount(host, ctx) {
+    injectCss('mental-maths', CSS);
     let alive = true;
     let line = null;
     let mi = 0; // MISSIONS.length index === sandbox
@@ -462,4 +463,3 @@ const CSS = `
   font-weight: 700; max-width: 980px; margin-left: auto; margin-right: auto;
 }
 `;
-injectCss('mental-maths', CSS);

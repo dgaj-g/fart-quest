@@ -156,6 +156,7 @@ export default {
   title: 'THE SIGNPOST SHELF',
 
   mount(host, ctx) {
+    injectCss('kinds-of-writing', CSS);
     let alive = true;
     let mi = 0;
     const doneSet = new Set();
@@ -195,7 +196,7 @@ export default {
 
     const winBox = el('div');
     const controls = el('div', 'anim-controls');
-    const checkBtn = el('button', 'btn btn-gold', 'CHECK SHELVES 📚');
+    const checkBtn = el('button', 'btn btn-gold ssf-checkbtn', 'CHECK SHELVES 📚');
     const resetBtn = el('button', 'anim-ghostbtn', '↩ RESET');
     controls.append(checkBtn, resetBtn);
     stage.append(chiprow, qEl, qsub, bookWrap, sortWrap, winBox, controls);
@@ -203,7 +204,7 @@ export default {
 
     const ruleCard = el('div', 'goldcard', RULE);
     ruleCard.style.cssText = 'margin-top:12px;font-size:13.5px;line-height:1.35;background:linear-gradient(180deg,#FFF3CE,#FBE29A);border:3px solid var(--gold-deep);border-radius:14px;padding:10px 14px;color:#5a4408;font-weight:700;text-align:center;';
-    host.append(ruleCard);
+    stage.append(ruleCard);
 
     /* ---- signpost drag state ---- */
     let cardBusy = false;
@@ -220,12 +221,13 @@ export default {
       sfx.ui(); sfx.whoosh();
       tabEls.find((t) => t.dataset.id === tabId).classList.add('active');
       cardEl.classList.add('vanish');
-      later(() => { if (alive) { cardEl.style.display = 'none'; openPage(mission); } }, 380);
+      const startedMi = mi;
+      later(() => { if (alive && mi === startedMi) { cardEl.style.display = 'none'; openPage(mission); } }, 380);
     }
     function openPage(mission) {
       coverEl.style.display = 'none';
       pageEl.innerHTML = renderSignpost(mission);
-      pageEl.style.display = '';
+      pageEl.style.display = 'block';
       pageEl.classList.remove('opening'); void pageEl.offsetWidth; pageEl.classList.add('opening');
       sfx.pop(); sfx.sparkle();
       const r = pageEl.getBoundingClientRect(); const sr = stage.getBoundingClientRect();
@@ -376,7 +378,7 @@ export default {
     function appendNextButton(container) {
       const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));
       const nb = el('button', 'btn btn-gold', nextIdx !== -1 ? 'NEXT ONE ➡' : 'PLAY AGAIN 🔁');
-      nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+      nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
       nb.addEventListener('click', () => { sfx.ui(); start(nextIdx !== -1 ? nextIdx : 0); });
       container.append(nb);
     }
@@ -489,8 +491,8 @@ const CSS = `
 .ssf-cover-card.locked { border-color: var(--correct); background: #E9FBEF; cursor: default; }
 .ssf-cover-card.flap { animation: ssfFlap .6s ease; }
 @keyframes ssfFlap { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-9deg); } 45% { transform: rotate(7deg); } 70% { transform: rotate(-5deg); } }
+.ssf-checkbtn { min-height: 44px; padding: 10px 22px; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
 .ssf-win { margin-top: 12px; text-align: center; background: linear-gradient(180deg,#E9FBEF,#D3F3DF); border: 3px solid var(--correct); border-radius: 14px; padding: 10px 14px; animation: animBubbleIn .34s var(--spring) both; }
 .ssf-wp { font-weight: 700; color: #1d8f4e; font-size: 16px; }
 .ssf-wk { font-size: 13.5px; color: #4d6b58; font-weight: 500; margin-top: 4px; }
 `;
-injectCss('kinds-of-writing', CSS);

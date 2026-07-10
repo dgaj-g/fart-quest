@@ -165,11 +165,9 @@ export default {
     const qcard = el('div', 'lnl-qcard');
     const optionsBox = el('div', 'lnl-options');
     const winBox = el('div');
-    stage.append(chiprow, qsub, field, qcard, optionsBox, winBox);
-    host.append(stage);
-
     const ruleCard = el('div', 'lnl-rulecard', RULE);
-    host.append(ruleCard);
+    stage.append(chiprow, qsub, field, qcard, optionsBox, winBox, ruleCard);
+    host.append(stage);
 
     const rowEls = PASSAGE.map((text, idx) => {
       const row = el('div', 'lnl-row');
@@ -227,10 +225,22 @@ export default {
     }
 
     function setRowClass(line, cls, on) { rowEls[line - 1].classList.toggle(cls, on); }
+    const flashTimers = new Map(); // "line:cls" -> pending removal timeout id
     function flashRow(line, cls) {
       if (line == null) return;
-      setRowClass(line, cls, true);
-      later(() => setRowClass(line, cls, false), 850);
+      const key = line + ':' + cls;
+      const pending = flashTimers.get(key);
+      if (pending != null) { clearTimeout(pending); timers.delete(pending); flashTimers.delete(key); }
+      const row = rowEls[line - 1];
+      row.classList.remove(cls);
+      void row.offsetWidth; // force reflow so re-adding the class restarts the CSS animation
+      row.classList.add(cls);
+      const id = setTimeout(() => {
+        timers.delete(id); flashTimers.delete(key);
+        if (alive) row.classList.remove(cls);
+      }, 850);
+      timers.add(id);
+      flashTimers.set(key, id);
     }
 
     function paintChips() {
@@ -283,7 +293,7 @@ export default {
       const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));
       if (nextIdx !== -1) {
         const nb = el('button', 'btn btn-gold', 'NEXT CLUE ➡️');
-        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
         nb.addEventListener('click', () => { sfx.ui(); startMission(nextIdx); });
         w.append(nb);
       }

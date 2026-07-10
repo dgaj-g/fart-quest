@@ -86,6 +86,7 @@ export default {
   title: "GARY'S TIME MACHINE",
 
   mount(host, ctx) {
+    injectCss('tenses', CSS);
     let alive = true;
     let mi = 0;
     let mission = MISSIONS[0];
@@ -402,4 +403,3 @@ const CSS = `
 .gtm-win .wk { font-size: 13.5px; color: #4d6b58; font-weight: 500; margin-top: 2px; }
 .gtm-rulecard { margin-top: 12px; font-size: 13.5px; line-height: 1.35; background: linear-gradient(180deg,#FFF3CE,#FBE29A); border: 3px solid var(--gold-deep); border-radius: 14px; padding: 10px 14px; color: #5a4408; font-weight: 700; max-width: 980px; margin-left: auto; margin-right: auto; }
 `;
-injectCss('tenses', CSS);
