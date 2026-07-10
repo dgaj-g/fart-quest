@@ -133,37 +133,30 @@ export default {
       },
     },
     {
-      type: 'show',
-      title: 'Choosing a sensible unit',
-      html: `<p>The ladder also helps you pick the SENSIBLE unit for the job. Nobody weighs a bag of potatoes in grams (a silly big number) or a paperclip in kilograms (a silly small number).</p>
-<div class="law-scroll">🥔 Bag of potatoes → <b>kg</b>. &nbsp;🍬 A single sweet → <b>g</b>.<br>🚪 A door → <b>m</b>. &nbsp;✏️ A pencil → <b>cm</b>. &nbsp;🐜 An ant → <b>mm</b>.<br>🛁 A bath → <b>l</b>. &nbsp;💊 A spoonful of medicine → <b>ml</b>.</div>
-<p>Rule of thumb: if your answer needs a silly number of zeros, or a silly number of decimal places, you have picked the wrong rung — climb the ladder until the number looks sensible.</p>`,
-    },
-    {
       type: 'try',
       q: {
         id: 'mu-try-3', topicId: 'metric-units', tier: 2, format: 'mcq5',
-        stem: 'Which of these parcels is the <b>heaviest</b>?',
+        stem: 'A sack holds <b>2.5 kg</b> of rice. How many <b>250 g</b> bags can be filled from it?',
         options: [
-          { text: '1.2 kg', misconception: null },
-          { text: '950 g', misconception: 'raw-number-trick' },
-          { text: '1.05 kg', misconception: 'raw-number-trick' },
-          { text: '900 g', misconception: 'raw-number-trick' },
-          { text: '890 g', misconception: 'raw-number-trick' },
+          { text: '10', misconception: null },
+          { text: '1', misconception: 'wrong-place' },
+          { text: '25', misconception: 'no-convert' },
+          { text: '2500', misconception: 'wrong-direction' },
+          { text: '9', misconception: 'padded-near-miss' },
         ],
         correctIndex: 0,
         hintSteps: [
-          'You cannot compare different units directly — convert every parcel to the SAME unit first.',
-          'Turn every parcel into grams: which number is biggest then?',
+          'First convert the sack to grams: 2.5 kg × 1000 = 2500 g.',
+          'Then divide by the bag size: 2500 ÷ 250 = ?',
         ],
         explain: {
           rule: 'kilo = ×1000, centi = ÷100, milli = ÷1000. Slide the digits, never the point.',
-          worked: 'In grams: 1.2 kg = 1200 g, 1.05 kg = 1050 g, then 950 g, 900 g, 890 g. 1200 g is the most, so 1.2 kg is the heaviest.',
+          worked: '2.5 kg = 2500 g. 2500 ÷ 250 = 10 bags.',
           whyWrong: {
-            '950 g': 'That LOOKS big, but 1.2 kg is really 1200 g — more than any gram value here. Convert first!',
-            '1.05 kg': 'Close, but 1.05 kg is only 1050 g — less than 1.2 kg (1200 g).',
-            '900 g': 'That is 900 g — less than 1.2 kg once you convert it (1200 g).',
-            '890 g': 'The smallest of the lot once everything is in the same unit.',
+            '1': 'That used the wrong ladder jump — kg to g is ×1000, not ×100 (2.5 kg × 100 = 250 g, ÷ 250 = 1).',
+            '25': 'That mixed up the decimal place when converting 250 g — check 2.5 kg = 2500 g first.',
+            '2500': 'That is the TOTAL amount in grams, not how many bags it makes — you still need to divide by 250.',
+            '9': 'Check the division again — 2500 ÷ 250, carefully.',
           },
         },
       },
@@ -176,8 +169,7 @@ export default {
     'Climbing DOWN the ladder (bigger unit → smaller unit) means MULTIPLY. Climbing UP (smaller → bigger) means DIVIDE.',
     'Going the other way? Just flip the operation: × becomes ÷, and ÷ becomes ×.',
     'cm and mm are NEXT-DOOR rungs — that jump is only ×10 or ÷10, never ×100.',
-    'Never compare quantities in different units without converting first. 890 g LOOKS bigger than "1.2" kg — but 1.2 kg is really 1200 g, so it wins.',
-    'Choose a sensible unit for the size of the thing: kg for a bag of potatoes, g for a sweet, m for a room, cm for a pencil, mm for tiny things, l for a bath, ml for a spoonful.',
+    'For a "how many portions fit" problem, convert the container amount into the SAME small unit as the portion FIRST, then divide — dividing before converting gives a meaningless number.',
     'After converting, check the answer makes sense. A pencil that is suddenly "1500 m" long means a digit slid too far!',
   ],
 };

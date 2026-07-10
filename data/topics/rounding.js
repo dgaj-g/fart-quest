@@ -116,36 +116,35 @@ export default {
       title: 'Estimating: the examiner’s favourite',
       html: `<p>Here’s where the catapult wins you actual SEAG marks. When a question says <b>“estimate”</b> or <b>“roughly”</b>, it does NOT want the exact answer. It wants you to <b>round first, THEN calculate</b> with the easy numbers.</p>
 <div class="estimate-demo">
-  <div class="est-line">41 × 19 = 😱 <span class="est-note">too hard, too slow</span></div>
-  <div class="est-line">↓ round both ↓</div>
-  <div class="est-line"><b>40 × 20 = 800</b> 😎 <span class="est-note">two seconds!</span></div>
+  <div class="est-line">£9.90 + £3.20 = 😱 <span class="est-note">fiddly pence</span></div>
+  <div class="est-line">↓ round both to the nearest £1 ↓</div>
+  <div class="est-line"><b>£10 + £3 = £13</b> 😎 <span class="est-note">two seconds!</span></div>
 </div>
-<p>The exact answer is 779 — and 800 is beautifully close. On the test, wrong answers to estimate-questions are usually the EXACT answer (779) hiding in the options to tempt you. Don’t take the bait: if it says estimate, they want the rounded one!</p>
-<p><b>Money works exactly the same way.</b> The catapult flings prices to the nearest whole pound — the decider is the first digit after the point: £9.90 → <b>£10</b>, £3.20 → <b>£3</b>. So “estimate the total: £9.90 + £3.20” becomes 10 + 3 = <b>about £13</b>. Ka-ching!</p>`,
+<p>The catapult flings prices to the nearest whole pound — the decider is the first digit after the point: £9.90 → <b>£10</b>, £3.20 → <b>£3</b>. The exact total is £13.10, and £13 is beautifully close. On the test, wrong answers to money-estimate questions are usually the EXACT total (like £13.10) hiding in the options to tempt you. Don’t take the bait: if it says estimate, they want the rounded one!</p>`,
     },
     {
       type: 'try',
       q: {
         id: 'round-try-3', topicId: 'rounding', tier: 2, format: 'mcq5',
-        stem: 'ESTIMATE: 38 + 43 is roughly…',
+        stem: 'ESTIMATE: £18.90 + £42.60 is roughly…',
         options: [
-          { text: '80', misconception: null },
-          { text: '81', misconception: 'exact-bait' },
-          { text: '70', misconception: 'rounded-down-both' },
-          { text: '800', misconception: 'magnitude' },
+          { text: '£62', misconception: null },
+          { text: '£61.50', misconception: 'exact-bait' },
+          { text: '£60', misconception: 'rounded-down-both' },
+          { text: '£620', misconception: 'magnitude' },
         ],
         correctIndex: 0,
         hintSteps: [
-          'Round each number to its nearest camp first: 38 → ? and 43 → ?',
-          '40 + 40 = …?',
+          'Round each price to the nearest whole pound first: £18.90 → ? and £42.60 → ?',
+          '£19 + £43 = …?',
         ],
         explain: {
           rule: 'Estimate = round FIRST, then calculate with the easy numbers.',
-          worked: '38 → 40, 43 → 40. 40 + 40 = 80.',
+          worked: '£18.90 → £19, £42.60 → £43. £19 + £43 = £62.',
           whyWrong: {
-            '81': 'That’s the EXACT answer — the classic bait! “Estimate” means they want the rounded version.',
-            '70': '38 rounds UP to 40 (decider 8), not down to 30.',
-            '800': 'Ten times too big — check the size of your camps.',
+            '£61.50': 'That’s the EXACT total — the classic bait! “Estimate” means they want the rounded version.',
+            '£60': '18.90 and 42.60 both have deciders of 5 or more (9 and 6) — they round UP, not down.',
+            '£620': 'Ten times too big — check the size of your rounded pounds.',
           },
         },
       },
@@ -159,7 +158,7 @@ export default {
     'The Law of Five: 5 or more ALWAYS flings up. 75 → 80. 350 → 400. No exceptions.',
     'See “estimate”, “roughly” or “approximately” in a question? Round FIRST, then calculate.',
     'Money rounds too: the decider is the first digit after the point. £9.90 → £10, £3.20 → £3.',
-    'In estimate questions, the EXACT answer is usually sitting in the options as bait. Don’t take it.',
-    'Use the catapult to CHECK answers too: 41 × 19 should be near 800 — if you got 7,790, a digit slid too far!',
+    'In money-estimate questions, the EXACT total is usually sitting in the options as bait. Don’t take it.',
+    'Use the catapult to CHECK totals too: if your prices round to about £13 but your exact answer is £131, a digit slid too far!',
   ],
 };

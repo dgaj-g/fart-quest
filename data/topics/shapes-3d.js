@@ -82,7 +82,7 @@ export default {
     },
     {
       type: 'show',
-      title: 'The Curved Ones — and the 11 Nets',
+      title: 'The Curved Ones',
       html: `<p>Cones and cylinders are trickier because part of them is <b>curved</b>, not flat. Here is how the Counter still handles them:</p>
 <div style="overflow-x:auto;">
 <table style="border-collapse:collapse;width:100%;font-size:13px;">
@@ -96,26 +96,7 @@ export default {
 <tr><td style="border:1px solid #999;padding:6px;"><b>Sphere</b></td><td style="border:1px solid #999;padding:6px;">1 (curved)</td><td style="border:1px solid #999;padding:6px;">0</td><td style="border:1px solid #999;padding:6px;">0</td></tr>
 </table>
 </div>
-<p style="margin:10px 0;"><b>The trap:</b> a curved surface still counts as a face, and a curved rim still counts as an edge. A cylinder has 2 edges (the top rim and the bottom rim) but ZERO vertices — a rim is curved all the way round, so it never comes to a sharp point. A cone has exactly ONE vertex (the pointy top).</p>
-<p><b>Cube nets:</b> if you cut a cube along some edges and flatten it out, you get a <b>net</b> — 6 squares joined edge-to-edge. There are exactly <b>11 different nets</b> that fold up into a closed cube with no gaps and no overlaps. Look at these two — both use 6 squares, but only ONE of them actually works:</p>
-<div style="display:flex;gap:28px;justify-content:center;align-items:flex-start;margin:14px 0;flex-wrap:wrap;">
-  <div style="text-align:center;">
-    <div style="display:inline-grid;grid-template-columns:repeat(3,26px);grid-template-rows:repeat(4,26px);gap:2px;">
-      <div style="background:#8577b0;border:1px solid #4a4368;"></div><div style="background:#8577b0;border:1px solid #4a4368;"></div><div style="background:#8577b0;border:1px solid #4a4368;"></div>
-      <div></div><div style="background:#8577b0;border:1px solid #4a4368;"></div><div></div>
-      <div></div><div style="background:#8577b0;border:1px solid #4a4368;"></div><div></div>
-      <div></div><div style="background:#8577b0;border:1px solid #4a4368;"></div><div></div>
-    </div>
-    <p style="font-size:13px;margin-top:6px;"><b>✅ Folds into a cube</b><br>every square becomes its own face</p>
-  </div>
-  <div style="text-align:center;">
-    <div style="display:inline-grid;grid-template-columns:repeat(6,26px);grid-template-rows:26px;gap:2px;">
-      <div style="background:#c0625b;border:1px solid #6b3230;"></div><div style="background:#c0625b;border:1px solid #6b3230;"></div><div style="background:#c0625b;border:1px solid #6b3230;"></div><div style="background:#c0625b;border:1px solid #6b3230;"></div><div style="background:#c0625b;border:1px solid #6b3230;"></div><div style="background:#c0625b;border:1px solid #6b3230;"></div>
-    </div>
-    <p style="font-size:13px;margin-top:6px;"><b>❌ Does NOT fold into a cube</b><br>a straight line of 6 overlaps itself</p>
-  </div>
-</div>
-<p>Same number of squares (6). Same edge-to-edge joining. Completely different result. The ONLY way to be sure is to check the exact arrangement — never assume "6 squares = it works".</p>`,
+<p style="margin:10px 0;"><b>The trap:</b> a curved surface still counts as a face, and a curved rim still counts as an edge. A cylinder has 2 edges (the top rim and the bottom rim) but ZERO vertices — a rim is curved all the way round, so it never comes to a sharp point. A cone has exactly ONE vertex (the pointy top).</p>`,
     },
     {
       type: 'try',
@@ -148,41 +129,43 @@ export default {
     },
     {
       type: 'show',
-      title: 'Does It Fold? — the exam favourite',
-      html: `<p>Exam papers LOVE showing a net and asking "will this fold into a cube?" Here is the Counter's check, step by step:</p>
-<ol style="line-height:1.7;">
-  <li><b>Count the squares.</b> A cube net always needs exactly 6 — one for every face.</li>
-  <li><b>Trace the fold in your head.</b> Pick one square as the base, then fold every other square up like a lid. Does each one land on its OWN face, or does it crash into a square that's already there?</li>
-  <li><b>Watch for overlaps.</b> If two squares would land on top of each other, one face of the cube is left bare — that net is broken, no matter how tidy it looks.</li>
-</ol>
-<p>Don't be fooled by shape: a "T" shape and a "+" (plus) shape can BOTH fold into a perfect cube — they just look different flattened out. Meanwhile, a solid block of 6 squares (2 rows of 3) never works, and a straight line of 6 never works either. There is no shortcut for "looks about right" — trace the fold, every time.</p>`,
+      title: 'The Face-Count Trap',
+      html: `<p>Here's how Sir Facelot catches out a lazy counter. A <b>square-based pyramid</b> and a <b>triangular prism</b> both have <b>5 faces</b> — count faces alone and you can't tell them apart!</p>
+<div style="overflow-x:auto;">
+<table style="border-collapse:collapse;width:100%;font-size:13px;">
+<tr style="background:#eee;"><th style="border:1px solid #999;padding:6px;">Solid</th><th style="border:1px solid #999;padding:6px;">Faces</th><th style="border:1px solid #999;padding:6px;">Edges</th><th style="border:1px solid #999;padding:6px;">Vertices</th></tr>
+<tr><td style="border:1px solid #999;padding:6px;"><b>Square-based pyramid</b></td><td style="border:1px solid #999;padding:6px;">5</td><td style="border:1px solid #999;padding:6px;">8</td><td style="border:1px solid #999;padding:6px;">5</td></tr>
+<tr><td style="border:1px solid #999;padding:6px;"><b>Triangular prism</b></td><td style="border:1px solid #999;padding:6px;">5</td><td style="border:1px solid #999;padding:6px;">9</td><td style="border:1px solid #999;padding:6px;">6</td></tr>
+</table>
+</div>
+<p style="margin:10px 0;"><b>The fix:</b> the moment two solids tie on one property, count a SECOND one before you answer. Here, the edges (8 vs 9) and vertices (5 vs 6) settle it every time. Never lock in an answer off a single matching number — check faces, THEN edges, THEN vertices, until only one solid is left standing.</p>
+<p>Try it: a solid has 5 faces AND 8 edges. Only one solid in the whole family matches BOTH — the square-based pyramid.</p>`,
     },
     {
       type: 'try',
       q: {
         id: 'shapes3d-try-3', topicId: 'shapes-3d', tier: 3, format: 'mcq5',
-        stem: 'Here is a net made of 6 squares joined edge-to-edge, arranged as a solid block: two rows of three. If you cut it out and folded along every line, would it make a closed cube?',
-        visual: { kind: 'polygrid', rows: 2, cols: 3, shaded: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]] },
+        stem: 'A solid has exactly 5 FACES and 8 EDGES. Which solid is it?',
         options: [
-          { text: 'No — two of the squares overlap when folded, leaving a face bare.', misconception: null },
-          { text: 'Yes — any shape made of exactly 6 squares will fold into a cube.', misconception: 'any-six-squares-myth' },
-          { text: 'No — it only has 5 squares, not 6.', misconception: 'miscounted-squares-low' },
-          { text: 'Yes — as long as the squares all touch edge-to-edge, it will fold into a cube.', misconception: 'edge-touch-myth' },
-          { text: 'No — this shape has more than 6 squares.', misconception: 'miscounted-squares-high' },
+          { text: 'Square-based pyramid', misconception: null },
+          { text: 'Triangular prism', misconception: 'face-count-only' },
+          { text: 'Cuboid', misconception: 'wrong-solid-cuboid' },
+          { text: 'Cone', misconception: 'wrong-solid-cone' },
+          { text: 'Cylinder', misconception: 'wrong-solid-cylinder' },
         ],
         correctIndex: 0,
         hintSteps: [
-          'Count the squares first — there are exactly 6 here, so the count alone can\'t be the problem.',
-          'Now trace the fold: a solid 2×3 block wraps two squares onto the SAME face when folded — it is NOT one of the 11 nets that work.',
+          'A triangular prism ALSO has 5 faces — the face count alone isn\'t enough here.',
+          'Check the second clue: 8 edges. A square-based pyramid has 8 edges; a triangular prism has 9.',
         ],
         explain: {
           rule: 'Faces are flat, edges are where faces meet, vertices are the corners. Count in that order.',
-          worked: 'This solid 2×3 block of squares is not one of the 11 valid cube nets — folding it makes two squares land on the same face, leaving another face bare.',
+          worked: 'Both the square-based pyramid and the triangular prism have 5 faces — but only the square-based pyramid also has 8 edges (the prism has 9), so that second clue proves it.',
           whyWrong: {
-            'Yes — any shape made of exactly 6 squares will fold into a cube.': 'Not true — this exact arrangement proves it: 6 squares, edge-to-edge, and it still fails to fold into a cube.',
-            'No — it only has 5 squares, not 6.': 'Count again — there are 6 squares shown (two full rows of three).',
-            'Yes — as long as the squares all touch edge-to-edge, it will fold into a cube.': 'Edge-to-edge joining isn\'t enough on its own — the exact arrangement matters, and this one fails.',
-            'No — this shape has more than 6 squares.': 'Count again — there are exactly 6 squares shown, not more.',
+            'Triangular prism': 'A triangular prism does have 5 faces like the answer — but it has 9 edges, not 8, so the second clue rules it out.',
+            'Cuboid': 'A cuboid has 6 faces and 12 edges — neither number matches.',
+            'Cone': 'A cone has 2 faces and 1 edge — neither number matches.',
+            'Cylinder': 'A cylinder has 3 faces and 2 edges — neither number matches.',
           },
         },
       },
@@ -196,7 +179,7 @@ export default {
     'A curved surface still counts as a face, and a curved rim still counts as an edge — but a curve never makes a vertex (a vertex must be a sharp point).',
     'Cylinder: 3 faces, 2 edges, 0 vertices. Cone: 2 faces, 1 edge, 1 vertex. Sphere: 1 face, 0 edges, 0 vertices — learn these three separately, they don\'t follow the flat-shape pattern.',
     'A prism has the SAME slice running all the way through (like a cuboid or a triangular prism). A cone, pyramid, cylinder and sphere are NOT prisms — they curve or narrow to a point.',
-    'There are exactly 11 nets that fold into a cube. Same number of squares does NOT mean it works — always trace the fold, don\'t just count.',
+    'Add Faces + Edges + Vertices together to double-check a count — a cube gives 6 + 12 + 8 = 26. Get a different total on a recount? Something was miscounted.',
     'A square-based pyramid (5 faces, 8 edges, 5 vertices) and a triangular prism (5 faces, 9 edges, 6 vertices) share the same FACE count — check edges or vertices too before you decide which one it is.',
   ],
 };

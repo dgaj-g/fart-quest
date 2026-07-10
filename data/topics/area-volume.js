@@ -185,7 +185,6 @@ export default {
     'Perimeter (walk the edge) and Area (cover the inside) are different questions with different answers — the perimeter value is always lurking as a distractor.',
     'Multiply, don’t add! 5 cm × 3 cm is NOT 5 + 3.',
     'Decimal dimensions work exactly the same way: 2.5 × 4 = 10, just like whole numbers.',
-    'Reverse questions: if you know the area (or volume) and all-but-one side, DIVIDE to find the missing side. 36 ÷ 9 = 4.',
-    'Compound (L-shaped) areas: split the shape into simple rectangles, find each area, then ADD them together.',
+    'Reverse questions: if you know the area and one side, DIVIDE to find the missing side. 36 ÷ 9 = 4.',
   ],
 };

@@ -136,6 +136,10 @@ injectCss('coordinates', `
   .gdr-win .gw-title { font-weight: 700; color: #1d8f4e; font-size: 16px; }
   .gdr-win .gw-worked { font-size: 13.5px; color: #4d6b58; font-weight: 500; margin-top: 3px; }
   .gdr-win .gw-btn { margin-top: 9px; padding: 10px 22px; font-size: 15px; }
+  .gdr-checkbtn {
+    min-height: 44px; padding: 10px 22px; font-size: 16px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
 `);
 
 /* ---------- the anim card ---------- */
@@ -157,7 +161,7 @@ export default {
     const winBox = el('div');
     const controls = el('div', 'anim-controls');
     const nMinus = el('button', 'anim-nudge', '⬅');
-    const checkBtn = el('button', 'btn btn-gold', 'DELIVER 📦');
+    const checkBtn = el('button', 'btn btn-gold gdr-checkbtn', 'DELIVER 📦');
     const nPlus = el('button', 'anim-nudge', '➡');
     const resetBtn = el('button', 'anim-ghostbtn', '↩ RESET');
     controls.append(nMinus, checkBtn, nPlus, resetBtn);
@@ -171,11 +175,13 @@ export default {
     let mi = 0;
     let mission = null;
     let scene = null; // { layout(), destroy() }
+    let masteredCalled = false; // ctx.complete() contract: call once — replaying missions after full clear must not re-fire it
 
     function paintChips() {
       chiprow.innerHTML = '';
       MISSIONS.forEach((m, i) => {
         const c = el('button', 'anim-mchip' + (i === mi ? ' active' : '') + (doneSet.has(m.id) ? ' done' : ''), m.chip);
+        c.style.minHeight = '44px'; // anim-mchip is 42px in the shared css/anims.css; bump locally to the 44px touch minimum
         c.addEventListener('click', () => { sfx.ui(); start(i); });
         chiprow.append(c);
       });
@@ -190,7 +196,7 @@ export default {
         `<div class="gw-title">${WIN_PHRASES[Math.floor(Math.random() * WIN_PHRASES.length)]}</div>`
         + `<div class="gw-worked">${workedHtml}</div>`);
       winBox.append(w);
-      if (doneSet.size === MISSIONS.length) ctx.complete();
+      if (doneSet.size === MISSIONS.length && !masteredCalled) { masteredCalled = true; ctx.complete(); }
       const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));
       const btn = el('button', 'btn btn-gold gw-btn', nextIdx !== -1 ? 'NEXT ONE ➡' : 'REVISIT A MISSION 🔁');
       btn.addEventListener('click', () => { sfx.ui(); start(nextIdx !== -1 ? nextIdx : mi); });
@@ -284,11 +290,17 @@ export default {
         checkBtn.disabled = missionDone;
         if (m.id === 'b' && gx === 0 && !shownPops.has('zero')) {
           shownPops.add('zero');
-          later(() => bubble(stage, {
-            title: 'ZERO STILL COUNTS! 🚪',
-            text: 'Gridlock hasn’t taken a single step ALONG the hall — he’s still confirmed it, right at the origin’s own doorstep. Now he’s free to climb: drag him UP to <b>5</b>.',
-            img: GRIDLOCK_IMG,
-          }), 260);
+          // guard against a mission switch during the delay (same identity check
+          // finishMission uses below) — never show a bubble tied to a scene that's
+          // no longer the active one
+          later(() => {
+            if (mission !== missionRef) return;
+            bubble(stage, {
+              title: 'ZERO STILL COUNTS! 🚪',
+              text: 'Gridlock hasn’t taken a single step ALONG the hall — he’s still confirmed it, right at the origin’s own doorstep. Now he’s free to climb: drag him UP to <b>5</b>.',
+              img: GRIDLOCK_IMG,
+            });
+          }, 260);
         }
       }
       function commitUp(idx) { gy = idx; liveGy = idx; pendingGy = idx; sfx.settle(); updateReadout(); checkBtn.disabled = missionDone; }

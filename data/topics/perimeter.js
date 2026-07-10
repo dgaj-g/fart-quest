@@ -187,7 +187,7 @@ export default {
 <tr><th style="text-align:left;padding:8px;border-bottom:2px solid var(--ink);">Perimeter</th><th style="text-align:left;padding:8px;border-bottom:2px solid var(--ink);">Area</th></tr>
 <tr><td style="padding:8px;vertical-align:top;">Distance <b>AROUND</b> the outside edge. Add every side.</td><td style="padding:8px;vertical-align:top;">Space <b>INSIDE</b> the shape. Length × width.</td></tr>
 </table>
-<p>And remember: if two shapes are pushed together (like two rooms sharing a wall), the wall where they <b>JOIN</b> becomes part of the INSIDE of the new shape. It's not part of the outside fence any more — <b>don't count it at all.</b></p>`,
+<p>And watch for <b>reverse</b> problems: sometimes the Prowler gives you the TOTAL perimeter instead of the sides, plus a clue linking length and width (like "the length is 3 m more than the width"). Halve the perimeter first to get one length + one width, then use the clue to split that in two.</p>`,
     },
     { type: 'weapon' },
   ],
@@ -199,6 +199,6 @@ export default {
     'Regular polygon shortcut: perimeter = number of sides × one side length.',
     'Hidden sides on an L-shape: find them by subtracting the labelled piece from the full length or width — then add EVERY side, hidden ones included.',
     'The classic trap: area is NOT perimeter. Area is the space inside (length × width); perimeter is the walk around the outside.',
-    'If two shapes are joined along a wall, that wall is now INSIDE the new shape — never count it as part of the perimeter.',
+    'Reverse problems: given the TOTAL perimeter, halve it first to get one length + one width — then use the clue linking them to split that total in two.',
   ],
 };

@@ -16,10 +16,10 @@ const FACT_SNEAK = 'The minute hand’s numbers are a secret 5-times-table — t
 function mod(n, m) { return ((n % m) + m) % m; }
 function describeTime(absMin) {
   const m = mod(absMin, 720);
-  const h0 = Math.floor(m / 60);
-  const hour12 = h0 === 0 ? 12 : h0;
+  let h0 = Math.floor(m / 60);
   let minuteOfHour = Math.round(m - h0 * 60);
-  if (minuteOfHour === 60) minuteOfHour = 0;
+  if (minuteOfHour === 60) { minuteOfHour = 0; h0 = (h0 + 1) % 12; }
+  const hour12 = h0 === 0 ? 12 : h0;
   let phrase; let mode;
   if (minuteOfHour === 0) { phrase = `${hour12} o'clock`; mode = 'oclock'; }
   else if (minuteOfHour === 30) { phrase = `half past ${hour12}`; mode = 'half'; }
@@ -211,12 +211,10 @@ export default {
     const chip = el('div', 'mmc-chip');
     const extra = el('div');
     const winBox = el('div');
-    stage.append(chiprow, q, qsub, clockHost, chip, extra, winBox);
-    host.append(stage);
-
     const ruleCard = el('div', 'goldcard', RULE);
     ruleCard.style.cssText = 'margin-top:12px;font-size:13.5px;line-height:1.35;background:linear-gradient(180deg,#FFF3CE,#FBE29A);border:3px solid var(--gold-deep);border-radius:14px;padding:10px 14px;color:#5a4408;font-weight:700;';
-    host.append(ruleCard);
+    stage.append(chiprow, q, qsub, clockHost, chip, extra, winBox, ruleCard);
+    host.append(stage);
 
     let mission = null;
     let attempts = 0;

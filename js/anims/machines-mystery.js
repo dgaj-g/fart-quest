@@ -109,6 +109,7 @@ export default {
     let posEls = [];
     let busy = false;
     let cancelTok = null;
+    let pendingFinish = null; // completion logic for the in-flight token tween, if any
     let flipTimers = [];
     let introTimer = null;
     let introDone = false;
@@ -161,6 +162,7 @@ export default {
     }
     function positionTokenInstant(idx, val) {
       if (cancelTok) { cancelTok(); cancelTok = null; }
+      pendingFinish = null;
       if (val !== undefined) tokenVal = val;
       token.querySelector('.brl-tokval').textContent = String(tokenVal);
       token.style.left = centerX(posEls[idx]) + 'px';
@@ -170,14 +172,17 @@ export default {
       const fromX = parseFloat(token.style.left) || 0;
       const toX = centerX(posEls[idx]);
       (newVal >= tokenVal ? sfx.tick : sfx.tock)(1);
-      cancelTok = tween((x) => { token.style.left = x + 'px'; }, fromX, toX, 480, () => {
+      const finish = () => {
+        pendingFinish = null;
         cancelTok = null;
         if (!alive) return;
         tokenVal = newVal;
         token.querySelector('.brl-tokval').textContent = String(tokenVal);
         sfx.pop();
         if (cb) cb();
-      });
+      };
+      pendingFinish = finish;
+      cancelTok = tween((x) => { token.style.left = x + 'px'; }, fromX, toX, 480, finish);
     }
 
     /* ---------- layout builders per phase ---------- */
@@ -304,11 +309,15 @@ export default {
       showChips(false); showRunBtn(false); showLever(true);
       if (mission.letter && !letterBubbleShown) {
         letterBubbleShown = true;
-        later(() => bubble(stage, {
-          title: 'LETTERS IN DISGUISE 🎭',
-          text: 'Sometimes the mystery IN number gets dressed up as a <b>letter</b> instead of a blank space. It’s still just a machine wearing a mask — the exact same rules apply!',
-          img: BERTHA_IMG,
-        }), 350);
+        const scheduledForMi = mi; // guard: don't show this over a DIFFERENT mission
+        later(() => {
+          if (mi !== scheduledForMi) return;
+          bubble(stage, {
+            title: 'LETTERS IN DISGUISE 🎭',
+            text: 'Sometimes the mystery IN number gets dressed up as a <b>letter</b> instead of a blank space. It’s still just a machine wearing a mask — the exact same rules apply!',
+            img: BERTHA_IMG,
+          });
+        }, 350);
       }
     }
     function enterSolving() {
@@ -386,7 +395,7 @@ export default {
     function paintChips() {
       chiprow.innerHTML = '';
       MISSIONS.forEach((m, i) => {
-        const c = el('button', 'anim-mchip' + (i === mi ? ' active' : '') + (doneSet.has(m.id) ? ' done' : ''), chipLabel(m));
+        const c = el('button', 'anim-mchip brl-topchip' + (i === mi ? ' active' : '') + (doneSet.has(m.id) ? ' done' : ''), chipLabel(m));
         c.addEventListener('click', () => { sfx.ui(); startMission(i); });
         chiprow.append(c);
       });
@@ -394,6 +403,7 @@ export default {
     function startMission(i) {
       mi = i; mission = MISSIONS[i];
       if (cancelTok) { cancelTok(); cancelTok = null; }
+      pendingFinish = null;
       clearFlipTimers();
       if (introTimer) { clearTimeout(introTimer); introTimer = null; }
       busy = false;
@@ -414,7 +424,28 @@ export default {
 
     const onResize = () => {
       if (!alive) return;
+      if (phase === 'solving' && pendingFinish) {
+        // A correct-chip token tween was mid-flight: the window's DOM was already
+        // committed to 'solved' synchronously in onChipTap, so merely cancelling the
+        // tween (as we do for every other phase) would leave activeWin/tokenVal/chips
+        // stuck at their pre-tween values with the chip tray hidden — an unrecoverable
+        // soft-lock. Run the tween's own completion logic synchronously instead, so the
+        // state transition (activeWin++, tokenVal update, next chips or finishMission)
+        // still happens; only the animation itself is abandoned, per the resize contract.
+        if (cancelTok) { cancelTok(); cancelTok = null; }
+        const finish = pendingFinish;
+        pendingFinish = null;
+        finish();
+        // if that didn't chain into a fresh tween (i.e. more windows remain), snap the
+        // token to its correct rest position now that layout may have changed size
+        if (!cancelTok && alive) {
+          const idx = activeWin >= mission.windows.length ? posEls.length - 1 : activeWin;
+          positionTokenInstant(idx, tokenVal);
+        }
+        return;
+      }
       if (cancelTok) { cancelTok(); cancelTok = null; }
+      pendingFinish = null;
       if (introTimer) { clearTimeout(introTimer); introTimer = null; introDone = true; }
       const wasFlipping = phase === 'flip';
       clearFlipTimers();
@@ -498,6 +529,7 @@ const CSS = `
 .brl-lever:active, .brl-lever.pulled { transform: translateY(4px); box-shadow: 0 1px 0 #6b120c; }
 .brl-lever:disabled { opacity: .6; cursor: default; }
 .brl-chips { margin-top: 4px; }
+.brl-chip, .brl-topchip { min-height: 44px; } /* shared .anim-mchip's 42px falls under the 44px touch-target minimum */
 .brl-chip.brl-shake { animation: brlShake .4s ease; }
 @keyframes brlShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
 .brl-hidden { display: none !important; }

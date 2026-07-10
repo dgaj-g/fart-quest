@@ -64,12 +64,8 @@ function buildWhyWrong(options) {
     else if (o.misconception === 'add-scale') whyWrong[o.text] = 'That ADDED the scale number — a scale is a MULTIPLY relationship, not a plus-sum.';
     else if (o.misconception === 'unit-of-answer') whyWrong[o.text] = 'The number is right, but the UNIT is wrong — the scale converts the drawing into metres, not centimetres.';
     else if (o.misconception === 'no-convert') whyWrong[o.text] = 'That is just the drawing length, unconverted — you have not used the scale yet!';
-    else if (o.misconception === 'forgot-to-subtract') whyWrong[o.text] = 'That is only ONE route’s real length — the question wants the DIFFERENCE between the two.';
-    else if (o.misconception === 'added-not-subtracted') whyWrong[o.text] = 'That ADDED the two real lengths together — for "how much longer", subtract them instead.';
-    else if (o.misconception === 'swapped-scale') whyWrong[o.text] = 'That used the wrong scale with the wrong route — keep each route’s own scale with its own drawn length.';
-    else if (o.misconception === 'added-scale-guess') whyWrong[o.text] = 'That ADDED the drawn length and the real length — to find the scale, DIVIDE real by drawn instead.';
-    else if (o.misconception === 'multiplied-not-divided') whyWrong[o.text] = 'That MULTIPLIED the drawn length by the real length — to find the scale, DIVIDE real by drawn.';
-    else if (o.misconception === 'inverted-division') whyWrong[o.text] = 'That divided the wrong way round — the scale is real ÷ drawn, not drawn ÷ real.';
+    else if (o.misconception === 'wrong-dimension') whyWrong[o.text] = 'That converted the OTHER measurement — check which one the question actually asked for.';
+    else if (o.misconception === 'only-one-side') whyWrong[o.text] = 'That converted only ONE section — the question wants BOTH sections added together.';
     else if (o.misconception === 'misread-scale') whyWrong[o.text] = 'That used a slightly different scale number — re-read the scale statement carefully before multiplying.';
     else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = 'Check the recipe again: 1 cm means how many metres, and did you multiply?';
   }
@@ -248,100 +244,100 @@ function t2MixedScaleDecimal(rng) {
   };
 }
 
-function t2CompareRoutes(rng) {
-  let Xa, Xb, Da, Db, realA, realB;
-  do {
-    Xa = pick(rng, T2_SCALES);
-    Xb = pick(rng, T2_SCALES);
-    Da = rngInt(rng, 2, 9);
-    Db = rngInt(rng, 2, 9);
-    realA = Xa * Da;
-    realB = Xb * Db;
-  } while (realA === realB);
+// Same skill as t1DrawingToRealShape (bullet M2.7, route (a)) but the drawing now carries
+// TWO labelled measurements (mirrors the lesson's "Two labels, one drawing" teaching card) —
+// the extra work is picking out the right one, not a new device.
+function t2TwoDimensions(rng) {
+  const X = pick(rng, T2_SCALES);
+  const lenD = rngInt(rng, 3, 9);
+  let widD = rngInt(rng, 2, 8);
+  while (widD === lenD) widD = rngInt(rng, 2, 8);
+  const lenReal = lenD * X;
+  const widReal = widD * X;
+  const askWidth = rng() < 0.5;
+  const askedD = askWidth ? widD : lenD;
+  const askedReal = askWidth ? widReal : lenReal;
+  const otherReal = askWidth ? lenReal : widReal;
+  const label = askWidth ? 'width' : 'length';
 
-  const diff = Math.abs(realA - realB);
-  const stem = `Route A: scale 1 cm = ${Xa} m, drawn <b>${Da} cm</b>. Route B: scale 1 cm = ${Xb} m, drawn <b>${Db} cm</b>. How many metres LONGER is the longer route than the shorter one?`;
+  const stem = `A garden plan uses a scale of 1 cm = ${X} m. Its length is <b>${lenD} cm</b> and its width is <b>${widD} cm</b> on the drawing. What is the real ${label}?`;
   const visual = {
     kind: 'table',
-    headers: ['Route', 'Scale (1cm=)', 'Drawn (cm)'],
-    rows: [['A', `${Xa} m`, String(Da)], ['B', `${Xb} m`, String(Db)]],
+    headers: ['Side', 'Drawing (cm)'],
+    rows: [['Length', String(lenD)], ['Width', String(widD)]],
+    highlight: [[askWidth ? 1 : 0, 0]],
   };
 
-  const smallerReal = Math.min(realA, realB);
-  const swappedDiff = clean2dp(Math.abs(Da * Xb - Db * Xa));
-
-  const correct = { text: `${fmt(diff)} m`, misconception: null };
+  const correct = { text: `${fmt(askedReal)} m`, misconception: null };
   let distractors = dedupe(correct.text, [
-    { text: `${fmt(smallerReal)} m`, misconception: 'forgot-to-subtract' },
-    { text: `${fmt(realA + realB)} m`, misconception: 'added-not-subtracted' },
-    { text: `${Math.abs(Da - Db)} m`, misconception: 'no-convert' },
-    { text: `${fmt(swappedDiff)} m`, misconception: 'swapped-scale' },
+    { text: `${fmt(otherReal)} m`, misconception: 'wrong-dimension' },
+    { text: `${fmt(askedD / X)} m`, misconception: 'divide-not-multiply' },
+    { text: `${fmt(askedD + X)} m`, misconception: 'add-scale' },
+    { text: `${fmt(askedReal)} cm`, misconception: 'unit-of-answer' },
+    { text: `${askedD} cm`, misconception: 'no-convert' },
   ]);
   let options = [correct, ...distractors];
-  options = padWithNearMiss(rng, options, 5, diff, ' m', Math.max(1, Math.round(diff * 0.3) || 1));
+  options = padWithNearMiss(rng, options, 5, askedReal, ' m', Math.max(1, X));
 
   return {
-    templateId: 'sm-t2-compare-routes',
+    templateId: 'sm-t2-two-dimensions',
     stem,
     visual,
     options,
     correctIndex: 0,
     hintSteps: [
-      `Convert EACH route to real life first: Route A = ${Da} × ${Xa}, Route B = ${Db} × ${Xb}.`,
-      `${fmt(realA)} m and ${fmt(realB)} m — what is the difference between them?`,
+      `Find the ${label} in the table first: ${askedD} cm.`,
+      `${askedD} × ${X} = ?`,
     ],
     explain: {
       rule: RULE,
-      worked: `Route A: ${Da} × ${Xa} = ${fmt(realA)} m. Route B: ${Db} × ${Xb} = ${fmt(realB)} m. Difference = ${fmt(diff)} m.`,
+      worked: `The ${label} is ${askedD} cm. 1 cm = ${X} m, so ${askedD} cm × ${X} = ${fmt(askedReal)} m.`,
       whyWrong: buildWhyWrong(options),
     },
   };
 }
 
-function t2FindTheScale(rng) {
-  const D = rngInt(rng, 2, 9);
-  const X = rngInt(rng, 2, 12);
-  const real = D * X;
+// Two sections at the SAME scale, summed — still a single-scale application of bullet M2.7
+// (plus ordinary addition), not a cross-scale comparison device.
+function t2SameScaleTotal(rng) {
+  const X = pick(rng, T2_SCALES);
+  const Da = rngInt(rng, 2, 8);
+  const Db = rngInt(rng, 2, 8);
+  const realA = Da * X;
+  const realB = Db * X;
+  const total = realA + realB;
+  const theme = pick(rng, THEMES);
 
-  const stem = `A scale drawing is <b>${D} cm</b> long. In real life it measures <b>${fmt(real)} m</b>. Which scale was used to draw it?`;
+  const stem = `A ${theme} is drawn in two sections. Section A measures <b>${Da} cm</b> and section B measures <b>${Db} cm</b> on the drawing. Scale: 1 cm = ${X} m. What is the TOTAL real length of both sections together?`;
+  const visual = {
+    kind: 'table',
+    headers: ['Section', 'Drawing (cm)'],
+    rows: [['A', String(Da)], ['B', String(Db)]],
+  };
 
-  const added = D + real;
-  const multiplied = clean2dp(D * real);
-  const inverted = clean2dp(D / real);
-
-  const correct = { text: `1 cm = ${X} m`, misconception: null };
+  const correct = { text: `${fmt(total)} m`, misconception: null };
   let distractors = dedupe(correct.text, [
-    { text: `1 cm = ${fmt(added)} m`, misconception: 'added-scale-guess' },
-    { text: `1 cm = ${fmt(multiplied)} m`, misconception: 'multiplied-not-divided' },
-    { text: `1 cm = ${fmt(inverted)} m`, misconception: 'inverted-division' },
+    { text: `${fmt(realA)} m`, misconception: 'only-one-side' },
+    { text: `${Da + Db} m`, misconception: 'no-convert' },
+    { text: `${fmt(total)} cm`, misconception: 'unit-of-answer' },
+    { text: `${fmt((Da + Db) / X)} m`, misconception: 'divide-not-multiply' },
   ]);
   let options = [correct, ...distractors];
-  // Pad with plausible near-miss scale factors (never random garbage).
-  let tries = 0;
-  const seen = new Set(options.map((o) => o.text));
-  while (options.length < 5 && tries < 60) {
-    tries += 1;
-    const delta = rngInt(rng, 1, 3) * (rng() < 0.5 ? 1 : -1);
-    const val = X + delta;
-    if (val <= 0) continue;
-    const text = `1 cm = ${val} m`;
-    if (seen.has(text)) continue;
-    seen.add(text);
-    options.push({ text, misconception: 'padded-near-miss' });
-  }
+  options = padWithNearMiss(rng, options, 5, total, ' m', Math.max(1, X));
 
   return {
-    templateId: 'sm-t2-find-scale',
+    templateId: 'sm-t2-same-scale-total',
     stem,
+    visual,
     options,
     correctIndex: 0,
     hintSteps: [
-      'The scale factor is REAL ÷ DRAWN, not the other way round.',
-      `${fmt(real)} ÷ ${D} = ?`,
+      `Convert each section first: ${Da} × ${X} and ${Db} × ${X}.`,
+      `${fmt(realA)} m + ${fmt(realB)} m = ?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${fmt(real)} m ÷ ${D} cm = ${X}, so the scale is 1 cm = ${X} m.`,
+      worked: `Section A: ${Da} × ${X} = ${fmt(realA)} m. Section B: ${Db} × ${X} = ${fmt(realB)} m. Total = ${fmt(realA)} + ${fmt(realB)} = ${fmt(total)} m.`,
       whyWrong: buildWhyWrong(options),
     },
   };
@@ -428,7 +424,7 @@ function t3ForwardDecimalReal(rng) {
 // -------- dispatch --------
 
 const T1 = [t1DrawingToRealShape, t1TableRead, t1WordProblem];
-const T2 = [t2MixedScaleDecimal, t2CompareRoutes, t2FindTheScale];
+const T2 = [t2MixedScaleDecimal, t2TwoDimensions, t2SameScaleTotal];
 const T3 = [t3ReverseFindDrawing, t3LadderStepKm, t3ForwardDecimalReal];
 
 export function generate(tier, rng) {

@@ -24,7 +24,7 @@ const MISSIONS = [
     caps: new Set([0, 1, 2, 5]),
     endMark: '.',
     job: 'telling',
-    worked: 'A sentence start, a day and two names all earned the cap — and this telling sentence settled under a full stop.',
+    worked: 'A sentence start, a day, a name and a place all earned the cap — and this telling sentence settled under a full stop.',
   },
   {
     id: 'sausage',
@@ -96,6 +96,7 @@ const CSS = `
   position: relative; background: transparent; border: none; cursor: pointer;
   font-weight: 700; font-size: clamp(17px, 2.6vw, 22px); color: var(--ink);
   padding: 6px 3px; border-radius: 9px; transition: transform .12s;
+  min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
 }
 .pcd-word:active { transform: scale(.92); }
 .pcd-word.capped { color: #1d8f4e; }
@@ -175,6 +176,8 @@ export default {
     host.append(stage);
 
     const doneSet = new Set();
+    let completed = false;
+    let gen = 0;
     let mi = 0;
     let mission = null;
     let capped = null;
@@ -235,9 +238,18 @@ export default {
       if (mission.caps.has(i)) {
         pending.add(i);
         sfx.drop();
+        const myGen = gen;
         btn.classList.remove('landing'); void btn.offsetWidth; btn.classList.add('landing');
         later(() => {
           if (!alive) return;
+          // A mission switch (chip/reset) during this 220ms window reassigns
+          // capped/pending/mission to a fresh mission's state; without this
+          // generation check a stale timer would mutate the NEW mission's
+          // capped Set with an index from the OLD mission, corrupting its
+          // progress count and letting STAMP IT succeed without the child
+          // ever tapping the new bench (dominant bug class: stale later()
+          // firing across a mission switch).
+          if (myGen !== gen) return;
           pending.delete(i);
           // capped is only added to the model HERE, in lockstep with the visual
           // flip, so a CHECK click can never quote a word as capped a beat
@@ -285,7 +297,8 @@ export default {
       if (mission.earthBubble) {
         later(() => { if (alive) bubble(stage, { title: 'EARTH OR earth? 🌍', text: EARTH_TEXT, img: PHIL_IMG }); }, 350);
       }
-      if (doneSet.size === MISSIONS.length) {
+      if (!completed && doneSet.size === MISSIONS.length) {
+        completed = true;
         ctx.complete();
         later(() => { if (alive) bubble(stage, { title: 'CAP MASTER! 🎩', text: FINAL_TEXT, img: PHIL_IMG }); }, mission.earthBubble ? 950 : 400);
       }
@@ -315,6 +328,7 @@ export default {
     reset.addEventListener('click', () => { sfx.ui(); start(mi); });
 
     function start(i) {
+      gen++;
       mi = i;
       mission = MISSIONS[i];
       capped = new Set();

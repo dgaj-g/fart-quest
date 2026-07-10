@@ -52,7 +52,7 @@ const MISSIONS = [
     clues: [
       { id: 'm1', text: 'Hands that would not stop moving.', zone: 'nervous', real: true, line: 1 },
       { id: 'm2', text: 'Checked his watch twice in ten seconds.', zone: 'nervous', real: true, line: 2 },
-      { id: 'm3', text: "Muddled a knot he's tied a thousand times.", zone: 'nervous', real: true, line: 3 },
+      { id: 'm3', text: 'Got the knot in his laces muddled — twice.', zone: 'nervous', real: true, line: 3 },
       { id: 'md', text: 'Michael is ALWAYS calm before a match.', real: false },
     ],
     worked: 'Two clues agreed — NERVOUS! However you got there, two separate details both pointed the same way — one clue could be a coincidence, but two that agree are a pattern.',
@@ -303,6 +303,7 @@ function makeBoard(host, mission, opts) {
       // the new geometry rather than guess where an animation was heading
       timers.forEach((t) => clearTimeout(t));
       if (board.needleCancel) { board.needleCancel(); board.needleCancel = null; }
+      pan.classList.remove('ncs-hover');
       Object.values(chipMap).forEach((c) => {
         if (c.drag) c.drag.abort();
         if (c.cancelTween) { c.cancelTween(); c.cancelTween = null; }
@@ -415,11 +416,9 @@ export default {
     const controls = el('div', 'anim-controls');
     const resetBtn = el('button', 'anim-ghostbtn', '↩ RESET');
     controls.append(resetBtn);
-    stage.append(chiprow, qsub, boardHost, winBox, controls);
-    host.append(stage);
-
     const ruleCard = el('div', 'ncs-rulecard', RULE);
-    host.append(ruleCard);
+    stage.append(chiprow, qsub, boardHost, winBox, controls, ruleCard);
+    host.append(stage);
 
     function paintChips() {
       chiprow.innerHTML = '';
@@ -461,7 +460,7 @@ export default {
       const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));
       if (nextIdx !== -1) {
         const nb = el('button', 'btn btn-gold', 'NEXT ONE ➡');
-        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;';
         nb.addEventListener('click', () => { sfx.ui(); startMission(nextIdx); });
         w.append(nb);
       }
@@ -497,7 +496,6 @@ export default {
       timers.forEach((t) => clearTimeout(t));
       destroyBoard();
       stage.remove();
-      ruleCard.remove();
     };
   },
 };

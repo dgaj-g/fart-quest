@@ -75,7 +75,7 @@ function mark(toks, from, to) { toks.forEach((t, i) => { if (i >= from && i < to
 const MISSIONS = [
   {
     id: 'a', kind: 'hug', chip: 'THE SHOUT', armGlyphs: ['“', '”'],
-    prompt: 'Hug ONLY the words Maya heard shouted.',
+    prompt: 'Hug ONLY the words Maya shouted.',
     sub: 'Drag both arms into place — remember, the punctuation stays inside the hug!',
     tokens: mark([w('Watch'), w('out'), p(','), w('that'), w('puddle'), w('is'), w('deep'), p('!'), w('warned'), w('Maya'), p('.')], 0, 8),
     worked: 'The hug wraps "Watch out, that puddle is deep!" — every spoken word AND the "!" that belongs to it. "warned Maya." stays outside — Maya never said that about herself.',
@@ -134,7 +134,7 @@ const CSS = `
 .aqh-selectrow { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
 .aqh-selchip {
   background: var(--card); border: 2.5px solid var(--swamp-mid); color: var(--ink); border-radius: 999px;
-  padding: 8px 15px; font-weight: 700; font-size: 13px; min-height: 40px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.2);
+  padding: 8px 15px; font-weight: 700; font-size: 13px; min-height: 44px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.2);
 }
 .aqh-selchip.active { background: var(--swamp-mid); color: var(--stink-lime); }
 .aqh-win {

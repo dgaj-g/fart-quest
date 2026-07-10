@@ -100,7 +100,7 @@ const SANDBOX = [
     id: 'sb2',
     sentence: 'Two hungry dogs chased the frisbee across the field.',
     tokens: [
-      { text: 'Two', pos: 'glue' },
+      { text: 'Two', pos: 'adjective', hint: 'How MANY dogs?' },
       { text: 'hungry', pos: 'adjective', hint: 'What KIND of dogs?' },
       { text: 'dogs', pos: 'noun', hint: 'WHO chased the frisbee?' },
       { text: 'chased', pos: 'verb', hint: 'What is HAPPENING?' },
@@ -203,7 +203,7 @@ function makeBoard(host, mission, opts) {
   const balls = throwable.map((t, i) => {
     const ballEl = el('div', 'nhf-ball', t.text);
     trayRow.append(ballEl);
-    return { ...t, id: mission.id + '-' + i, el: ballEl, status: 'tray', attempts: 0, hintShown: false, cancelTween: null, drag: null };
+    return { ...t, id: mission.id + '-' + i, el: ballEl, status: 'tray', attempts: 0, hintShown: false, cancelTween: null, pendingLand: null, drag: null };
   });
 
   // FLIP-style pre-measure: the tray already reflowed (closed the gap) the
@@ -231,12 +231,14 @@ function makeBoard(host, mission, opts) {
       const targetX = (kr.left - fr.left) + kd.count * (b.w + 6);
       const targetY = (kr.top - fr.top);
       kd.count += 1;
+      b.pendingLand = hit;
       b.cancelTween = tween((t) => {
         b.el.style.left = (curLeft + (targetX - curLeft) * t) + 'px';
         b.el.style.top = (curTop + (targetY - curTop) * t) + 'px';
       }, 0, 1, 260, () => {
         b.cancelTween = null;
         if (!alive) return;
+        b.pendingLand = null;
         b.status = 'landed';
         b.el.classList.remove('nhf-flying');
         b.el.style.position = ''; b.el.style.left = ''; b.el.style.top = ''; b.el.style.width = ''; b.el.style.height = ''; b.el.style.zIndex = '';
@@ -317,6 +319,7 @@ function makeBoard(host, mission, opts) {
         if (b.status === 'flying') {
           if (b.drag) b.drag.abort();
           if (b.cancelTween) { b.cancelTween(); b.cancelTween = null; }
+          if (b.pendingLand) { kennelEls[b.pendingLand].count -= 1; b.pendingLand = null; }
           b.status = 'tray';
           b.el.classList.remove('nhf-flying');
           b.el.style.position = ''; b.el.style.left = ''; b.el.style.top = ''; b.el.style.width = ''; b.el.style.height = ''; b.el.style.zIndex = '';
@@ -346,6 +349,7 @@ export default {
     const doneSet = new Set();
     let ahaShown = false;
     let gluePopupShown = false;
+    let missionGen = 0;
     const timers = new Set();
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); };
 
@@ -390,11 +394,15 @@ export default {
         toast(stage, b.hint, 3400);
       } else if (b.attempts >= 3 && !b.hintShown) {
         b.hintShown = true;
-        later(() => bubble(stage, {
-          title: 'JOB CLUE! \u{1F50D}',
-          text: `${b.hint || ''} That’s the <b>${KLABEL[b.pos]}</b>’s job — try the ${KLABEL[b.pos]} kennel!`,
-          img: HOUND_IMG,
-        }), 200);
+        const myGen = missionGen;
+        later(() => {
+          if (myGen !== missionGen) return;
+          bubble(stage, {
+            title: 'JOB CLUE! \u{1F50D}',
+            text: `${b.hint || ''} That’s the <b>${KLABEL[b.pos]}</b>’s job — try the ${KLABEL[b.pos]} kennel!`,
+            img: HOUND_IMG,
+          });
+        }, 200);
       } else if (b.attempts > 3) {
         toast(stage, `You’ll get “${b.text}” this time!`);
       }
@@ -407,7 +415,9 @@ export default {
 
     function buildMission(mission) {
       destroyBoard();
+      missionGen += 1;
       currentMission = mission;
+      winBox.innerHTML = '';
       gluerow.innerHTML = '';
       const glueTokens = mission.tokens.filter((t) => t.pos === 'glue');
       if (glueTokens.length) {
@@ -420,12 +430,16 @@ export default {
         onWrong(b) { handleWrong(b); },
       });
       if (!gluePopupShown && glueTokens.length) {
-        gluePopupShown = true;
-        later(() => bubble(stage, {
-          title: 'GLUE WORDS! \u{1FAA3}',
-          text: 'Little words like “the” hold the sentence together, but they don’t name, do, describe or tell HOW — they’re already sorted for you. Focus on the big four!',
-          img: HOUND_IMG,
-        }), 300);
+        const myGen = missionGen;
+        later(() => {
+          if (myGen !== missionGen) return;
+          gluePopupShown = true;
+          bubble(stage, {
+            title: 'GLUE WORDS! \u{1FAA3}',
+            text: 'Little words like “the” hold the sentence together, but they don’t name, do, describe or tell HOW — they’re already sorted for you. Focus on the big four!',
+            img: HOUND_IMG,
+          });
+        }, 300);
       }
     }
 
@@ -475,7 +489,7 @@ export default {
       winBox.append(w);
       if (sandbox) {
         const again = el('button', 'btn btn-gold', 'TRY ANOTHER ➡');
-        again.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+        again.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
         again.addEventListener('click', () => { sfx.ui(); start(MISSIONS.length); });
         w.append(again);
         return;
@@ -484,23 +498,27 @@ export default {
         const partner = MISSIONS.find((m) => m.pairKey === mission.pairKey && m.id !== mission.id);
         if (partner && doneSet.has(partner.id)) {
           ahaShown = true;
-          later(() => bubble(stage, {
-            title: 'SAME BALL, DIFFERENT KENNEL! \u{1F3BE}',
-            text: '“Watch” landed in the <b>VERB</b> kennel in one sentence and the <b>NOUN</b> kennel in the other — the SAME word, doing a different JOB! Always ask what job it’s doing in THIS sentence.',
-            img: HOUND_IMG,
-          }), 700);
+          const myGen = missionGen;
+          later(() => {
+            if (myGen !== missionGen) return;
+            bubble(stage, {
+              title: 'SAME BALL, DIFFERENT KENNEL! \u{1F3BE}',
+              text: '“Watch” landed in the <b>VERB</b> kennel in one sentence and the <b>NOUN</b> kennel in the other — the SAME word, doing a different JOB! Always ask what job it’s doing in THIS sentence.',
+              img: HOUND_IMG,
+            });
+          }, 700);
         }
       }
       if (doneSet.size === MISSIONS.length) ctx.complete();
       const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));
       if (nextIdx !== -1) {
         const nb = el('button', 'btn btn-gold', 'NEXT ONE ➡');
-        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
         nb.addEventListener('click', () => { sfx.ui(); start(nextIdx); });
         w.append(nb);
       } else {
         const fp = el('button', 'btn btn-gold', 'FREE PLAY \u{1F3AE}');
-        fp.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+        fp.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
         fp.addEventListener('click', () => { sfx.ui(); start(MISSIONS.length); });
         w.append(fp);
       }

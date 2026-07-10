@@ -128,6 +128,8 @@ export default {
       .ppw-label.hidden-btn {
         pointer-events: auto; cursor: pointer; background: var(--wrong); color: #fff; border: none;
         animation: ppwPulse 1.3s ease-in-out infinite; font-size: 15px;
+        min-width: 44px; min-height: 44px; box-sizing: border-box;
+        display: inline-flex; align-items: center; justify-content: center;
       }
       .ppw-label.hidden-btn.resolved { animation: none; background: var(--correct); cursor: default; pointer-events: none; }
       @keyframes ppwPulse { 0%,100% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-50%,-50%) scale(1.16); } }
@@ -233,25 +235,62 @@ export default {
       });
       wrap.append(svgEl);
       // labels at outward-offset edge midpoints
+      const centroidPx = px(g, [g.cx, g.cy]);
+      const labelMeta = [];
       edgeData.edges.forEach((e) => {
         const mx = (e.p0[0] + e.p1[0]) / 2; const my = (e.p0[1] + e.p1[1]) / 2;
         const mid = px(g, [mx, my]);
-        const centroidPx = px(g, [g.cx, g.cy]);
         let ox = 0; let oy = 0;
         if (e.axis === 'x') oy = mid.y < centroidPx.y ? -20 : 20;
         else ox = mid.x < centroidPx.x ? -30 : 30;
         const isHidden = mission.hiddenIdx.includes(e.i);
         const isResolved = isHidden && resolvedHidden.has(e.i);
         const showAsNumber = !isHidden || isResolved;
-        const lab = el('div', 'ppw-label' + (isHidden && !isResolved ? ' hidden-btn' : '') + (isResolved ? ' hidden-btn resolved' : ''), showAsNumber ? String(e.len) + ' ' + mission.unit : '?');
-        lab.style.left = (mid.x + ox) + 'px';
-        lab.style.top = (mid.y + oy) + 'px';
-        if (isHidden) {
-          if (!isResolved) lab.addEventListener('click', () => openHiddenOptions(e.i));
-          hiddenLabelEls[e.i] = lab;
+        const isUnresolvedHiddenBtn = isHidden && !isResolved;
+        // half-extents used only to keep neighbouring labels from overlapping below —
+        // unresolved hidden buttons are the larger 44px tap targets (see CSS).
+        labelMeta.push({
+          i: e.i, x: mid.x + ox, y: mid.y + oy,
+          hw: isUnresolvedHiddenBtn ? 24 : 24, hh: isUnresolvedHiddenBtn ? 24 : 14,
+          isHidden, isResolved, isUnresolvedHiddenBtn,
+          text: showAsNumber ? String(e.len) + ' ' + mission.unit : '?',
+        });
+      });
+      // Two short edges can meet at a tight concave corner (e.g. the L-shape's
+      // notch) with midpoints close enough that their fixed offsets still
+      // collide. Nudge any overlapping pair apart along whichever axis needs
+      // the smaller push, so a given side's number is never hidden behind
+      // its neighbour's.
+      for (let iter = 0; iter < 4; iter += 1) {
+        for (let a = 0; a < labelMeta.length; a += 1) {
+          for (let b = a + 1; b < labelMeta.length; b += 1) {
+            const A = labelMeta[a]; const B = labelMeta[b];
+            const dx = B.x - A.x; const dy = B.y - A.y;
+            const minDX = A.hw + B.hw; const minDY = A.hh + B.hh;
+            if (Math.abs(dx) < minDX && Math.abs(dy) < minDY) {
+              const overlapX = minDX - Math.abs(dx);
+              const overlapY = minDY - Math.abs(dy);
+              if (overlapX < overlapY) {
+                const push = (overlapX / 2) * (dx >= 0 ? 1 : -1);
+                A.x -= push; B.x += push;
+              } else {
+                const push = (overlapY / 2) * (dy >= 0 ? 1 : -1);
+                A.y -= push; B.y += push;
+              }
+            }
+          }
+        }
+      }
+      labelMeta.forEach((m) => {
+        const lab = el('div', 'ppw-label' + (m.isUnresolvedHiddenBtn ? ' hidden-btn' : '') + (m.isResolved ? ' hidden-btn resolved' : ''), m.text);
+        lab.style.left = m.x + 'px';
+        lab.style.top = m.y + 'px';
+        if (m.isHidden) {
+          if (!m.isResolved) lab.addEventListener('click', () => openHiddenOptions(m.i));
+          hiddenLabelEls[m.i] = lab;
         }
         wrap.append(lab);
-        labelEls[e.i] = lab;
+        labelEls[m.i] = lab;
       });
       prowlerEl = el('img', 'ppw-prowler'); prowlerEl.src = PROWLER_IMG; prowlerEl.alt = 'The Perimeter Prowler';
       hitEl = el('div', 'ppw-hit');

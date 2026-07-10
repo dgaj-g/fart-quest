@@ -33,16 +33,15 @@ export default {
     },
     {
       type: 'show',
-      title: 'Factors and Multiples: The Family Business',
+      title: 'Factors: The Family Business',
       html: `<p>Prime Slime’s favourite number is <b>12</b> — because 12 has LOADS of family. Every pair of numbers that multiplies together to make 12 is a <b>factor pair</b>.</p>
 <div class="pv-grid">
   <div class="pv-col"><div class="pv-head">1 × 12</div><div class="pv-cell">12</div></div>
   <div class="pv-col"><div class="pv-head">2 × 6</div><div class="pv-cell">12</div></div>
   <div class="pv-col"><div class="pv-head">3 × 4</div><div class="pv-cell">12</div></div>
 </div>
-<p>So the <b>factors</b> of 12 are 1, 2, 3, 4, 6 and 12 — every number that divides in EXACTLY, with nothing left over.</p>
-<p><b>Multiples</b> go the other way — they come FROM the times table by multiplying 12 UP: 12, 24, 36, 48…</p>
-<div class="law-scroll">📜 Don’t swap the words! <b>Factors</b> divide INTO a number. <b>Multiples</b> come FROM multiplying it UP. Papers love to ask “which of these is <b>NOT</b> a factor/multiple” — read the question twice before you answer!</div>`,
+<p>So the <b>factors</b> of 12 are 1, 2, 3, 4, 6 and 12 — every number that divides in EXACTLY, with nothing left over. Spotting every factor pair is exactly how you test whether a number is <b>prime</b> — a prime only ever has ONE factor pair: 1 and itself.</p>
+<div class="law-scroll">📜 A <b>factor</b> divides INTO a number exactly, with nothing left over. Papers love to ask “which of these is <b>NOT</b> a factor” — read the question twice before you answer!</div>`,
     },
     {
       type: 'talk',
@@ -180,7 +179,7 @@ export default {
     '2 is the only EVEN prime. Every other even number has 2 hiding inside it as an extra factor.',
     'Indices trap: 6² means 6 × 6 = 36, NOT 6 × 2. Read the tiny number as “times itself”.',
     'Odd doesn’t mean prime! 9, 15, 21, 25 and 27 all LOOK prime but have hidden factors — always test-divide before you decide.',
-    'Factors divide INTO a number; multiples come FROM multiplying it up. Don’t swap the words — papers love a NOT-question to catch you out.',
+    'A factor divides INTO a number exactly, with nothing left over — papers love a NOT-format question ("which of these is NOT a factor of…") to catch you out.',
     'Learn the cubes of 2, 3, 4, 5 and 10 by heart: 8, 27, 64, 125, 1,000.',
     'Triangular numbers stack up one more each time — the gap between terms grows by one every time (+2, +3, +4…).',
   ],

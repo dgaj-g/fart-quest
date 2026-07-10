@@ -18,8 +18,11 @@ function buildMission(start, op, amount) {
   const friend = dir === 1 ? Math.ceil(start / 10) * 10 : Math.floor(start / 10) * 10;
   const amt1 = Math.abs(friend - start);
   const amt2 = Math.abs(target - friend);
-  const lo = Math.min(start, friend, target) - 3;
-  const hi = Math.max(start, friend, target) + 3;
+  let lo = Math.min(start, friend, target) - 3;
+  let hi = Math.max(start, friend, target) + 3;
+  // keep exactly ONE multiple of ten in view — two round numbers on screen at
+  // once undermines "the ten-friend" (there'd be two candidates to guess from).
+  if (dir === -1) lo = Math.max(lo, friend - 9); else hi = Math.min(hi, friend + 9);
   const sign = dir === 1 ? '+' : '−';
   const worked = `${start} ${sign} ${amt1} = ${friend} (ten-friend!). Then ${friend} ${sign} ${amt2} = ${target}. `
     + `So ${start} ${op} ${amount} = ${target}.`;
@@ -69,7 +72,10 @@ function makeLine(host, mission, opts) {
   const rail = el('div', 'tft-rail');
   const ticks = el('div', 'tft-ticks');
   const token = el('div', 'tft-token', `<img src="${SPLATRICK_IMG}" alt="">`);
-  wrap.append(svg, rail, ticks, token);
+  // proactive directional cue (brief: "arrows and copy make direction explicit")
+  // — shown BEFORE the first tap, not just reactively after a miss.
+  const arrow = el('div', 'tft-arrow', mission.dir === -1 ? '◀◀' : '▶▶');
+  wrap.append(svg, rail, ticks, token, arrow);
   host.append(wrap);
 
   const num2x = (num) => (num - L.lo) * L.W + L.W / 2;
@@ -120,7 +126,10 @@ function makeLine(host, mission, opts) {
     token.classList.remove('tft-wobbling', 'tft-shake');
     const n = L.hi - L.lo + 1;
     const avail = Math.min(900, (host.clientWidth || 640) - 20);
-    L.W = Math.max(34, Math.min(64, Math.floor(avail / n)));
+    // 44px is the hard floor (Apple's min touch target) — if that means the
+    // line is wider than the host, the line-host wrapper scrolls horizontally
+    // (see .tft-linehost) rather than shrinking ticks below tappable size.
+    L.W = Math.max(44, Math.min(64, Math.floor(avail / n)));
     const totalW = L.W * n;
     wrap.style.width = totalW + 'px';
     svg.setAttribute('viewBox', `0 0 ${totalW} ${ARC_H}`);
@@ -138,7 +147,18 @@ function makeLine(host, mission, opts) {
     redrawDone();
     const x = num2x(L.tokenNum);
     setTokenXY(x - 27, BASE_Y - 46);
+    updateArrow();
   };
+
+  function updateArrow() {
+    // only ever tells the truth about the phase that is TRUE right now: hidden
+    // once both jumps are done, otherwise points the way this mission's jumps travel.
+    if (L.phase === 'done') { arrow.style.display = 'none'; return; }
+    arrow.style.display = '';
+    const x = num2x(L.tokenNum);
+    arrow.style.left = (mission.dir === -1 ? x - 74 : x + 24) + 'px';
+    arrow.style.top = (BASE_Y - 40) + 'px';
+  }
 
   function onTap(num) {
     if (!L.alive || L.busy || L.phase === 'done') return;
@@ -164,6 +184,7 @@ function makeLine(host, mission, opts) {
       const sign = mission.dir === 1 ? '+' : '−';
       L.doneArcs.push({ from: fromNum, to: toNum, label: `${sign}${amt}` });
       redrawDone();
+      updateArrow();
       sfx.pop();
       if (done) done();
     });
@@ -223,6 +244,7 @@ export default {
     let line = null;
     let mi = 0; // MISSIONS.length index === sandbox
     let sb = 0; // sandbox pick index
+    let curM = null; // mission the visible line was built from (for setSub's direction copy)
     const doneSet = new Set();
 
     const stage = el('div', 'anim-stage');
@@ -230,7 +252,7 @@ export default {
     const sbrow = el('div', 'anim-chiprow');
     const q = el('div', 'tft-q');
     const qsub = el('div', 'tft-qsub');
-    const lineHost = el('div');
+    const lineHost = el('div', 'tft-linehost');
     const stepsRow = el('div', 'tft-steps');
     const step1 = el('div', 'tft-step', '···');
     const step2 = el('div', 'tft-step', '···');
@@ -274,7 +296,9 @@ export default {
     }
     function setSub(phase) {
       // rule 2: this text only ever describes the phase that is TRUE right now.
-      if (phase === 'first') qsub.textContent = 'Tap where the FIRST jump should land.';
+      // curM is always the mission the visible line was just built from.
+      const dirWord = curM && curM.dir === -1 ? 'DOWN ◀◀' : 'UP ▶▶';
+      if (phase === 'first') qsub.innerHTML = `Tap where the FIRST jump should land. Jumps go <b>${dirWord}</b> the line.`;
       else if (phase === 'second') qsub.textContent = 'Ten-friend reached! Now tap where the SECOND jump should land.';
       else qsub.textContent = 'Both jumps stuck the landing!';
     }
@@ -292,6 +316,7 @@ export default {
 
     function buildLine(m) {
       if (line) { line.destroy(); line = null; }
+      curM = m;
       setQuestion(m); setSub('first'); resetSteps();
       line = makeLine(lineHost, m, {
         onMiss(num, phase, tokenNum) {
@@ -384,7 +409,8 @@ const CSS = `
 .tft-q { text-align: center; font-weight: 700; font-size: clamp(20px, 3.4vw, 30px); margin-bottom: 2px; }
 .tft-q .op { color: var(--stink); }
 .tft-qsub { text-align: center; font-size: 12.5px; color: #6b5744; font-weight: 500; margin-bottom: 10px; min-height: 16px; }
-.tft-wrap { position: relative; margin: 0 auto ${TICK_H}px; height: ${ARC_H}px; touch-action: none; }
+.tft-linehost { max-width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+.tft-wrap { position: relative; margin: 0 auto ${TICK_H}px; height: ${ARC_H}px; touch-action: pan-x; }
 .tft-svg { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .tft-arc { fill: none; stroke: var(--swamp-glow); stroke-width: 3.5; stroke-linecap: round; }
 .tft-arclabel {
@@ -409,6 +435,12 @@ const CSS = `
 .tft-token img { width: 100%; height: 100%; object-fit: contain; }
 .tft-token.tft-wobbling { animation: tftWobbleSpin .46s ease-in-out; }
 @keyframes tftWobbleSpin { 0%,100% { transform: rotate(0deg); } 30% { transform: rotate(-16deg); } 65% { transform: rotate(12deg); } }
+.tft-arrow {
+  position: absolute; width: 50px; text-align: center; pointer-events: none; z-index: 4;
+  font-size: 20px; font-weight: 900; color: var(--gold-deep);
+  animation: tftArrowPulse 1s ease-in-out infinite;
+}
+@keyframes tftArrowPulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
 .tft-token.tft-shake { animation: tftShake .4s ease; }
 @keyframes tftShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px) rotate(-6deg); } 75% { transform: translateX(6px) rotate(6deg); } }
 .tft-steps { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }

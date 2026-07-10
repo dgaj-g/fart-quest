@@ -38,7 +38,7 @@ const STAGE_W = 260;
 const TUBE_X = 130, TUBE_W = 54;
 const TRACK_TOP = 60;
 const BEAD_D = 36;
-const CARD_W = 60, CARD_H = 32, HOME_Y = 26;
+const CARD_W = 60, CARD_H = 44, HOME_Y = 26;
 const LANES = [40, 130, 220];
 const LABEL_R = TUBE_X - TUBE_W / 2 - 4, LABEL_W = 26;
 const RIGHT_X = TUBE_X + TUBE_W / 2 + 6;
@@ -390,9 +390,15 @@ export default {
         return clampVal(Math.round(yToValue(rel)));
       }
       function bounceHome(cd) {
-        const cancelX = tween((v) => { cd.state.x = v; cd.el.style.left = v + 'px'; }, cd.state.x, cd.state.homeX, 380, () => {});
-        const cancelY = tween((v) => { cd.state.y = v; cd.el.style.top = v + 'px'; }, cd.state.y, HOME_Y, 380, () => { cd.state.cancel = null; });
-        cd.state.cancel = () => { cancelX(); cancelY(); };
+        // Assign the combined canceller BEFORE starting either tween: tween()
+        // fires its done callback SYNCHRONOUSLY when the card is already at
+        // its target (e.g. never dragged, distance < 0.5px), which would
+        // otherwise null cd.state.cancel and then have this line stomp the
+        // null back to a live (dead) function — wedging busy() forever.
+        let cancelX = null, cancelY = null;
+        cd.state.cancel = () => { if (cancelX) cancelX(); if (cancelY) cancelY(); };
+        cancelX = tween((v) => { cd.state.x = v; cd.el.style.left = v + 'px'; }, cd.state.x, cd.state.homeX, 380, () => {});
+        cancelY = tween((v) => { cd.state.y = v; cd.el.style.top = v + 'px'; }, cd.state.y, HOME_Y, 380, () => { cd.state.cancel = null; });
       }
       function checkAll() {
         let allCorrect = true;
@@ -428,7 +434,7 @@ export default {
         busy: () => cards.some((cd) => cd.drag.dragging() || cd.state.cancel),
         reset: resetAll,
         abort() { cards.forEach((cd) => { cd.drag.abort(); if (cd.state.cancel) { cd.state.cancel(); cd.state.cancel = null; } }); },
-        destroy() { cards.forEach((cd) => cd.drag.destroy()); },
+        destroy() { cards.forEach((cd) => { cd.drag.destroy(); if (cd.state.cancel) { cd.state.cancel(); cd.state.cancel = null; } }); },
       };
     }
 

@@ -129,6 +129,7 @@ function makeBoard(host, model, opts) {
 
   B.layout = function layout() {
     if (B.cancelTween) { B.cancelTween(); B.cancelTween = null; }
+    B.settling = false; // cancelling a tween never runs its done() callback, so this must be reset by hand
     drag.abort();
     machine.classList.remove('dragging');
     pads.innerHTML = '';
@@ -433,8 +434,12 @@ export default {
           if (mission && lay.off === mission.target && mission.pop && !shown.has(mission.pop.key)) {
             // mission popups quote exact numbers — only ever at the matching state
             shown.add(mission.pop.key);
+            const missionAtSettle = mission;
             const delay = added.length ? added.length * 160 + 620 : 200;
-            later(() => bubble(stage, { title: mission.pop.title, text: mission.pop.text, img: POINTY_IMG }), delay);
+            later(() => {
+              if (mission !== missionAtSettle) return; // child switched missions before the popup fired
+              bubble(stage, { title: missionAtSettle.pop.title, text: missionAtSettle.pop.text, img: POINTY_IMG });
+            }, delay);
           } else if (!silent) {
             if (added.length && !(mission && mission.pop)) toast(stage, '🪑 a seat-warmer zero drops in — the Units throne is never left empty!');
             if (removed.length) toast(stage, '🙇 the seat-warmer bows out — job done!');
@@ -444,12 +449,14 @@ export default {
         onTapZone(found) {
           if (!alive) return;
           if (!found) { toast(stage, 'Not there — Pointy hides where the whole number ENDS!'); return; }
+          const missionAtTap = mission;
           later(() => {
+            if (mission !== missionAtTap) return; // child switched missions before the reveal bubble fired
             bubble(stage, {
               title: 'FOUND HIM! 🎩',
-              text: `Pointy was there <b>ALL ALONG!</b> Every whole number keeps an <b>invisible decimal point just after its Units digit</b> — ${mission.start} is really <b>${mission.start}•</b> — he only turns visible when the digits need to slide past him!`,
+              text: `Pointy was there <b>ALL ALONG!</b> Every whole number keeps an <b>invisible decimal point just after its Units digit</b> — ${missionAtTap.start} is really <b>${missionAtTap.start}•</b> — he only turns visible when the digits need to slide past him!`,
               img: POINTY_IMG,
-            }).then(() => { if (alive) qsub.textContent = 'Now slide the digits past Pointy, then LOCK IT IN.'; });
+            }).then(() => { if (alive && mission === missionAtTap) qsub.textContent = 'Now slide the digits past Pointy, then LOCK IT IN.'; });
           }, 650);
         },
       });
@@ -502,12 +509,12 @@ export default {
       const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));
       if (nextIdx !== -1) {
         const nb = el('button', 'btn btn-gold', 'NEXT ONE ➡');
-        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
         nb.addEventListener('click', () => { sfx.ui(); start(nextIdx); });
         w.append(nb);
       } else {
         const fp = el('button', 'btn btn-gold', 'FREE PLAY 🕹️');
-        fp.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+        fp.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
         fp.addEventListener('click', () => { sfx.ui(); start(MISSIONS.length); });
         w.append(fp);
         ctx.complete();

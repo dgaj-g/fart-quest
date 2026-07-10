@@ -88,11 +88,11 @@ function buildMachine(host) {
   return { root, body, hatch, tray, slotA, slotB, outSlot };
 }
 
-function flyLetters(container, letters, cls) {
+function flyLetters(container, letters, cls, schedule) {
   if (!letters) return;
   const s = el('span', cls, letters);
   container.appendChild(s);
-  setTimeout(() => { if (s.parentNode) s.remove(); }, 750);
+  (schedule || setTimeout)(() => { if (s.parentNode) s.remove(); }, 750);
 }
 
 function renderOutput(outSlot, text, animApo) {
@@ -166,11 +166,11 @@ export default {
       chiprow.innerHTML = '';
       MISSIONS.forEach((m, i) => {
         const c = el('button', 'anim-mchip' + (i === mi ? ' active' : '') + (doneSet.has(m.id) ? ' done' : ''), m.label);
-        c.addEventListener('click', () => { sfx.ui(); start(i); });
+        c.addEventListener('click', () => { if (leverBusy) return; sfx.ui(); start(i); });
         chiprow.append(c);
       });
       const fp = el('button', 'anim-mchip' + (mi === MISSIONS.length ? ' active' : ''), 'FREE PLAY 🕹️');
-      fp.addEventListener('click', () => { sfx.ui(); start(MISSIONS.length); });
+      fp.addEventListener('click', () => { if (leverBusy) return; sfx.ui(); start(MISSIONS.length); });
       chiprow.append(fp);
     }
 
@@ -230,6 +230,8 @@ export default {
     }
 
     function start(i) {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
       mi = i;
       winBox.innerHTML = '';
       if (leverCancelTween) { leverCancelTween(); leverCancelTween = null; }
@@ -321,7 +323,7 @@ export default {
 
     function doSqueezeSuccess() {
       const removed = SPLIT[currentPair.w2].removed;
-      flyLetters(M.slotB, removed, 'csp-letter-out');
+      flyLetters(M.slotB, removed, 'csp-letter-out', later);
       M.hatch.classList.add('csp-hatch-pulse');
       sfx.pop();
       later(() => {
@@ -351,7 +353,7 @@ export default {
 
     function doStretch() {
       sfx.tock();
-      flyLetters(M.slotA, SPLIT[mission.w2].removed, 'csp-letter-in');
+      flyLetters(M.slotA, SPLIT[mission.w2].removed, 'csp-letter-in', later);
       M.hatch.classList.add('csp-hatch-pulse');
       later(() => {
         M.hatch.classList.remove('csp-hatch-pulse');
@@ -406,6 +408,14 @@ export default {
     const onResize = () => {
       leverDrag.abort();
       if (leverCancelTween) { leverCancelTween(); leverCancelTween = null; }
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+      // a cancelled mid-flight timer can strand a one-shot animation class —
+      // clear them so the next press can retrigger its animation cleanly.
+      M.tray.classList.remove('csp-squish');
+      M.body.classList.remove('csp-jam');
+      M.root.classList.remove('csp-somersault');
+      M.hatch.classList.remove('csp-hatch-pulse');
       setLeverY(0);
       leverBusy = false;
     };

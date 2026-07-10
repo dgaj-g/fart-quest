@@ -128,6 +128,8 @@ export default {
     let shown = new Set();
     let cancelWheel = null;
     let wheelDeg = 0;
+    let gen = 0;
+    let masteredShown = false;
     const doneSet = new Set();
     const timers = new Set();
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); };
@@ -160,7 +162,7 @@ export default {
       chiprow.innerHTML = '';
       MISSIONS.forEach((m, i) => {
         const c = el('button', 'anim-mchip' + (i === mi ? ' active' : '') + (doneSet.has(m.id) ? ' done' : ''), `${m.emoji} ${m.animalWord.toUpperCase()}`);
-        c.addEventListener('click', () => { sfx.ui(); start(i); });
+        c.addEventListener('click', () => { if (busy) return; sfx.ui(); start(i); });
         chiprow.append(c);
       });
     }
@@ -249,8 +251,9 @@ export default {
       sfx.drop();
       btn.classList.add('stamped');
       state = answerPlural(state, true, opt.word);
+      const myGen = gen;
       later(() => {
-        if (!alive) return;
+        if (!alive || myGen !== gen) return;
         renderLabel();
         clearCards();
         toast(stage, `📋 ${opt.word.toUpperCase()} stamped onto the pen — that label sticks now!`);
@@ -260,7 +263,7 @@ export default {
         if (mission.noChange && !shown.has('nochange-' + mission.id)) {
           shown.add('nochange-' + mission.id);
           later(() => {
-            if (!alive) return;
+            if (!alive || myGen !== gen) return;
             bubble(stage, {
               title: 'SNEAKY ONE! 😏',
               text: `Look closely — <b>${mission.pluralWord}</b> hasn't changed at all! It's still ${mission.pluralWord}, one or a whole field of them. Some plurals refuse to change one single letter.`,
@@ -308,7 +311,8 @@ export default {
       nb.addEventListener('click', () => { sfx.ui(); start(nextIdx !== -1 ? nextIdx : 0); });
       w.append(nb);
       busy = false;
-      if (doneSet.size === MISSIONS.length) {
+      if (doneSet.size === MISSIONS.length && !masteredShown) {
+        masteredShown = true;
         ctx.complete();
         later(() => {
           if (!alive) return;
@@ -341,8 +345,9 @@ export default {
       const newTok = el('span', 'pcc-token popping', mission.emoji);
       tokens.append(newTok);
       renderLabel();
+      const myGen = gen;
       later(() => {
-        if (!alive) return;
+        if (!alive || myGen !== gen) return;
         sfx.pop();
         busy = false;
         if (state.phase === 'pluralcheck') showPluralCards();
@@ -354,6 +359,7 @@ export default {
     crankBtn.addEventListener('click', () => { sfx.ui(); crank(); });
 
     function start(i) {
+      gen += 1;
       mi = i;
       mission = MISSIONS[i];
       state = freshState();

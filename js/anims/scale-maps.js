@@ -275,6 +275,10 @@ export default {
         sfx.settle();
       });
     }
+    // true while the rail is still moving toward its target (tween) or being
+    // dragged live — measuredCm (the canonical reading) is stale until either
+    // resolves, so firing must be blocked while this is true (Rule 2).
+    function railSettling() { return handleTweenCancel !== null || (dragCtrl && dragCtrl.dragging()); }
 
     /* ---------- the real-world bar ---------- */
     function buildWorld() {
@@ -312,7 +316,14 @@ export default {
       let i = 0; let prev = fromStart;
       const step = () => {
         if (!alive) return;
-        if (i >= valuesAsc.length) { busy = false; whompTimer = null; later(cb, 150); return; }
+        if (i >= valuesAsc.length) {
+          // keep busy locked through the trailing grace period — cb (winMission)
+          // hasn't run yet, so a re-fire here would re-trigger the whomp and the
+          // win fanfare a second time. Only release once cb actually executes.
+          whompTimer = null;
+          later(() => { busy = false; cb(); }, 150);
+          return;
+        }
         const target = valuesAsc[i];
         playSfx();
         runTween((v) => setWorldFill(v), prev, target, 240, () => {
@@ -451,7 +462,7 @@ export default {
       settledWorldM = mission.mode === 'shrink' ? mission.real : 0;
       setWorldFill(settledWorldM);
     });
-    fire.addEventListener('click', () => { if (busy) return; sfx.ui(); tryFire(); });
+    fire.addEventListener('click', () => { if (busy || railSettling()) return; sfx.ui(); tryFire(); });
 
     const onResize = () => {
       if (!alive) return;

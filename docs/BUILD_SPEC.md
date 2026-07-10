@@ -134,7 +134,8 @@ Common rules: `generate(tier, rng)` → Question. Recompute the answer independe
 - rule: "Every digit sits on a throne. The THRONE tells you what the digit is worth."
 ### decimals (topic decimals-x10)
 - T1: N×10, N÷10 (N whole or 1dp); which digit is in the tenths place; 10× bigger/smaller in words.
-- T2: ×100 ×1000 ÷100 with results ≤2dp (never generate 3dp answers: choose inputs so results stay ≤2dp); order 4 decimals incl. a longer-is-bigger trap pair (0.3 vs 0.25); missing op: "3.7 × ___ = 370".
+- T2: ×100 ×1000 ÷100 with results ≤2dp (never generate 3dp answers: choose inputs so results stay ≤2dp); chained ×10/÷10 pair, e.g. "4.6 × 10 ÷ 10 = ?" (two slides back-to-back, incl. opposite-direction pairs that cancel back to the start); missing op: "3.7 × ___ = 370".
+  - NOTE (SPEC_CANON audit, 10 Jul 2026): the previous T2 template ordered/compared decimals by size ("which is largest/smallest", incl. a "longer isn't bigger" trap). That tests a distinct skill (comparing decimal magnitude) never named by bullet 23 or any other Section A bullet, and bullet 23 isn't a [CATCH-ALL] so no PP1/PP2 route (b) citation could rescue it either — confirmed unsupported and replaced with the chained-slide template above, which stays inside bullet 23's literal wording.
 - T3 (`num`): 3.45×100; 620÷1000 → NO, keep ≤2dp: use ÷10/÷100 only for T3 write-ins (e.g. 62÷100=0.62); mixed real-life: "1.75 m = ___ cm" style ONLY with ×100 (bridges to Measure Marsh later).
 - Distractors: add/remove-a-zero (3.50 for 3.5×10), slid wrong direction, slid wrong number of places.
 - rule: "The point NEVER moves. The DIGITS slide — left when you ×, right when you ÷."

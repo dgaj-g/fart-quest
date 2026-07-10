@@ -60,6 +60,9 @@ const FAMILIES = [
   { frac: '⅕', dec: '0.2', pct: '20%' },
 ];
 const FORM_NAME = { frac: 'fraction', dec: 'decimal', pct: 'percentage' };
+// Numerator/denominator for each FAMILIES entry, same order, used to build scaled-up
+// equivalent fractions (e.g. ¼ -> 2/8, 3/12) for the NOT-equivalent template below.
+const FAMILY_FRAC_ND = [[1, 2], [1, 4], [3, 4], [1, 10], [1, 5]];
 
 // -------- T1 templates --------
 
@@ -336,59 +339,49 @@ function t2DecimalToPercent(rng) {
   };
 }
 
-const FRAC_GLYPH = { 10: '⅒', 20: '⅕', 25: '¼', 40: '⅖', 50: '½', 60: '⅗', 75: '¾', 80: '⅘' };
-function fracTextFor(p) {
-  if (FRAC_GLYPH[p]) return FRAC_GLYPH[p];
-  if (p % 10 === 0) return `${p / 10}/10`;
-  return null;
-}
+// NOT-format disguise question: four options are the SAME amount as the named family
+// (its decimal, its percentage, and two scaled-up equivalent fractions), one option is a
+// DIFFERENT family's disguise. Find the stranger.
+function t2NotEquivalentDisguise(rng) {
+  const idx = rngInt(rng, 0, FAMILIES.length - 1);
+  const family = FAMILIES[idx];
+  const [num, den] = FAMILY_FRAC_ND[idx];
+  const mults = shuffle(rng, [2, 3, 4, 5]).slice(0, 2);
+  const scaled1 = `${num * mults[0]}/${den * mults[0]}`;
+  const scaled2 = `${num * mults[1]}/${den * mults[1]}`;
 
-function t2OrderMixedFDP(rng) {
-  const PERCENTS = [10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90];
-  const chosen = shuffle(rng, PERCENTS).slice(0, 5);
-  const askLargest = rng() < 0.5;
+  const equivDistractors = [
+    { text: family.dec, misconception: 'is-equivalent' },
+    { text: family.pct, misconception: 'is-equivalent' },
+    { text: scaled1, misconception: 'is-equivalent' },
+    { text: scaled2, misconception: 'is-equivalent' },
+  ];
 
-  const usedTexts = new Set();
-  const options = chosen.map((p) => {
-    const forms = [{ type: 'pct', text: `${p}%` }, { type: 'dec', text: fmtDec(p) }];
-    const fracText = fracTextFor(p);
-    if (fracText) forms.push({ type: 'frac', text: fracText });
-    let rep = pick(rng, forms);
-    if (usedTexts.has(rep.text)) rep = { type: 'pct', text: `${p}%` }; // pct form is always unique per distinct percent
-    usedTexts.add(rep.text);
-    return { text: rep.text, misconception: null, _val: p };
-  });
+  const otherIdx = pick(rng, FAMILIES.map((_, i) => i).filter((i) => i !== idx));
+  const other = FAMILIES[otherIdx];
+  const wrongForm = pick(rng, ['frac', 'dec', 'pct']);
+  const correctText = other[wrongForm];
 
-  const sorted = [...chosen].sort((a, b) => a - b);
-  const answerVal = askLargest ? sorted[sorted.length - 1] : sorted[0];
-  const secondVal = askLargest ? sorted[sorted.length - 2] : sorted[1];
-  options.forEach((o) => {
-    if (o._val === answerVal) o.misconception = null;
-    else if (o._val === secondVal) o.misconception = 'close-second';
-    else o.misconception = 'middle-value';
-  });
-  const correctIndex = options.findIndex((o) => o._val === answerVal);
+  const correct = { text: correctText, misconception: null };
+  const options = makeMcq(correct, shuffle(rng, equivDistractors), 4, { min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
-    if (o.misconception === 'close-second') whyWrong[o.text] = 'Close — but convert every option to the SAME form first (percentages are easiest), then compare the actual value.';
-    else if (o.misconception === 'middle-value') whyWrong[o.text] = `Convert every option to percentages before comparing — this one isn’t the ${askLargest ? 'largest' : 'smallest'}.`;
+    if (o.misconception === 'is-equivalent') whyWrong[o.text] = `That one IS the same amount as ${family.frac} — just another disguise. Look again for the one that belongs to a DIFFERENT family.`;
   }
 
-  const cleanOptions = options.map((o) => ({ text: o.text, misconception: o.misconception }));
-
   return {
-    templateId: 'fdp-t2-order-mixed',
-    stem: `Which of these is the <b>${askLargest ? 'largest' : 'smallest'}</b>?`,
-    options: cleanOptions,
-    correctIndex,
+    templateId: 'fdp-t2-not-equivalent',
+    stem: `Four of these are the SAME amount as <b>${family.frac}</b>. Which ONE is NOT?`,
+    options,
+    correctIndex: 0,
     hintSteps: [
-      'These are different disguises for different amounts. Convert every option into the SAME form (percentages are easiest) before comparing.',
-      `Once they’re all percentages, which number is ${askLargest ? 'biggest' : 'smallest'}?`,
+      `Convert every option into the SAME form as ${family.frac} — decimals are usually easiest — before comparing.`,
+      `Four of them belong to Percy’s ${family.frac} = ${family.dec} = ${family.pct} family. Which one is a stranger?`,
     ],
     explain: {
       rule: RULE,
-      worked: `Converting everything to percentages: ${chosen.map((p) => `${p}%`).join(', ')}. The ${askLargest ? 'largest' : 'smallest'} is ${answerVal}%.`,
+      worked: `${family.frac} = ${family.dec} = ${family.pct} = ${scaled1} = ${scaled2} — all the SAME amount. ${correctText} belongs to a different family, so it is NOT equivalent.`,
       whyWrong,
     },
   };
@@ -516,7 +509,7 @@ function t3DecimalPercentConvert(rng) {
 // -------- dispatch --------
 
 const T1 = [t1MatchDisguise, t1TenthsToPercent, t1TenthsToDecimal];
-const T2 = [t2PercentOfAmount, t2DecimalToPercent, t2OrderMixedFDP];
+const T2 = [t2PercentOfAmount, t2DecimalToPercent, t2NotEquivalentDisguise];
 const T3 = [t3PercentOfAmountAnchor, t3RemainderProblem, t3DecimalPercentConvert];
 
 export function generate(tier, rng) {

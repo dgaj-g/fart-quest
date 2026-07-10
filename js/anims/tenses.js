@@ -49,7 +49,7 @@ function garyWrongText(m) {
 const MISSIONS = [
   {
     id: 'jump', verb: 'jump', style: 'bolt', suffix: 'ed', target: 'yesterday', result: 'jumped',
-    stem: ['Every morning, Jarlath ', ' clean over the garden wall.'],
+    stem: ['Yesterday, Jarlath ', ' clean over the garden wall.'],
     predictWrong: 'jump', wrongKind: 'unchanged',
     worked: 'Jump is a regular verb — the -ed just bolts on: jump becomes jumped.',
   },
@@ -281,7 +281,7 @@ export default {
       winBox.append(w);
       const nextIdx = MISSIONS.findIndex((mm) => !doneSet.has(mm.id));
       const nb = el('button', 'btn btn-gold', nextIdx !== -1 ? 'NEXT ONE ➡' : 'PLAY AGAIN 🔁');
-      nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+      nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
       nb.addEventListener('click', () => { sfx.ui(); start(nextIdx !== -1 ? nextIdx : 0); });
       w.append(nb);
     }
@@ -318,6 +318,8 @@ export default {
       });
     }
     function start(i) {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
       mi = i; mission = MISSIONS[i];
       state.predicted = null; state.locked = false; state.busy = false;
       state.idx = 1; state.targetIdxHeading = 1;

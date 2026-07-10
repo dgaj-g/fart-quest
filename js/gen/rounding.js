@@ -305,85 +305,6 @@ function t2Nearest100Boundary(rng) {
   };
 }
 
-function t2ReverseWhichRounds(rng) {
-  // reverse: which of these rounds to 400 (nearest 100)?
-  const hundreds = rngInt(rng, 1, 8);
-  const target = hundreds * 100;
-  const stem = `Which of these numbers rounds to <b>${fmt(target)}</b> (nearest 100)?`;
-
-  // Correct answer must land within [target-49, target+49] so it truly rounds to target.
-  const offsetCorrect = rngInt(rng, 0, 49) * (rng() < 0.5 ? 1 : -1);
-  let correctVal = target + offsetCorrect;
-  if (correctVal < 0) correctVal = target + 10;
-
-  const belowTarget = target - 100;
-  const aboveTarget = target + 100;
-  // Fix (CRITICAL): these must land BEYOND the ±50 boundary around target, never inside it —
-  // otherwise the distractor also rounds to target, creating a second correct answer.
-  // distractorBelow = belowTarget + [1,49]  -> lands in [belowTarget+1, belowTarget+49] = [target-99, target-51]
-  // distractorAbove = aboveTarget - [1,49]  -> lands in [aboveTarget-49, aboveTarget-1] = [target+51, target+99]
-  const distractorBelowRaw = belowTarget + rngInt(rng, 1, 49);
-  const distractorBelow = distractorBelowRaw >= 0 ? distractorBelowRaw : target + 51 + rngInt(rng, 0, 48); // clamp: keep >= target+51 zone if below-zero
-  const distractorAbove = aboveTarget - rngInt(rng, 1, 49);
-  const distractorExactOther = target + 50; // rounds up to the NEXT hundred, common trap (exactly on the boundary, not inside it)
-
-  const distractors = [
-    { text: fmt(distractorBelow), misconception: 'wrong-camp' },
-    { text: fmt(distractorAbove), misconception: 'wrong-camp' },
-    { text: fmt(distractorExactOther), misconception: 'wrong-camp' },
-  ];
-
-  const correct = { text: fmt(correctVal), misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 3, { min: 5 });
-
-  // Pad with extra numbers that round to a DIFFERENT hundred if dedup (or the raised 5-option
-  // minimum) left us short — never a number that would also round to target (that would create
-  // a second correct answer).
-  if (options.length < 5) {
-    const seen = new Set(options.map((o) => o.text));
-    const extraCandidates = [target + 150, target - 150, target + 250, target - 250, target + 350, target - 350]
-      .filter((v) => v >= 0 && Math.round(v / 100) * 100 !== target);
-    for (const v of extraCandidates) {
-      if (options.length >= 5) break;
-      const text = fmt(v);
-      if (seen.has(text)) continue;
-      seen.add(text);
-      options.push({ text, misconception: 'wrong-camp' });
-    }
-  }
-
-  // Dev/test guard: assert no non-correct option actually rounds to target (would silently create
-  // a second correct answer). Throws so the bug surfaces immediately rather than shipping silently.
-  options.forEach((o, i) => {
-    if (i === 0) return; // correct is always index 0 pre-shuffle (options array, not yet shuffled by the format renderer)
-    const val = Number(String(o.text).replace(/,/g, ''));
-    if (Math.round(val / 100) * 100 === target) {
-      throw new Error(`t2ReverseWhichRounds: distractor "${o.text}" also rounds to target ${target}`);
-    }
-  });
-
-  const whyWrong = {};
-  for (const o of options) {
-    if (o.misconception === 'wrong-camp') whyWrong[o.text] = `Check that one on the catapult — it actually rounds to a different hundred, not ${fmt(target)}.`;
-  }
-
-  return {
-    templateId: 'round-t2-reverse-which',
-    stem,
-    options,
-    correctIndex: 0,
-    hintSteps: [
-      `The two camps around ${fmt(target)} are ${fmt(target - 100)} and ${fmt(target + 100)} on either side — but we want numbers that land ON ${fmt(target)}.`,
-      'Round each option to the nearest hundred and see which one matches.',
-    ],
-    explain: {
-      rule: RULE,
-      worked: `${fmt(correctVal)} rounds to ${fmt(target)} (nearest 100) because its tens digit is on the right side of the Law of Five.`,
-      whyWrong,
-    },
-  };
-}
-
 function t2Nearest10ThreeDigit(rng) {
   // nearest 10 of 3-digit numbers
   let n;
@@ -461,47 +382,62 @@ function t3RoundWriteIn(rng) {
   };
 }
 
-function t3EstimateMultiply(rng) {
-  // estimate 41x19 by rounding (mcq5 of magnitudes: 800 correct vs 80/8000/779/exact)
-  let a, b;
-  do {
-    a = rngInt(rng, 11, 89);
-    b = rngInt(rng, 11, 89);
-  } while (a % 10 === 5 || b % 10 === 5); // avoid ambiguous halfway for cleanliness
-  const aRound = roundToNearest(a, 10);
-  const bRound = roundToNearest(b, 10);
-  const estimate = aRound * bRound;
-  const exact = a * b;
+function t3EstimateMoneyMultiply(rng) {
+  // estimate a multi-item money total: round the unit price to the nearest £1,
+  // then multiply by the (exact, small whole) quantity. M4.1 ("×÷ with money;
+  // estimation") literally names this — quantity itself is never rounded.
+  const qty = rngInt(rng, 2, 9);
+  const pence = rngInt(rng, 105, 995);
+  const priceText = fmtMoney(pence);
+  const pricePounds = pence / 100;
+  const roundedPrice = roundToNearest(pricePounds, 1);
+  const estimate = roundedPrice * qty;
+  const exact = Math.round(pricePounds * qty * 100) / 100;
 
-  const stem = `ESTIMATE: ${a} × ${b} is roughly…`;
+  const stem = `ESTIMATE: ${qty} tickets at ${priceText} each is roughly…`;
   const distractors = [
-    { text: fmt(exact), misconception: 'exact-bait' },
-    { text: fmt(estimate / 10), misconception: 'magnitude' },
-    { text: fmt(estimate * 10), misconception: 'magnitude' },
+    { text: `£${exact.toFixed(2)}`, misconception: 'exact-bait' },
+    { text: `£${(estimate / 10).toFixed(2)}`, misconception: 'magnitude' },
+    { text: `£${(estimate * 10).toFixed(2)}`, misconception: 'magnitude' },
   ];
 
-  const correct = { text: fmt(estimate), misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 3, { rng, correctVal: estimate, base: aRound || 10, original: exact, min: 5 });
+  const correct = { text: `£${estimate.toFixed(2)}`, misconception: null };
+  const options = makeMcq(correct, shuffle(rng, distractors), 3);
+
+  // Money format (£X.XX) isn't a plain integer, so the generic ±10/±100 padder doesn't apply —
+  // pad with other plausible rounded-pound totals if dedup left us short.
+  if (options.length < 5) {
+    const seen = new Set(options.map((o) => o.text));
+    const extraCandidates = [estimate + qty, Math.max(0, estimate - qty), estimate + 2 * qty, Math.max(0, estimate - 2 * qty)]
+      .filter((v) => v >= 0);
+    for (const v of extraCandidates) {
+      if (options.length >= 5) break;
+      const text = `£${v.toFixed(2)}`;
+      if (seen.has(text)) continue;
+      seen.add(text);
+      options.push({ text, misconception: 'padded-near-miss' });
+    }
+  }
 
   const whyWrong = {};
   for (const o of options) {
-    if (o.misconception === 'exact-bait') whyWrong[o.text] = 'That’s the EXACT answer — the classic bait! “Estimate” means they want the rounded version.';
-    else if (o.misconception === 'magnitude') whyWrong[o.text] = 'Wrong size — check how many zeros your rounded numbers should give.';
-    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = 'Check your rounding of each number before multiplying — a small slip changes the estimate a lot.';
+    if (o.misconception === 'exact-bait') whyWrong[o.text] = 'That’s the EXACT total — the classic bait! “Estimate” means they want the rounded version.';
+    else if (o.misconception === 'magnitude') whyWrong[o.text] = 'Wrong size — check how many zeros your rounded price should give.';
+    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = 'Check your rounding of the price before multiplying by the quantity.';
   }
 
   return {
-    templateId: 'round-t3-estimate-multiply',
+    templateId: 'round-t3-estimate-money-multiply',
     stem,
     options,
     correctIndex: 0,
     hintSteps: [
-      `Round each number to its nearest 10 first: ${a} → ? and ${b} → ?`,
-      `${aRound} × ${bRound} = …?`,
+      `Round the price to the nearest whole pound first: ${priceText} → ?`,
+      `£${roundedPrice} × ${qty} = …?`,
     ],
     explain: {
       rule: 'Estimate = round FIRST, then calculate with the easy numbers.',
-      worked: `${a} → ${aRound}, ${b} → ${bRound}. ${aRound} × ${bRound} = ${estimate}.`,
+      worked: `${priceText} → £${roundedPrice}. £${roundedPrice} × ${qty} = £${estimate.toFixed(2)}.`,
       whyWrong,
     },
   };
@@ -571,8 +507,8 @@ function t3EstimateMoney(rng) {
 // -------- dispatch --------
 
 const T1 = [t1RoundNearest10, t1RoundNearest100, t1NumlineVisual];
-const T2 = [t2Nearest10With5Endings, t2Nearest100Boundary, t2ReverseWhichRounds, t2Nearest10ThreeDigit];
-const T3 = [t3RoundWriteIn, t3EstimateMultiply, t3EstimateMoney];
+const T2 = [t2Nearest10With5Endings, t2Nearest100Boundary, t2Nearest10ThreeDigit];
+const T3 = [t3RoundWriteIn, t3EstimateMoneyMultiply, t3EstimateMoney];
 
 export function generate(tier, rng) {
   let pool;

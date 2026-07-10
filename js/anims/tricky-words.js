@@ -43,7 +43,7 @@ const MISSIONS = [
     id: 'definitely', word: 'DEFINITELY', chip: 'DEFINITELY', hookKind: 'finite',
     span: span(2, 7),
     dressQ: 'Shine the torch and find FINITE.',
-    dressSub: 'Drag the torch along the word until FINITE lights up.',
+    dressSub: 'Drag the torch to the middle of the word and let go — find where FINITE lights up.',
     bubbleTitle: 'FOUND IT! 🔦',
     bubbleText: 'definitely has "finite" hiding inside — defi-NITE-ly. It is never defin-ATE-ly. There is no "ate" in definitely, no matter how hungry you are.',
     rebuildQ: 'DEFINITELY scattered! Rebuild it.',
@@ -400,10 +400,17 @@ export default {
     }
 
     function advanceFromDress() {
+      // Snapshot the mission + generation at schedule time: a mission-chip
+      // tap or RESET during this 260ms gap (or during the bubble's own wait)
+      // always bumps genTok via renderDress/renderRebuild, so checking it
+      // (alongside the mission identity, belt-and-suspenders) stops a stale
+      // timer from congratulating/advancing the WRONG mission.
+      const myGen = genTok;
+      const myMission = mission;
       later(() => {
-        if (!alive || phase !== 'dress') return;
-        bubble(stage, { title: mission.bubbleTitle, text: mission.bubbleText, img: NECC_IMG }).then(() => {
-          if (!alive || phase !== 'dress') return;
+        if (!alive || phase !== 'dress' || genTok !== myGen || mission !== myMission) return;
+        bubble(stage, { title: myMission.bubbleTitle, text: myMission.bubbleText, img: NECC_IMG }).then(() => {
+          if (!alive || phase !== 'dress' || genTok !== myGen || mission !== myMission) return;
           enterRebuild();
         });
       }, 260);

@@ -168,7 +168,7 @@ export default {
       .cep-poster img { width: 74px; filter: drop-shadow(0 5px 8px rgba(0,0,0,.3)); margin-bottom: 4px; }
       .cep-poster-title { font-weight: 700; font-size: 13px; letter-spacing: .08em; color: var(--wrong); margin-bottom: 8px; }
       .cep-sentence { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 10px auto; max-width: 600px; }
-      .cep-word { background: var(--card); border: 2.5px solid rgba(51,38,29,.3); border-radius: 10px; padding: 7px 11px; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 3px 0 rgba(51,38,29,.15); }
+      .cep-word { background: var(--card); border: 2.5px solid rgba(51,38,29,.3); border-radius: 10px; padding: 7px 11px; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 3px 0 rgba(51,38,29,.15); display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; box-sizing: border-box; }
       .cep-word.sel { background: var(--gold); border-color: var(--gold-deep); }
       .cep-word.caught { background: #E9FBEF; border-color: var(--correct); color: #1d8f4e; }
       .cep-word.wobble { animation: cepWobble .45s ease; }
@@ -250,7 +250,7 @@ export default {
         sceneRow.append(el('div', 'cep-contestant',
           `<div class="cep-emo">${c.e}</div><div class="cep-name">${c.n}</div><div class="cep-ribbon">🏆</div><div class="cep-stamp"></div>`));
       }
-      if (runners < arr.length) {
+      if (runners < mission.runnersNeed) {
         const add = el('button', 'cep-addracer', '+ ADD A RACER');
         add.addEventListener('click', onAddRacer);
         sceneRow.append(add);
@@ -258,11 +258,11 @@ export default {
     }
     function onAddRacer() {
       if (!alive || mission.kind !== 'build') return;
-      const arr = SCENES[mission.scene];
-      if (runners >= arr.length) return;
+      if (runners >= mission.runnersNeed) return;
       runners += 1;
       sfx.pop();
       partialShown = false;
+      winBox.innerHTML = '';
       renderScene();
       renderPlate();
     }
@@ -329,11 +329,6 @@ export default {
 
     function handleChipDrop(chip, dx, dy) {
       if (!alive) return;
-      if (mission.mode === 'prefix' && chip.kind === 'suffix') {
-        bounceChip(chip.el, dx, dy);
-        toast(stage, `${mission.base} is too long for a tiny ${chip.label} — long words like this use MORE or MOST instead!`);
-        return;
-      }
       const zoneEl = mission.mode === 'suffix' ? suffixSlotEl : mission.mode === 'prefix' ? prefixSlotEl : plateWordEl;
       const zr = zoneEl.getBoundingClientRect();
       const cr = chip.el.getBoundingClientRect();
@@ -341,6 +336,12 @@ export default {
       const over = cx >= zr.left - 12 && cx <= zr.right + 12 && cy >= zr.top - 16 && cy <= zr.bottom + 16;
       bounceChip(chip.el, dx, dy);
       if (!over) return;
+      if (mission.mode === 'prefix' && chip.kind === 'suffix') {
+        wobbleZone(zoneEl);
+        sfx.nudge();
+        toast(stage, `${mission.base} is too long for a tiny ${chip.label} — long words like this use MORE or MOST instead!`);
+        return;
+      }
       let outcome;
       if (mission.mode === 'suffix') outcome = suffixOutcome(mission.base, mission.runnersNeed, runners, chip.id);
       else if (mission.mode === 'prefix') outcome = prefixOutcome(mission.base, mission.runnersNeed, runners, chip.id);

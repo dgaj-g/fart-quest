@@ -126,7 +126,7 @@ const CSS = `
 .ccn-new { color:var(--wrong); }
 .ccn-carrymk { color:var(--wrong); font-size:13px; vertical-align:top; }
 .ccn-ball {
-  position:absolute; top:-52px; width:42px; height:42px; border-radius:50%; z-index:9;
+  position:absolute; top:-52px; width:44px; height:44px; border-radius:50%; z-index:9;
   background:radial-gradient(circle at 35% 30%,#fff2b8,#F4C542 60%,#B8860B);
   border:3px solid var(--ink); display:flex; align-items:center; justify-content:center;
   font-size:19px; box-shadow:0 4px 10px rgba(0,0,0,.35); cursor:pointer;
@@ -135,7 +135,7 @@ const CSS = `
 .ccn-ball.caught { animation:none; box-shadow:0 0 0 6px rgba(244,197,66,.4),0 4px 10px rgba(0,0,0,.35); }
 @keyframes ccnBob { 0%,100%{transform:translate(-50%,0);} 50%{transform:translate(-50%,-6px);} }
 .ccn-tile {
-  position:absolute; top:-48px; width:56px; height:38px; border-radius:10px; z-index:9;
+  position:absolute; top:-48px; width:56px; height:44px; border-radius:10px; z-index:9;
   background:linear-gradient(180deg,#FFF3D0,#F4C542); border:3px solid var(--gold-deep);
   display:flex; align-items:center; justify-content:center; font-weight:700; color:#5a4408;
   font-size:14px; box-shadow:0 4px 0 rgba(0,0,0,.25); cursor:grab; touch-action:none;
@@ -193,7 +193,7 @@ export default {
       if (isSub && col.borrowedFrom) {
         r.a.innerHTML = `<span class="ccn-old">${col.a + 1}</span><span class="ccn-new">${col.a}</span>`;
       } else if (isSub && col.borrowedInto) {
-        r.a.innerHTML = `<span class="ccn-carrymk">¹</span>${col.a}`;
+        r.a.innerHTML = `<span class="ccn-carrymk">¹</span>${col.a - 10}`;
       } else {
         r.a.textContent = String(col.a);
       }
@@ -231,7 +231,7 @@ export default {
 
     /* ---------- layout ---------- */
     function layout() {
-      if (ballFlightCancel) { ballFlightCancel(); ballFlightCancel = null; if (state.ball) state.ball.caught = false; }
+      if (ballFlightCancel) { ballFlightCancel(); ballFlightCancel = null; if (state.ball) { state.ball.caught = false; paint(); refreshMsg(); } }
       if (tileTweenCancel) { tileTweenCancel(); tileTweenCancel = null; }
       if (tileDrag && tileDrag.dragging()) tileDrag.abort();
       const nCols = mission.heads.length + 1;
@@ -259,7 +259,7 @@ export default {
       afterEngineChange();
     }
     function doDropBall(idx) {
-      if (!ballEl || !state.ball) return;
+      if (!ballEl || !state.ball || ballFlightCancel) return;
       const myGen = genToken; const st = state; const captured = ballEl;
       const fromX = colCenterX(state.ball.fromIdx); const toX = colCenterX(idx);
       ballFlightCancel = tween((x) => { captured.style.left = x + 'px'; }, fromX, toX, 300, () => {
@@ -335,11 +335,12 @@ export default {
     }
     function showBorrowBubble() {
       const col = state.cols[state.activeIdx]; const myGen = genToken;
+      const a = col.a; const b = col.b;
       later(() => {
         if (myGen !== genToken) return;
         bubble(stage, {
           title: "BORROWIN' BARRY TIME! 🦵",
-          text: `<b>${col.a}</b> take away <b>${col.b}</b> won't work — ${col.a} is too small! Borrowin' Barry's favourite trick: drag a <b>TEN</b> from the throne next door — carrying, running in reverse.`,
+          text: `<b>${a}</b> take away <b>${b}</b> won't work — ${a} is too small! Borrowin' Barry's favourite trick: drag a <b>TEN</b> from the throne next door — carrying, running in reverse.`,
           img: BARRY_IMG,
         });
       }, 260);

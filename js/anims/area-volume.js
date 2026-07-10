@@ -176,6 +176,7 @@ export default {
     host.append(ruleCard);
 
     let mi = 0;
+    let gen = 0; // bumped on every start() so late-firing later() win callbacks from a mission the child has since left/restarted can no-op
     let mission = null;
     let cols = 0; let rows = 0; let cellPx = 48;
     let filled = new Set();
@@ -210,7 +211,13 @@ export default {
     function buildGrid(preFilled) {
       gridHost.innerHTML = '';
       tileEls = [];
-      filled = preFilled ? new Set(Array.from({ length: cols * rows }, (_, i) => i)) : new Set();
+      if (preFilled) {
+        filled = new Set(Array.from({ length: cols * rows }, (_, i) => i));
+      }
+      // else: leave `filled` as-is — it already holds either the fresh empty
+      // Set start() seeded for a brand-new area mission, or the in-progress
+      // tiles from before a resize/relayout, so a rotate mid-sweep never
+      // wipes the child's progress.
       cellPx = computeCellPx();
       gridHost.style.width = (cols * cellPx) + 'px';
       gridHost.style.height = (rows * cellPx) + 'px';
@@ -247,7 +254,7 @@ export default {
         t.classList.add('filled', 'pop');
         sfx.pop();
         updateAreaBadge();
-        if (filled.size === cols * rows) later(winArea, 160);
+        if (filled.size === cols * rows) { const g = gen; later(() => { if (g === gen) winArea(); }, 160); }
       }
       hitEl.addEventListener('pointerdown', (e) => {
         if (!mission || mission.mode !== 'edge' || tool !== 'tile' || finished) return;
@@ -320,6 +327,7 @@ export default {
       gridHost.append(edgeSvg);
       walkerEl = el('div', 'cts-walker', '👣');
       edgeHitEl = el('div', 'cts-edgehit');
+      edgeHitEl.style.pointerEvents = tool === 'edge' ? '' : 'none';
       gridHost.append(walkerEl, edgeHitEl);
       positionWalker();
       const strip = el('div', 'cts-strip');
@@ -373,7 +381,7 @@ export default {
       Scm = next;
       positionWalker();
       renderEdgeProgress();
-      if (Scm >= total - 1e-9 && !finished) later(winEdge, 160);
+      if (Scm >= total - 1e-9 && !finished) { const g = gen; later(() => { if (g === gen) winEdge(); }, 160); }
     }
 
     /* ---------- mode switching ---------- */
@@ -381,6 +389,7 @@ export default {
       if (tool === t) return;
       tool = t;
       toolrow.querySelectorAll('.cts-toolbtn').forEach((b) => b.classList.toggle('active', b.dataset.tool === t));
+      if (edgeHitEl) edgeHitEl.style.pointerEvents = t === 'edge' ? '' : 'none';
     }
 
     function layoutTools() {
@@ -427,9 +436,11 @@ export default {
 
     function start(i) {
       mi = i;
+      gen += 1;
       mission = MISSIONS[i];
       cols = mission.cols; rows = mission.rows;
       layers = 0; Scm = 0; tool = 'tile'; finished = false; attempts = 0;
+      filled = new Set(); // fresh progress for this mission (area mode fills it as the child sweeps)
       winBox.innerHTML = '';
       paintChips();
       q.textContent = mission.q;
@@ -464,7 +475,7 @@ export default {
       sparkleBurst(stage, r.left - sr.left + r.width / 2, r.top - sr.top + r.height / 2);
       paintChips();
       const total = cols * rows;
-      showWin(`${cols} × ${rows} = <b>${total} cm²</b>`, `Every tile counted — that’s ${cols} rows of ${rows}, or ${rows} rows of ${cols}. Same tiles, same answer either way.`);
+      showWin(`${cols} × ${rows} = <b>${total} cm²</b>`, `Every tile counted — that’s ${rows} rows of ${cols}, or seen the other way, ${cols} columns of ${rows}. Same tiles, same answer either way.`);
     }
     function winVolume() {
       if (finished || !alive) return;
@@ -504,6 +515,7 @@ export default {
     stackUp.addEventListener('click', () => { if (!mission || mission.mode !== 'volume' || finished) return; sfx.ui(); setLayers(layers + 1); });
     stackDown.addEventListener('click', () => { if (!mission || mission.mode !== 'volume' || finished) return; sfx.ui(); setLayers(layers - 1); });
     reset.addEventListener('click', () => {
+      if (mission.mode === 'edge' && edgeDragCtrl && edgeDragCtrl.dragging()) return;
       sfx.ui();
       if (mission.mode === 'edge' && !finished) {
         // animate the walker back to the start; no need to rebuild the grid

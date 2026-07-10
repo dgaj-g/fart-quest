@@ -85,7 +85,7 @@ const CSS = `
 .cch-word { padding: 2px 3px; }
 .cch-gap {
   position: relative; display:inline-flex; align-items:center; justify-content:center;
-  width: 22px; height: 34px; margin: 0 -3px; cursor: pointer; border: none; background: transparent;
+  width: 44px; height: 44px; margin: 0 -11px; cursor: pointer; border: none; background: transparent;
   border-radius: 8px; vertical-align: middle; padding: 0;
 }
 .cch-gap:active { background: rgba(51,38,29,.08); }
@@ -172,6 +172,7 @@ export default {
     let attempts = 0;
     let shownBubble = false;
     let colonBoard = null; // active drag rig for m4, so resize can abandon it
+    let completed = false; // guards the closing trophy bubble + ctx.complete() from re-firing on replay
 
     function paintChips() {
       chiprow.innerHTML = '';
@@ -374,7 +375,6 @@ export default {
               bubble(stage, {
                 title: 'NOT FINISHED YET! 🚧',
                 text: '"Bring" bounces the Colon Twins right off — it isn\'t a complete sentence on its own (bring WHAT?). A colon can only stand at the door of a sentence that already makes sense by itself.',
-                img: CHAM_IMG,
               });
             } else {
               toast(stage, '"Bring" alone isn\'t a finished sentence — the Twins won\'t stick there!');
@@ -419,7 +419,8 @@ export default {
         nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
         nb.addEventListener('click', () => { sfx.ui(); start(nextIdx); });
         w.append(nb);
-      } else {
+      } else if (!completed) {
+        completed = true;
         later(() => {
           if (!alive) return;
           bubble(stage, {

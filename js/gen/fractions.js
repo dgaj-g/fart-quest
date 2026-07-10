@@ -12,7 +12,6 @@ const RULE = 'The bottom number says how many equal pieces. The top says how man
 const EQUIV_RULE = 'To make an equivalent fraction, multiply (or divide) the TOP and the BOTTOM by the SAME number.';
 const OFAMOUNT_RULE = 'Fraction of an amount: divide by the BOTTOM, then multiply by the TOP.';
 const EQUALPIECES_RULE = 'Every piece MUST be equal size — a grid with wonky pieces is never a real fraction grid.';
-const COMPARE_RULE = 'When two fractions share the same bottom number, just compare the tops — the bigger top wins.';
 
 function fmt(n) {
   return Math.round(n).toLocaleString('en-GB');
@@ -315,84 +314,126 @@ function t2FractionOfAmount(rng) {
   };
 }
 
-function t2ComparePair(rng) {
-  const den = rngInt(rng, 3, 9);
-  let num1 = rngInt(rng, 1, den - 1), num2;
-  do { num2 = rngInt(rng, 1, den - 1); } while (num2 === num1);
-  const bigger = Math.max(num1, num2), smaller = Math.min(num1, num2);
+// Simplify a fraction to its lowest terms (route (a): bullet 25 "vulgar fractions,
+// equivalence" — simplifying is dividing top and bottom by the same number, the reverse
+// of the scaling-up taught in EQUIV_RULE / the "Same Size, Different Disguise" lesson).
+function t2SimplifyFraction(rng) {
+  const [num, den] = pick(rng, EQUIV_BASE_WIDE);
+  const k = rngInt(rng, 2, 6);
+  const shownNum = num * k, shownDen = den * k;
 
-  const correct = { text: `${bigger}/${den}`, misconception: null };
+  const correct = { text: `${num}/${den}`, misconception: null };
   const distractors = [
-    { text: `${smaller}/${den}`, misconception: 'picked-smaller' },
-    { text: 'They are equal', misconception: 'equal-guess' },
-    { text: `${den}/${bigger}`, misconception: 'top-bottom-swap' },
+    { text: `${shownNum}/${shownDen}`, misconception: 'not-simplified' },
+    { text: `${num}/${shownDen}`, misconception: 'only-bottom-simplified' },
+    { text: `${shownNum}/${den}`, misconception: 'only-top-simplified' },
   ];
-  const biggerVal = bigger / den;
   const padFn = (r) => {
-    const altDen = den + rngInt(r, 1, 4);
-    const altNum = rngInt(r, 1, altDen - 1);
-    if (Math.abs(altNum / altDen - biggerVal) < 1e-9) return null; // avoid a second "correct" value
-    return { text: `${altNum}/${altDen}`, misconception: 'near-miss-pad' };
+    const delta = pick(r, [1, -1]);
+    const t = num + delta;
+    if (t <= 0 || t >= den) return null;
+    return { text: `${t}/${den}`, misconception: 'near-miss-pad' };
   };
-  const options = makeOptions(correct, shuffle(rng, distractors), 5, padFn, rng);
+  const options = makeOptions(correct, shuffle(rng, distractors), 4, padFn, rng);
 
   const whyWrong = {};
   for (const o of options) {
-    if (o.misconception === 'picked-smaller') whyWrong[o.text] = `That top number (${smaller}) is smaller than ${bigger} — same bottom number, so the bigger top wins.`;
-    else if (o.misconception === 'equal-guess') whyWrong[o.text] = `The tops are different (${num1} and ${num2}), so the fractions can’t be equal — compare the tops.`;
-    else if (o.misconception === 'top-bottom-swap') whyWrong[o.text] = 'That’s one of the fractions turned upside down — not a fair comparison.';
-    else if (o.misconception === 'near-miss-pad') whyWrong[o.text] = `Check that fraction’s actual size against ${bigger}/${den} — it isn’t the bigger one.`;
+    if (o.misconception === 'not-simplified') whyWrong[o.text] = `That’s the fraction BEFORE simplifying — keep dividing top and bottom by the same number until you can’t any further.`;
+    else if (o.misconception === 'only-bottom-simplified') whyWrong[o.text] = `Only the bottom was divided by ${k} — the top must be divided by the SAME number too.`;
+    else if (o.misconception === 'only-top-simplified') whyWrong[o.text] = `Only the top was divided by ${k} — the bottom needs the SAME treatment.`;
+    else if (o.misconception === 'near-miss-pad') whyWrong[o.text] = `Check the division again — that isn’t what ${shownNum}/${shownDen} simplifies to.`;
   }
 
   return {
-    templateId: 'frac-t2-compare-pair',
-    stem: `Which is bigger: <b>${num1}/${den}</b> or <b>${num2}/${den}</b>?`,
+    templateId: 'frac-t2-simplify-fraction',
+    stem: `Simplify <b>${shownNum}/${shownDen}</b> to its lowest terms.`,
     options,
     correctIndex: 0,
     hintSteps: [
-      'These fractions have the SAME bottom number, so just compare the TOPS.',
-      `Which top number is bigger, ${num1} or ${num2}?`,
+      'Find a number that divides evenly into BOTH the top and the bottom.',
+      `Divide top and bottom by ${k} — what do you get?`,
     ],
     explain: {
-      rule: COMPARE_RULE,
-      worked: `${num1}/${den} and ${num2}/${den} share the same bottom (${den}), so compare the tops: ${bigger} is bigger than ${smaller}, so ${bigger}/${den} is the bigger fraction.`,
+      rule: EQUIV_RULE,
+      worked: `${shownNum}/${shownDen} ÷${k} on the top and ÷${k} on the bottom gives ${num}/${den} — its simplest form.`,
       whyWrong,
     },
   };
 }
 
-function t2LargestOfFour(rng) {
-  const den = rngInt(rng, 6, 10);
-  const pool = shuffle(rng, Array.from({ length: den - 1 }, (_, i) => i + 1));
-  const numerators = pool.slice(0, 5);
-  const correctNum = Math.max(...numerators);
+// Fraction-from-a-picture, simplified (bullet 25, direct citation PP1 Q32 "fraction from a
+// picture, simplify"): the shaded/total count shares a common factor, so the raw read-off
+// must then be simplified.
+function t2PictureFractionSimplify(rng) {
+  const shapes = [
+    { rows: 2, cols: 4 }, // total 8
+    { rows: 2, cols: 6 }, // total 12
+    { rows: 3, cols: 4 }, // total 12
+    { rows: 2, cols: 5 }, // total 10
+  ];
+  const { rows, cols } = pick(rng, shapes);
+  const total = rows * cols;
 
-  const options = numerators.map((n) => ({
-    text: `${n}/${den}`,
-    misconception: n === correctNum ? null : 'not-largest',
-  }));
-  const correctIndex = options.findIndex((o) => o.misconception === null);
-  // move correct to front for the standard pre-shuffle convention
-  const [correctOpt] = options.splice(correctIndex, 1);
-  options.unshift(correctOpt);
+  const simplifiableCounts = [];
+  for (let s = 1; s < total; s++) {
+    if (gcd(s, total) > 1) simplifiableCounts.push(s);
+  }
+  const shadedCount = pick(rng, simplifiableCounts);
+
+  const allCells = Array.from({ length: total }, (_, i) => i);
+  const order = shuffle(rng, allCells);
+  const shaded = [];
+  const isAdjacent = (a, b) => {
+    const ra = Math.floor(a / cols), ca = a % cols;
+    const rb = Math.floor(b / cols), cb = b % cols;
+    return (ra === rb && Math.abs(ca - cb) === 1) || (ca === cb && Math.abs(ra - rb) === 1);
+  };
+  for (const cell of order) {
+    if (shaded.length >= shadedCount) break;
+    if (shaded.some((s) => isAdjacent(s, cell))) continue;
+    shaded.push(cell);
+  }
+  const actualShaded = shaded.length;
+  const [simpNum, simpDen] = simplify(actualShaded, total);
+
+  const correct = { text: `${simpNum}/${simpDen}`, misconception: null };
+  const unshaded = total - actualShaded;
+  const distractors = [
+    { text: `${actualShaded}/${total}`, misconception: 'not-simplified' },
+    { text: `${unshaded}/${total}`, misconception: 'shaded-unshaded-swap' },
+    { text: `${simpDen}/${simpNum}`, misconception: 'top-bottom-swap' },
+  ];
+
+  const padFn = (r) => {
+    const delta = pick(r, [1, -1, 2, -2]);
+    const altShaded = actualShaded + delta;
+    if (altShaded <= 0 || altShaded >= total) return null;
+    const [aNum, aDen] = simplify(altShaded, total);
+    return { text: `${aNum}/${aDen}`, misconception: 'near-miss-count' };
+  };
+  const options = makeOptions(correct, shuffle(rng, distractors), 4, padFn, rng);
 
   const whyWrong = {};
   for (const o of options) {
-    if (o.misconception === 'not-largest') whyWrong[o.text] = `That top number is smaller than ${correctNum} — same bottom number, so it isn’t the largest.`;
+    if (o.misconception === 'not-simplified') whyWrong[o.text] = `That’s the correct count, but not yet SIMPLIFIED — divide top and bottom by the same number until you can’t any further.`;
+    else if (o.misconception === 'shaded-unshaded-swap') whyWrong[o.text] = 'That’s the pieces left UNshaded, not the ones shaded — count the shaded pieces for your top number.';
+    else if (o.misconception === 'top-bottom-swap') whyWrong[o.text] = 'That’s the fraction upside down! The bottom is always the total pieces, the top is always how many you take.';
+    else if (o.misconception === 'near-miss-count') whyWrong[o.text] = 'Recount carefully, then check the simplifying division again.';
   }
 
   return {
-    templateId: 'frac-t2-largest-of-four',
-    stem: 'Which of these fractions is the LARGEST?',
+    templateId: 'frac-t2-picture-simplify',
+    stem: 'What fraction of this grid is shaded? Give your answer in its SIMPLEST form.',
+    visual: { kind: 'polygrid', rows, cols, shaded },
     options,
     correctIndex: 0,
     hintSteps: [
-      'All these fractions share the same bottom number.',
-      'So just compare the TOP numbers — the biggest top wins.',
+      `Count the shaded pieces (${actualShaded}) and the total pieces (${total}) first.`,
+      'Now divide top and bottom by the same number until the fraction can’t be simplified any further.',
     ],
     explain: {
-      rule: COMPARE_RULE,
-      worked: `All the fractions share the bottom number ${den}, so the one with the biggest top number wins: ${correctNum}/${den}.`,
+      rule: EQUIV_RULE,
+      worked: `${actualShaded} shaded out of ${total} total gives ${actualShaded}/${total}, which simplifies to ${simpNum}/${simpDen}.`,
       whyWrong,
     },
   };
@@ -490,26 +531,30 @@ function t3EquivalentMissingNumber(rng) {
   };
 }
 
-function t3ReverseFractionOfAmount(rng) {
-  const den = rngInt(rng, 3, 10);
-  const num = rngInt(rng, 1, den - 1);
-  const kMax = Math.max(2, Math.floor(150 / den));
-  const k = rngInt(rng, 2, kMax);
-  const value = num * k;
-  const whole = den * k;
+// Simplify to lowest terms, num-entry variant (harder tier: bigger multiplier, and the
+// student must type just the missing top or bottom number — bullet 25 route (a) direct,
+// same EQUIV_RULE as t2SimplifyFraction/t2PictureFractionSimplify above).
+function t3SimplifyMissingNumber(rng) {
+  const [num, den] = pick(rng, EQUIV_BASE_WIDE);
+  const k = rngInt(rng, 3, 9);
+  const shownNum = num * k, shownDen = den * k;
+  const askTop = rng() < 0.5;
+  const answer = askTop ? num : den;
 
   return {
-    templateId: 'frac-t3-reverse-fraction-of-amount',
-    stem: `<b>${num}/${den}</b> of a number is <b>${fmt(value)}</b>. What is the number?`,
+    templateId: 'frac-t3-simplify-missing-number',
+    stem: askTop
+      ? `Simplify <b>${shownNum}/${shownDen}</b> to its lowest terms. What is the new TOP number?`
+      : `Simplify <b>${shownNum}/${shownDen}</b> to its lowest terms. What is the new BOTTOM number?`,
     format: 'num',
-    accept: [String(whole), fmt(whole)],
+    accept: [String(answer)],
     hintSteps: [
-      `${fmt(value)} is ${num} equal parts (out of ${den}). Find the value of ONE part first: ${fmt(value)} ÷ ${num}.`,
-      `Now multiply that ONE-part value by the total number of parts, ${den}.`,
+      `Find the number that ${shownNum} and ${shownDen} were both divided by (their common factor is ${k}).`,
+      askTop ? `Divide the top (${shownNum}) by ${k}.` : `Divide the bottom (${shownDen}) by ${k}.`,
     ],
     explain: {
-      rule: OFAMOUNT_RULE,
-      worked: `One part = ${fmt(value)} ÷ ${num} = ${k}. The whole number = ${k} × ${den} = ${fmt(whole)}.`,
+      rule: EQUIV_RULE,
+      worked: `${shownNum}/${shownDen} ÷${k} on the top and ÷${k} on the bottom gives ${num}/${den} — its simplest form, so the new ${askTop ? 'top' : 'bottom'} number is ${answer}.`,
       whyWrong: {},
     },
   };
@@ -518,8 +563,8 @@ function t3ReverseFractionOfAmount(rng) {
 // -------- dispatch --------
 
 const T1 = [t1ShadedGridPolygrid, t1EquivalentMatch, t1EquivalentMissingSmall, t1ValidFractionGridConcept];
-const T2 = [t2FractionOfAmount, t2ComparePair, t2LargestOfFour, t2NotEquivalent];
-const T3 = [t3FractionOfAmountHarder, t3EquivalentMissingNumber, t3ReverseFractionOfAmount];
+const T2 = [t2FractionOfAmount, t2SimplifyFraction, t2PictureFractionSimplify, t2NotEquivalent];
+const T3 = [t3FractionOfAmountHarder, t3EquivalentMissingNumber, t3SimplifyMissingNumber];
 
 export function generate(tier, rng) {
   let pool;

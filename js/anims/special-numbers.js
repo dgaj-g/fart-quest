@@ -24,16 +24,29 @@ function primeInfo(n) {
 
 function pairsLabel(pairs) { return pairs.map(([r, c]) => `${r}×${c}`).join(', '); }
 
-function workedText(info) {
-  const { n, pairs, isPrime, square } = info;
+// Worked text for the win box — MUST be built from what the child actually
+// discovered on screen (the `discovered`/`shownFlags` state), never from the
+// ground-truth `info.pairs`/`info.square`, or it can contradict the visible
+// "REAL RECTANGLES FOUND" count / assert a square bonus that was never shown.
+function workedText(info, discovered, shownFlags) {
+  const { n, isPrime } = info;
   if (n === 1) return '1 has only <b>ONE</b> factor — itself. A prime needs exactly <b>TWO</b>, so 1 is NEVER prime.';
   if (isPrime) {
     let t = `${n} only ever forms the queue: <b>1×${n}</b>. Exactly two factors — <b>${n} IS prime.</b>`;
     if (n === 2) t += ' And 2 is the ONLY even prime there will ever be.';
     return t;
   }
-  let t = `${n} forms <b>${pairsLabel(pairs)}</b> — ${pairs.length} rectangle${pairs.length === 1 ? '' : 's'} in total, so <b>${n} is NOT prime.</b>`;
-  if (square) t += ` And <b>${square[0]}×${square[1]}</b> is a perfect square — bonus flag! 🟨`;
+  const realPairs = [...discovered]
+    .map((k) => k.split(',').map(Number))
+    .filter(([r]) => r > 1)
+    .sort((a, b) => a[0] - b[0]);
+  let t = realPairs.length > 0
+    ? `${n} forms <b>${pairsLabel(realPairs)}</b> — ${realPairs.length} rectangle${realPairs.length === 1 ? '' : 's'} found, so <b>${n} is NOT prime.</b>`
+    : `${n} is <b>NOT prime</b> — it has more factors than just 1 and itself.`;
+  if (shownFlags.has('sq')) {
+    const sq = realPairs.find(([r, c]) => r === c);
+    if (sq) t += ` And <b>${sq[0]}×${sq[1]}</b> is a perfect square — bonus flag! 🟨`;
+  }
   return t;
 }
 
@@ -275,9 +288,10 @@ export default {
       sfx.sparkle();
       if (isSquare && !shownFlags.has('sq')) {
         shownFlags.add('sq');
+        const nn = info.n; // capture now — info is reassigned on probe switch, and this fires after a delay
         later(() => bubble(stage, {
           title: 'SQUARE NUMBER! 🟨',
-          text: `<b>${r}×${c}</b> — every side the same! ${info.n} is a <b>perfect square</b>. That doesn't save it though: more than two factors still means <b>NOT prime</b>.`,
+          text: `<b>${r}×${c}</b> — every side the same! ${nn} is a <b>perfect square</b>. That doesn't save it though: more than two factors still means <b>NOT prime</b>.`,
           img: SLIME_IMG,
         }), 260);
       }
@@ -295,6 +309,8 @@ export default {
     }
 
     function buildProbe(n) {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
       info = primeInfo(n);
       explored = n === 1;
       discovered = new Set();
@@ -375,7 +391,7 @@ export default {
         paintChips();
         const w = el('div', 'prp-win',
           `<div class="wp">${truePrime ? 'PRIME! 🎉' : 'NOT PRIME! 🎉'} — Prime Slime agrees.</div>`
-          + `<div class="wk">${workedText(info)}</div>`);
+          + `<div class="wk">${workedText(info, discovered, shownFlags)}</div>`);
         winBox.innerHTML = '';
         winBox.append(w);
         if (truePrime && info.n === 2) {

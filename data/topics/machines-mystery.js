@@ -126,7 +126,7 @@ export default {
       title: 'Letters are just numbers wearing disguises',
       html: `<p>Sometimes the mystery IN number gets dressed up as a <b>letter</b> instead of a blank space. It’s still just a machine wearing a mask — the exact same rules apply!</p>
 <p><b>a + 6 = 24</b> is a one-step machine in disguise: some number (<b>a</b>) had 6 added, and out popped 24. Pull the Reverse Lever: undo + 6 with − 6. So <b>a</b> = 24 − 6 = <b>18</b>.</p>
-<p>The trickiest papers hide <b>TWO</b> machines in one question: <b>a + 12 = 27</b> and <b>b ÷ 3 = 9</b>. Don’t panic — solve each machine completely on its own first (a = 15, b = 27), THEN answer what’s actually asked, like a × b = 405.</p>`,
+<p>It works no matter which operation the machine used. <b>b × 4 = 32</b> is still just a one-step machine wearing a mask — pull the Reverse Lever and undo × 4 with ÷ 4: <b>b</b> = 32 ÷ 4 = <b>8</b>.</p>`,
     },
     {
       type: 'try',
@@ -163,7 +163,7 @@ export default {
     'A two-step machine reverses in the OPPOSITE ORDER too — undo the LAST step first, then the first step.',
     'Letters are just numbers in disguise. “a + 12 = 27” is a one-step machine — solve it exactly like any other reverse machine: a = 27 − 12.',
     'Never mistake the machine’s own number for the letter’s value — in “a + 12 = 27”, the answer is 15, NOT 12.',
-    'Two machines in one question? Solve each one completely on its own first, THEN combine them the way the question asks.',
+    'A three-step machine reverses in the OPPOSITE ORDER too — undo the LAST step first, then the middle step, then the first step.',
     'Always check your answer by running it back through the ORIGINAL forward machine — if it doesn’t produce the OUT you were given, undo it again.',
     'Watch the wording: “multiplies by” and “divides by” undo each other; “adds” and “takes away” undo each other.',
   ],

@@ -172,7 +172,7 @@ export default {
     },
     {
       type: 'talk',
-      text: 'Two last things, my fragrant friend. First: when fractions share the same bottom number, just compare the tops — 3 fifths beats 2 fifths, easy. Second: one day, over at the FDP Triangle, Percy Percent will try to trick you with a fraction OF THE REMAINDER — a nasty trap for another lesson. For now, always work from the WHOLE amount you started with, and you’ll never go wrong.',
+      text: 'Two last things, my fragrant friend. First: if the top and bottom of a fraction share a common factor, you can DIVIDE both by it to simplify — 4 tenths and 2 fifths are secretly the exact same fraction, just tidied up. Second: one day, over at the FDP Triangle, Percy Percent will try to trick you with a fraction OF THE REMAINDER — a nasty trap for another lesson. For now, always work from the WHOLE amount you started with, and you’ll never go wrong.',
     },
     {
       type: 'try',
@@ -213,6 +213,6 @@ export default {
     'Fraction OF an amount: divide by the bottom first, then multiply by the top. ¾ of 24 → 24 ÷ 4 = 6, then 6 × 3 = 18.',
     'Counting a shaded grid? Count the shaded pieces for the TOP and the TOTAL pieces for the BOTTOM — never the unshaded ones by mistake.',
     'Watch for the top/bottom swap trap — 2/5 is not the same as 5/2.',
-    'When two fractions share the same bottom number, just compare the tops — the bigger top wins.',
+    'If the top and bottom share a common factor, divide both by it to simplify — 4/10 simplifies to 2/5, exactly the same size.',
   ],
 };

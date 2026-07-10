@@ -263,6 +263,7 @@ export default {
     let predictedIdx = null;
     let attempts = 0;
     let introShown = false;
+    let locked = false;
     const doneSet = new Set();
     const timers = new Set();
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); };
@@ -362,7 +363,7 @@ export default {
       later(() => b.remove(), 900);
     }
     function setControlsEnabled(on) {
-      [nl, nr, lock].forEach((b) => { b.classList.toggle('wsc-inert', !on); b.disabled = !on; });
+      [nl, nr, lock, reset].forEach((b) => { b.classList.toggle('wsc-inert', !on); b.disabled = !on; });
     }
 
     function paintChips() {
@@ -396,8 +397,9 @@ export default {
 
     function buildCompass(startDeg) {
       if (compass) { compass.destroy(); compass = null; }
+      compassHost.querySelectorAll('.wsc-badge').forEach((b) => b.remove());
       compass = makeCompass(compassHost, {
-        enabled: () => mi === MISSIONS.length || predictedIdx != null,
+        enabled: () => !locked && (mi === MISSIONS.length || predictedIdx != null),
         onChip(idx, rel) { setReadout(idx); setCounter(rel); },
         onBadge(mag, dir) { popBadge(mag, dir); },
       });
@@ -405,7 +407,7 @@ export default {
     }
 
     function start(i) {
-      mi = i; attempts = 0; predictedIdx = null;
+      mi = i; attempts = 0; predictedIdx = null; locked = false;
       winBox.innerHTML = '';
       paintChips();
       const sandbox = i === MISSIONS.length;
@@ -453,6 +455,8 @@ export default {
 
     function win(finalIdx) {
       doneSet.add(mission.id);
+      locked = true;
+      setControlsEnabled(false);
       sfx.win(); party(stage);
       sparkleBurst(stage, (stage.clientWidth || 300) / 2, compassHost.offsetTop + compassHost.offsetHeight / 2);
       paintChips();
@@ -473,10 +477,11 @@ export default {
       if (doneSet.size === MISSIONS.length) ctx.complete();
       if (mission.mode === 'reverse') {
         const m = mission;
+        const c = compass;
         later(() => {
-          if (!alive || !compass) return;
-          compass.programSpin(m.dir * m.steps * 90, () => {
-            if (!alive) return;
+          if (!alive || compass !== c) return;
+          c.programSpin(m.dir * m.steps * 90, () => {
+            if (!alive || compass !== c) return;
             toast(stage, `And forward from there — ${m.turnLabel} — she lands on ${FULLNAME[m.endIdx]}! Just like the question said.`);
           });
         }, 650);

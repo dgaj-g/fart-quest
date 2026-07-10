@@ -190,7 +190,7 @@ export default {
     let alive = true;
     const doneSet = new Set();
     const timers = new Set();
-    const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); };
+    const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); return id; };
 
     const stage = el('div', 'anim-stage');
     const chiprow = el('div', 'anim-chiprow');
@@ -229,6 +229,10 @@ export default {
     // during an in-flight tween/timer can never finish the WRONG mission.
     function finishMission(missionObj, workedHtml) {
       doneSet.add(missionObj.id);
+      // total-completion must be recognised even if the view has already moved on —
+      // check it BEFORE the quiet early-return below, or a mission finishing while the
+      // child has switched away can permanently skip ctx.complete() for the session
+      if (doneSet.size === MISSIONS.length) ctx.complete();
       if (missionObj !== mission) { paintChips(); return; } // scene moved on — record it quietly, don't disturb the view
       missionDone = true;
       sfx.win(); party(stage); paintChips();
@@ -237,7 +241,6 @@ export default {
         `<div class="bw-title">${WIN_PHRASES[Math.floor(Math.random() * WIN_PHRASES.length)]}</div>`
         + `<div class="bw-worked">${workedHtml}</div>`);
       winBox.append(w);
-      if (doneSet.size === MISSIONS.length) ctx.complete();
       const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));
       const btn = el('button', 'btn btn-gold bw-btn', nextIdx !== -1 ? 'NEXT ONE ➡' : 'REVISIT A MISSION 🔁');
       btn.addEventListener('click', () => { sfx.ui(); start(nextIdx !== -1 ? nextIdx : mi); });
@@ -281,7 +284,10 @@ export default {
       function updateCrossing() {
         if (hotCell) hotCell.classList.remove('bft-hot');
         hotCell = cellEls[colIdx][rowIdx];
-        hotCell.classList.add('bft-hot');
+        // don't gold-highlight a cell that's already greyed-out as GONE — the two
+        // treatments fight (scaled-up gold vs faded strikethrough) and falsely flag
+        // an already-departed bus as "fingers meet here, this looks right"
+        if (!hotCell.classList.contains('bft-grey')) hotCell.classList.add('bft-hot');
         readout.innerHTML = `<div class="bft-rl">FINGERS MEET AT</div>`
           + `<div class="bft-rn">${STOPS[rowIdx]} × ${BUSES[colIdx].name}<br><b>${BUSES[colIdx].times[rowIdx]}</b></div>`;
       }
@@ -415,6 +421,11 @@ export default {
       let phase = 'start'; // 'start' -> 'atElbow' -> 'done'
       let flying = false;
       let cancelTween = null;
+      let sceneAlive = true; // flips false on destroy(); guards later()-deferred UI so a
+      // mission-switch can't pop a bubble/animation over a DIFFERENT mission's view
+      let trapTimer = null; // the trap-path's pending later() id, tracked so destroy() can
+      // actually cancel it (later()'s own `alive` guard only covers full unmount, not a
+      // same-session mission switch — the scene stays mounted, stage stays connected)
 
       function totalText() {
         if (phase === 'start') return 'Tap the HOUR marker to start counting the journey…';
@@ -488,18 +499,19 @@ export default {
         // phase === 'start': skip straight to the end — allowed, but it wobbles and resets
         flying = true; refreshMarks(); sfx.nudge();
         cancelTween = tween((f) => setToken(f, true), 0, 1, 380, () => {
-          if (!alive) return;
+          if (!alive || !sceneAlive) return;
           cancelTween = null;
           token.classList.add('bft-wobble');
-          later(() => {
-            if (!alive) return;
+          trapTimer = later(() => {
+            trapTimer = null;
+            if (!alive || !sceneAlive) return;
             token.classList.remove('bft-wobble');
             bubble(stage, {
               title: 'ONE BIG GUESS! 🚌',
               text: 'That skips straight past the hour! Clock times don\'t subtract cleanly — always count UP to the hour FIRST, then keep going. Tap the HOUR marker, then the Terminus flag.',
               img: BOG_IMG,
             }).then(() => {
-              if (!alive) return;
+              if (!alive || !sceneAlive) return;
               cancelTween = tween((f) => setToken(f, true), 1, 0, 380, () => {
                 cancelTween = null; flying = false; refreshMarks();
               });
@@ -513,7 +525,11 @@ export default {
       return {
         type: 'journey',
         layout,
-        destroy() { if (cancelTween) cancelTween(); },
+        destroy() {
+          sceneAlive = false;
+          if (cancelTween) cancelTween();
+          if (trapTimer !== null) { clearTimeout(trapTimer); timers.delete(trapTimer); trapTimer = null; }
+        },
       };
     }
 

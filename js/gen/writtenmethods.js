@@ -455,39 +455,6 @@ function t3ContextRemainderUp(rng) {
   };
 }
 
-function t3ContextRemainderDown(rng) {
-  // Complete items: round DOWN.
-  const d = rngInt(rng, 4, 9);
-  const k = rngInt(rng, 15, 60);
-  const r = rngInt(rng, 1, d - 1);
-  const n = d * k + r;
-  const scenes = [
-    { item: 'sweets', group: 'bag', groupPlural: 'bags' },
-    { item: 'stickers', group: 'sheet', groupPlural: 'sheets' },
-    { item: 'players', group: 'full team', groupPlural: 'full teams' },
-    { item: 'eggs', group: 'box', groupPlural: 'boxes' },
-  ];
-  const scene = pick(rng, scenes);
-  const answer = k;
-  const stem = `${fmt(n)} ${scene.item} are shared out into groups of ${d}. How many ${scene.groupPlural} can be made COMPLETE?`;
-
-  return {
-    templateId: 'wm-t3-context-remainder-down',
-    stem,
-    format: 'num',
-    accept: [String(answer), fmt(answer)],
-    hintSteps: [
-      `Divide ${fmt(n)} by ${d} using short division — what’s the quotient and remainder?`,
-      `${fmt(n)} ÷ ${d} = ${k} remainder ${r}. With only ${r} left over, that’s not enough for another COMPLETE ${scene.group} — does it count?`,
-    ],
-    explain: {
-      rule: RULE,
-      worked: `${fmt(n)} ÷ ${d} = ${k} remainder ${r}. With only ${r} left over — not a whole extra ${scene.group} — round DOWN: ${answer} ${scene.groupPlural}.`,
-      whyWrong: {},
-    },
-  };
-}
-
 function t3DecimalDivideWhole(rng) {
   const d = rngInt(rng, 2, 9);
   let k;
@@ -553,7 +520,7 @@ function t3MoneyDivideWhole(rng) {
 
 const T1 = [t1ColumnAdd, t1MixedLengthAdd, t1ColumnSub];
 const T2 = [t2ShortMultiply2Digit, t2ShortMultiply3Digit, t2ShortDivideRemainder];
-const T3 = [t3ContextRemainderUp, t3ContextRemainderDown, t3DecimalDivideWhole, t3MoneyDivideWhole];
+const T3 = [t3ContextRemainderUp, t3DecimalDivideWhole, t3MoneyDivideWhole];
 
 export function generate(tier, rng) {
   let pool;

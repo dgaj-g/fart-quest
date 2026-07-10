@@ -111,6 +111,7 @@ export default {
     injectCss('spelling-rules', CSS);
     let alive = true;
     let mi = 0;
+    let gen = 0; // bumped on every start() so late-firing later() win callbacks from a mission the child has since left/restarted can no-op
     let activeWidget = null;
     let completedCalled = false;
     let ahaShown = false;
@@ -233,7 +234,9 @@ export default {
           tiles[idx].classList.add('rpp-grabbed');
           flyToBin(stage, tiles[idx], bin, letter);
           sfx.pop();
+          const g = gen;
           later(() => {
+            if (g !== gen) return;
             sfx.drop();
             readout.innerHTML = `<span>${mission.target.toUpperCase()}</span>`;
             readout.classList.remove('rpp-pop'); void readout.offsetWidth; readout.classList.add('rpp-pop');
@@ -326,16 +329,18 @@ export default {
         });
       }
       function revealTruth() {
+        const g = gen;
         const yTile = tiles[tiles.length - 1];
         if (mission.correctPredict === 'ies') {
           yTile.classList.add('rpp-flip');
-          later(() => { yTile.textContent = 'IES'; yTile.classList.add('rpp-hiflip'); }, 175);
+          later(() => { if (g !== gen) return; yTile.textContent = 'IES'; yTile.classList.add('rpp-hiflip'); }, 175);
           sfx.pop();
         } else {
           yTile.classList.add('rpp-shield');
           sfx.blip(500);
         }
         later(() => {
+          if (g !== gen) return;
           readout.innerHTML = `<span>${mission.target.toUpperCase()}</span>`;
           readout.classList.remove('rpp-pop'); void readout.offsetWidth; readout.classList.add('rpp-pop');
           sfx.drop();
@@ -392,7 +397,8 @@ export default {
             const chars = opt.toUpperCase().split('');
             slotTiles.forEach((t, i) => { t.classList.remove('rpp-slotph'); t.textContent = chars[i]; t.classList.add('rpp-flyin'); });
             sfx.pop();
-            later(() => { sfx.drop(); finishMission(mission); }, 300);
+            const g = gen;
+            later(() => { if (g !== gen) return; sfx.drop(); finishMission(mission); }, 300);
           } else {
             sfx.nudge();
             c.classList.remove('rpp-wobble'); void c.offsetWidth; c.classList.add('rpp-wobble');
@@ -429,8 +435,9 @@ export default {
             readout.innerHTML = `<span>${chars.join('')}</span>`;
             readout.classList.remove('rpp-pop'); void readout.offsetWidth; readout.classList.add('rpp-pop');
             sfx.thud();
-            later(() => sfx.thud(), 140);
-            later(() => finishMission(mission), 380);
+            const g = gen;
+            later(() => { if (g === gen) sfx.thud(); }, 140);
+            later(() => { if (g !== gen) return; finishMission(mission); }, 380);
           } else {
             sfx.nudge();
             c.classList.remove('rpp-wobble'); void c.offsetWidth; c.classList.add('rpp-wobble');
@@ -446,6 +453,7 @@ export default {
 
     function start(i) {
       mi = i;
+      gen += 1;
       winBox.innerHTML = '';
       if (activeWidget) { activeWidget.destroy(); activeWidget = null; }
       machineHost.innerHTML = '';

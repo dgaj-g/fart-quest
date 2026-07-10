@@ -225,13 +225,13 @@ export default {
     {
       type: 'show',
       title: 'The Law of the Leftovers',
-      html: `<p>Ah, but here’s the ONE question that catches everyone out, my brave nose-soldier. A remainder is just a leftover — but what you <b>DO</b> with it depends entirely on what’s being shared out!</p>
-<div class="law-scroll">🚌 <b>Filling a CONTAINER</b> (minibus, box, shelf)? Round UP — that leftover group still needs one more, even half-empty.<br>🏅 <b>Counting COMPLETE items</b> (whole teams, full bags, entire cakes)? Round DOWN — a leftover can’t be a whole one.</div>
+      html: `<p>Ah, but here’s the ONE question that catches everyone out, my brave nose-soldier. A remainder is just a leftover — but when you’re <b>filling a CONTAINER</b> (minibus, box, shelf), that leftover still needs somewhere to go!</p>
+<div class="law-scroll">🚌 <b>Filling a CONTAINER</b> (minibus, box, shelf)? Round UP — that leftover group still needs one more, even half-empty.</div>
 <div class="estimate-demo">
-  <div class="est-line">50 sweets shared into bags of 8 → 6 remainder 2</div>
-  <div class="est-line"><b>6 FULL bags</b> <span class="est-note">(round DOWN — 2 leftover sweets can’t make a whole 7th bag)</span></div>
+  <div class="est-line">50 sweets need boxes that hold 8 each → 6 remainder 2</div>
+  <div class="est-line"><b>7 boxes</b> <span class="est-note">(round UP — those last 2 sweets still need a box of their own)</span></div>
 </div>
-<p>Same maths, opposite answer. Always ask yourself: <b>does the leftover need a whole extra one, or does it just get left behind?</b></p>`,
+<p>Always ask yourself: <b>does that leftover group still need a container, even though it isn’t full?</b> If yes — round UP.</p>`,
     },
     {
       type: 'try',
@@ -270,7 +270,7 @@ export default {
     'Carrying: if a column adds to 10 or more, write the units digit and carry the ten to the NEXT throne left. Never forget it.',
     'Borrowing: if the top digit is smaller, borrow a ten from the throne next door — that throne now has one less to give.',
     'Short multiplication: multiply EVERY digit, and add any carried amount before you write the next digit down.',
-    'Remainders in context: containers (buses, boxes, shelves) round UP. Complete items (whole teams, full bags) round DOWN. Read the question to see which one it wants.',
+    'Remainders in context: containers (buses, boxes, shelves) round UP — that last leftover group still needs one, even half-full.',
     'Dividing decimals or money by a whole number: don’t stop at the remainder — bring the point straight down and keep sharing out the leftover as tenths.',
     '£3.4 in your working still means £3.40 — always write money to two decimal places.',
   ],

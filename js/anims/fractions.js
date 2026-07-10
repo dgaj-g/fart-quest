@@ -58,7 +58,9 @@ const CSS = `
 .fsb-track.fsb-locked { opacity:.4; pointer-events:none; }
 .fsb-track-fill { position:absolute; left:0; top:0; bottom:0; border-radius:6px; background:linear-gradient(90deg,var(--gold),var(--gold-deep)); z-index:1; }
 .fsb-stop { position:absolute; top:50%; transform:translate(-50%,-50%); width:26px; height:26px; border-radius:50%; border:2px solid #b9a279; background:var(--card); font-size:10px; font-weight:700; color:#8a7458; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2; }
+.fsb-stop::before { content:''; position:absolute; inset:-9px; }
 .fsb-knob { position:absolute; top:50%; width:30px; height:30px; transform:translate(-50%,-50%); border-radius:50%; background:radial-gradient(circle at 35% 30%, #fff3ce, var(--gold-deep)); border:3px solid var(--ink); box-shadow:0 3px 0 rgba(0,0,0,.3); z-index:3; cursor:grab; }
+.fsb-knob::before { content:''; position:absolute; inset:-7px; }
 .fsb-track.dragging .fsb-knob { cursor:grabbing; }
 .fsb-barwrap { position:relative; margin:16px auto 0; display:flex; justify-content:center; }
 .fsb-bar { display:flex; padding:8px; border-radius:16px; background:linear-gradient(160deg,#7a4c26,#4f2f16); box-shadow:0 5px 0 rgba(0,0,0,.3), inset 0 2px 4px rgba(255,255,255,.12); }
@@ -67,7 +69,7 @@ const CSS = `
 .fsb-piece.chop { animation:fsbChop .5s cubic-bezier(.22,1.2,.36,1) both; }
 @keyframes fsbChop { 0% { transform:translateY(-26px) scale(.7); opacity:0; } 60% { transform:translateY(3px) scale(1.05); opacity:1; } 100% { transform:translateY(0) scale(1); } }
 .fsb-candy { font-size:13px; filter:drop-shadow(0 1px 1px rgba(0,0,0,.3)); }
-.fsb-ghost { position:absolute; inset:8px; display:flex; opacity:0; pointer-events:none; transform:scale(.9); }
+.fsb-ghost { position:absolute; display:flex; opacity:0; pointer-events:none; transform:scale(.9); }
 .fsb-ghost.show { animation:fsbGhostIn .4s var(--spring) both; }
 @keyframes fsbGhostIn { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
 .fsb-gpiece { flex:1 1 0; margin:0 2px; border-radius:6px; border:3px dashed rgba(255,255,255,.75); }
@@ -125,6 +127,18 @@ function makeChocBar(host, opts) {
     }
   }
   function hideGhost() { ghost.classList.remove('show'); ghost.innerHTML = ''; }
+
+  // .fsb-ghost is a sibling of .fsb-bar inside .fsb-barwrap, not a child of it —
+  // so it can't just inset:8px off the wrapper (the bar is centred and capped
+  // narrower than the wrapper). Read the bar's actual rendered box instead,
+  // which shares the same offsetParent (barWrap), and inset by the bar's own
+  // 8px padding so the ghost grid lines up with the real piece area exactly.
+  function positionGhost() {
+    ghost.style.left = (bar.offsetLeft + 8) + 'px';
+    ghost.style.top = (bar.offsetTop + 8) + 'px';
+    ghost.style.width = (bar.offsetWidth - 16) + 'px';
+    ghost.style.height = (bar.offsetHeight - 16) + 'px';
+  }
 
   function notifyChange() {
     if (opts.onChange) opts.onChange({ denom: B.denom, taken: B.taken.size });
@@ -219,6 +233,7 @@ function makeChocBar(host, opts) {
       track.append(s);
     }
     lastLiveDenom = B.denom;
+    dialNum.textContent = B.denom;
     applyKnobX((B.denom - 2) * stopGap, true);
     rebuildPieces({ animate: false, preserveTaken: true });
   };
@@ -247,6 +262,7 @@ function makeChocBar(host, opts) {
     if (ghostDenom % B.denom !== 0) return;
     const k = ghostDenom / B.denom;
     const shaded = ghostShadeSet(B.taken, k);
+    positionGhost();
     ghost.innerHTML = '';
     for (let i = 0; i < ghostDenom; i += 1) {
       ghost.append(el('div', 'fsb-gpiece' + (shaded.has(i) ? ' shaded' : '')));

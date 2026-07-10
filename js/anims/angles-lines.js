@@ -128,6 +128,7 @@ function buildJaw(host, opts) {
   const B = { theta: opts.start, target: opts.start, dragging: false, lastCat: null, lastSnap: null, cancelTween: null };
 
   function render(theta) {
+    B.theta = theta;
     const cat = classify(theta);
     const pts = arcPoints(vertex, theta, R);
     arcFill.setAttribute('points', pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '));
@@ -432,14 +433,14 @@ export default {
       if (sandbox) {
         qEl.textContent = 'FREE PLAY — drag the jaw wide open.';
         subEl.textContent = 'No target here — just explore every family of angle and feel the CLUNKS.';
-        board = buildJaw(boardHost, { start: START, onCat: updateChipCard });
-        updateChipCard(classify(START), true);
+        let firstPaint = true;
+        board = buildJaw(boardHost, { start: START, onCat: (cat) => { updateChipCard(cat, firstPaint); firstPaint = false; } });
         return;
       }
       qEl.textContent = m.title;
       subEl.textContent = m.sub;
-      board = buildJaw(boardHost, { start: START, onCat: updateChipCard });
-      updateChipCard(classify(START), true);
+      let firstPaint = true;
+      board = buildJaw(boardHost, { start: START, onCat: (cat) => { updateChipCard(cat, firstPaint); firstPaint = false; } });
     }
 
     nl.addEventListener('click', () => { if (board && !board.nudge(-1)) toast(stage, 'Obtusius’s jaw won’t close any further than that!'); });

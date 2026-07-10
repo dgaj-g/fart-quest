@@ -75,9 +75,9 @@ export default {
       .chc-coin.trap { background: var(--card); color: var(--stink); border: 3px dashed var(--stink); box-shadow: none; }
       .chc-coin.chc-dissolving { animation: chcDissolve .48s ease both; pointer-events: none; }
       @keyframes chcDissolve {
-        0% { transform: scale(1) rotate(0); opacity: 1; }
-        50% { transform: scale(1.18) rotate(12deg); opacity: .7; }
-        100% { transform: scale(.15) rotate(-30deg); opacity: 0; }
+        0% { transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(1) rotate(0); opacity: 1; }
+        50% { transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(1.18) rotate(12deg); opacity: .7; }
+        100% { transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(.15) rotate(-30deg); opacity: 0; }
       }
       .chc-chutewrap { margin: 0 auto 6px; }
       .chc-chute { position: relative; margin: 0 auto; }
@@ -226,8 +226,10 @@ export default {
       liveCancels.add(cancel);
     }
 
-    function dissolveCoin(coinEl) {
+    function dissolveCoin(coinEl, dx, dy) {
       sfx.pop();
+      coinEl.style.setProperty('--dx', `${dx}px`);
+      coinEl.style.setProperty('--dy', `${dy}px`);
       coinEl.classList.add('chc-dissolving');
       toast(stage, '🫧 No 25p coin exists in the UK!');
       if (!shown.has('trap')) {
@@ -264,7 +266,7 @@ export default {
       const overBar = cx >= barRect.left - 12 && cx <= barRect.right + 12 && cy >= barRect.top - 36 && cy <= barRect.bottom + 36;
       if (!overBar) { bounceHome(coinEl, dx, dy); return; }
       const outcome = dropOutcome(mission.filled, mission.gap, value, isTrap);
-      if (outcome === 'dissolve') { dissolveCoin(coinEl); return; }
+      if (outcome === 'dissolve') { dissolveCoin(coinEl, dx, dy); return; }
       if (outcome === 'overshoot') {
         sfx.nudge();
         toast(stage, `Too big! ${value}p would go over — try a smaller coin.`);
@@ -310,7 +312,7 @@ export default {
     function win() {
       if (!sandboxMode) doneSet.add(mission.id);
       sfx.win(); party(stage);
-      sparkleBurst(barEl, geomState.barWidth, 26);
+      sparkleBurst(barEl, geomState.barWidth / 2, barEl.clientHeight / 2, 26);
       paintChips();
       const phrase = WIN_PHRASES[Math.floor(Math.random() * WIN_PHRASES.length)];
       const coinsStr = mission.tiles.map((v) => `${v}p`).join(' + ');

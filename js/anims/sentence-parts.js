@@ -127,7 +127,7 @@ const CSS = `
 .pbt-cardbtns { display: flex; gap: 6px; }
 .pbt-cardbtn {
   flex: 1 1 0; background: transparent; border: 2px solid var(--swamp-mid); color: var(--ink);
-  border-radius: 9px; padding: 7px 4px; font-weight: 700; font-size: 11px; min-height: 40px;
+  border-radius: 9px; padding: 7px 4px; font-weight: 700; font-size: 11px; min-height: 44px;
 }
 .pbt-cardbtn.chosen { background: var(--swamp-mid); color: var(--stink-lime); }
 .pbt-card.locked .pbt-cardbtn.chosen { background: var(--correct); color: #08331a; border-color: var(--correct); }
@@ -146,7 +146,7 @@ const CSS = `
 .pbt-towerbrick {
   width: 100%; max-width: 260px; background: var(--card); border: 2.5px solid var(--swamp-mid);
   border-radius: 9px; padding: 7px 12px; font-weight: 700; font-size: 13px; color: var(--ink);
-  cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.2);
+  cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.2); min-height: 44px;
 }
 .pbt-towerbrick.off { border-color: var(--wrong); background: #FBEAE7; color: #9c3626; }
 .pbt-bricktray { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; max-width: 640px; }
@@ -281,7 +281,9 @@ export default {
         chipEl.type = 'button';
         tray.append(chipEl);
         let cx = 0; let cy = 0;
+        let locked = false;
         const drag = makeDrag(chipEl, {
+          enabled: () => !locked,
           onStart() { chipEl.classList.add('dragging'); },
           onMove(dx, dy) { cx = dx; cy = dy; chipEl.style.transform = `translate(${dx}px, ${dy}px)`; },
           onEnd() {
@@ -293,6 +295,8 @@ export default {
             const target = overWho >= overDo ? 'who' : 'doing';
             const targetEl = target === 'who' ? whoSocket : doingSocket;
             if (chip.slot === target) {
+              locked = true;
+              chipEl.style.pointerEvents = 'none';
               landInSocket(chipEl, targetEl, cx, cy, () => {
                 chipEl.style.display = 'none';
                 targetEl.innerHTML = chipEl.textContent;

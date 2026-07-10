@@ -176,7 +176,10 @@ export default {
     injectCss('money-problems', CSS);
     let alive = true;
     const timers = new Set();
-    const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); };
+    // captures the current mission generation at schedule time so a mission
+    // switch/RESET (which bumps genToken) silently drops any bubble()/showWin()
+    // callback that was still in flight for the OLD mission.
+    const later = (fn, ms) => { const tok = genToken; const id = setTimeout(() => { timers.delete(id); if (alive && tok === genToken) fn(); }, ms); timers.add(id); };
 
     const stage = el('div', 'anim-stage');
     const chiprow = el('div', 'anim-chiprow');
@@ -480,7 +483,7 @@ export default {
       abortLive = () => {
         liveTweens.forEach((c) => c());
         liveTweens.clear();
-        tiles.forEach(({ t }) => { t.style.transform = 'translate(0px,0px)'; t.classList.remove('dragging'); });
+        tiles.forEach(({ t, drag }) => { drag.abort(); t.style.transform = 'translate(0px,0px)'; t.classList.remove('dragging'); });
       };
 
       return () => { tiles.forEach(({ drag }) => drag.destroy()); liveTweens.forEach((c) => c()); };

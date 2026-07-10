@@ -131,7 +131,8 @@ export default {
       .cat-dash:not(.retry) .cd-title { color: #1d8f4e; }
       .cat-dash .cd-worked { font-size: 13.5px; color: #4d6b58; font-weight: 500; margin-top: 3px; }
       .cat-dash.retry .cd-worked { color: #7a5c08; }
-      .cat-dash .cd-btn { margin-top: 9px; padding: 10px 22px; font-size: 15px; }
+      .cat-dash .cd-btn { margin-top: 9px; padding: 10px 22px; font-size: 15px; min-height: 44px; }
+      .cat-rollbtn { font-size: 16px; padding: 13px 30px; min-height: 48px; }
     `);
 
     const stage = el('div', 'anim-stage');
@@ -141,7 +142,7 @@ export default {
     const numbox = el('div', 'cat-numbox');
     const hillWrap = el('div', 'cat-hillwrap');
     const rollrow = el('div', 'cat-rollrow');
-    const rollBtn = el('button', 'btn btn-gold', 'ROLL HIM! 🎯');
+    const rollBtn = el('button', 'btn btn-gold cat-rollbtn', 'ROLL HIM! 🎯');
     rollrow.append(rollBtn);
     const dash = el('div');
     stage.append(chiprow, q, qsub, numbox, hillWrap, rollrow, dash);
@@ -357,6 +358,7 @@ export default {
       if (!alive) return;
       if (cancelTween) { cancelTween(); cancelTween = null; }
       if (dragCtrl) dragCtrl.abort();
+      if (sirEl) sirEl.style.transform = '';
       rolling = false;
       layoutHill();
     };

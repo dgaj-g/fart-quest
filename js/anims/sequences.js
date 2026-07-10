@@ -133,6 +133,7 @@ export default {
     let cancelElastic = null;
     let cancelSpark = null;
     let currentSparkEl = null;
+    let sparkPending = null; // { toIdx, predicted } while a fired jump is mid-flight
     let dragAnchor = -1;
     let dragCurrent = -1;
 
@@ -354,6 +355,7 @@ export default {
       const spark = el('div', 'gpm-spark', '⚡');
       stoneRow.append(spark);
       currentSparkEl = spark;
+      sparkPending = { toIdx, predicted };
       const x0 = fromEl.offsetLeft + fromEl.offsetWidth / 2;
       const y0 = fromEl.offsetTop + fromEl.offsetHeight / 2;
       const x1 = toEl.offsetLeft + toEl.offsetWidth / 2;
@@ -366,6 +368,7 @@ export default {
         cancelSpark = null;
         spark.remove();
         currentSparkEl = null;
+        sparkPending = null;
         reveal(toIdx, predicted);
       });
     }
@@ -429,7 +432,16 @@ export default {
 
     resetBtn.addEventListener('click', () => { sfx.ui(); startMission(mi); });
 
-    const onResize = () => { drag.abort(); clearElastic(true); sizeStones(); };
+    const onResize = () => {
+      drag.abort();
+      clearElastic(true);
+      if (cancelSpark) {
+        cancelSpark(); cancelSpark = null;
+        if (currentSparkEl) { currentSparkEl.remove(); currentSparkEl = null; }
+        if (sparkPending) { const sp = sparkPending; sparkPending = null; reveal(sp.toIdx, sp.predicted); }
+      }
+      sizeStones();
+    };
     let rsTimer = null;
     const rsHandler = () => { clearTimeout(rsTimer); rsTimer = setTimeout(onResize, 180); };
     window.addEventListener('resize', rsHandler);

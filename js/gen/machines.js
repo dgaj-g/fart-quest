@@ -526,27 +526,57 @@ function t3LetterTwoStepEquation(rng) {
   };
 }
 
-function t3TwoLetterCombo(rng) {
-  const [letterA, letterB] = shuffle(rng, LETTERS).slice(0, 2);
-  const step1 = genOneStep(rng, { xMin: 2, xMax: 15, bMin: 2, bMax: 9 });
-  const step2 = genOneStep(rng, { xMin: 2, xMax: 15, bMin: 2, bMax: 9 });
-  const combineOp = pick(rng, ['+', '×']);
-  const answer = combineOp === '+' ? step1.x + step2.x : step1.x * step2.x;
+// Chains three genOneStep-style steps: x -> (op1,b1) -> mid1 -> (op2,b2) -> mid2 -> (op3,b3) -> y.
+// Same generation strategy as genTwoStep, one step longer, bounded so OUT stays kid-friendly.
+function genThreeStep(rng, opts = {}) {
+  const allowedOps = opts.allowedOps || OP_KEYS;
+  const yCap = opts.yCap ?? 500;
+  let tries = 0;
+  while (tries < 300) {
+    tries++;
+    const step1 = genOneStep(rng, {
+      xMin: opts.xMin ?? 2, xMax: opts.xMax ?? 12, bMin: 2, bMax: 9, allowedOps,
+    });
+    const { x, op: op1, b: b1, y: mid1 } = step1;
+    const op2 = pick(rng, allowedOps);
+    const b2 = rngInt(rng, 2, 9);
+    if (op2 === 'sub' && mid1 <= b2) continue;
+    if (op2 === 'div' && mid1 % b2 !== 0) continue;
+    const mid2 = OPS[op2].apply(mid1, b2);
+    if (!Number.isInteger(mid2) || mid2 < 0) continue;
+    const op3 = pick(rng, allowedOps);
+    const b3 = rngInt(rng, 2, 9);
+    if (op3 === 'sub' && mid2 <= b3) continue;
+    if (op3 === 'div' && mid2 % b3 !== 0) continue;
+    const y = OPS[op3].apply(mid2, b3);
+    if (!Number.isInteger(y) || y < 0 || y > yCap) continue;
+    return {
+      x, op1, b1, mid1, op2, b2, mid2, op3, b3, y,
+    };
+  }
+  return {
+    x: 3, op1: 'add', b1: 2, mid1: 5, op2: 'mul', b2: 2, mid2: 10, op3: 'sub', b3: 1, y: 9,
+  };
+}
 
-  const stem = `Two number machines: <b>${letterA} ${OPS[step1.op].symbol(step1.b)} = ${fmt(step1.y)}</b> and <b>${letterB} ${OPS[step2.op].symbol(step2.b)} = ${fmt(step2.y)}</b>. What is <b>${letterA} ${combineOp} ${letterB}</b>?`;
+function t3ReverseThreeStep(rng) {
+  const {
+    x, op1, b1, mid1, op2, b2, mid2, op3, b3, y,
+  } = genThreeStep(rng, { xMin: 2, xMax: 12, yCap: 400 });
+  const stem = `A machine does THREE things to every number, in order: it <b>${OPS[op1].verbFwd(b1)}</b>, then it <b>${OPS[op2].verbFwd(b2)}</b>, then it <b>${OPS[op3].verbFwd(b3)}</b>. It spat out OUT = <b>${fmt(y)}</b>. What went IN?`;
 
   return {
-    templateId: 'mach-t3-two-letter-combo',
+    templateId: 'mach-t3-reverse-three-step',
     stem,
     format: 'num',
-    accept: Array.from(new Set([String(answer), fmt(answer)])),
+    accept: Array.from(new Set([String(x), fmt(x)])),
     hintSteps: [
-      'Solve each machine separately first — undo each one with its opposite.',
-      `${letterA} = ${fmt(step1.x)} and ${letterB} = ${fmt(step2.x)}. Now work out ${letterA} ${combineOp} ${letterB}.`,
+      `Undo the LAST step first, using its OPPOSITE: ${OPS[op3].invSymbol(b3)}.`,
+      `${fmt(y)} ${OPS[op3].invSymbol(b3)} = ${fmt(mid2)}. Then undo the middle step: ${fmt(mid2)} ${OPS[op2].invSymbol(b2)} = ${fmt(mid1)}. Then undo the first step: ${fmt(mid1)} ${OPS[op1].invSymbol(b1)} = …?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${letterA}: ${fmt(step1.y)} ${OPS[step1.op].invSymbol(step1.b)} = ${fmt(step1.x)}. ${letterB}: ${fmt(step2.y)} ${OPS[step2.op].invSymbol(step2.b)} = ${fmt(step2.x)}. So ${letterA} ${combineOp} ${letterB} = ${fmt(step1.x)} ${combineOp} ${fmt(step2.x)} = ${fmt(answer)}.`,
+      worked: `Reverse order! Undo step 3 first: ${fmt(y)} ${OPS[op3].invSymbol(b3)} = ${fmt(mid2)}. Then undo step 2: ${fmt(mid2)} ${OPS[op2].invSymbol(b2)} = ${fmt(mid1)}. Then undo step 1: ${fmt(mid1)} ${OPS[op1].invSymbol(b1)} = ${fmt(x)}. IN was ${fmt(x)}.`,
       whyWrong: {},
     },
   };
@@ -556,7 +586,7 @@ function t3TwoLetterCombo(rng) {
 
 const T1 = [t1ApplyRule, t1FindRule, t1TableMissingOut];
 const T2 = [t2ReverseOneStep, t2LetterEquationSolve, t2ReverseTable];
-const T3 = [t3ReverseTwoStep, t3LetterTwoStepEquation, t3TwoLetterCombo];
+const T3 = [t3ReverseTwoStep, t3LetterTwoStepEquation, t3ReverseThreeStep];
 
 export function generate(tier, rng) {
   let pool;

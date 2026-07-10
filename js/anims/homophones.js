@@ -162,6 +162,7 @@ export default {
     let loaded = null; let scanningWord = null; let busy = false;
     let lineupOrder = []; let scannedStatus = {};
     const doneSet = new Set();
+    let masteredShown = false;
     const timers = new Set();
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); };
     const clearAllTimers = () => { timers.forEach((t) => clearTimeout(t)); timers.clear(); };
@@ -187,7 +188,9 @@ export default {
       chiprow.innerHTML = '';
       MISSIONS.forEach((m, i) => {
         const c = el('button', 'anim-mchip' + (i === mi ? ' active' : '') + (doneSet.has(m.id) ? ' done' : ''), m.chip);
-        c.addEventListener('click', () => { sfx.ui(); startMission(i); });
+        c.style.minHeight = '44px';
+        c.disabled = busy;
+        c.addEventListener('click', () => { if (busy) return; sfx.ui(); startMission(i); });
         chiprow.append(c);
       });
     }
@@ -251,7 +254,7 @@ export default {
       qsub.textContent = mission.gaps.length > 1
         ? `Gap ${gi + 1} of ${mission.gaps.length} — scan a twin, watch its proof, then stamp the survivor.`
         : 'Scan a twin, watch its proof, then stamp the survivor.';
-      paintSentence(); paintLineup(); paintProof(); paintStamp();
+      paintSentence(); paintLineup(); paintProof(); paintStamp(); paintChips();
     }
 
     function startMission(i) {
@@ -265,7 +268,7 @@ export default {
       if (busy) return;
       busy = true; scanningWord = word;
       sfx.ui(); sfx.whoosh();
-      paintLineup(); paintStamp();
+      paintLineup(); paintStamp(); paintChips();
       later(() => {
         scanningWord = null;
         loaded = word;
@@ -274,7 +277,7 @@ export default {
         scannedStatus[word] = cand.pass ? 'pass' : 'fail';
         sfx[cand.pass ? 'sparkle' : 'nudge']();
         busy = false;
-        paintSentence(); paintLineup(); paintProof(); paintStamp();
+        paintSentence(); paintLineup(); paintProof(); paintStamp(); paintChips();
       }, 420);
     }
 
@@ -284,7 +287,7 @@ export default {
       if (loaded === gap.correct) {
         busy = true;
         sfx.win();
-        paintLineup(); paintStamp();
+        paintLineup(); paintStamp(); paintChips();
         const gr = q.querySelector('.tsc-gap.loaded');
         if (gr) {
           const gb = gr.getBoundingClientRect(); const sb = stage.getBoundingClientRect();
@@ -305,6 +308,7 @@ export default {
     stampBtn.addEventListener('click', onStamp);
 
     function finishMission() {
+      busy = false;
       const mission = MISSIONS[mi];
       doneSet.add(mission.id);
       paintChips();
@@ -322,7 +326,8 @@ export default {
       nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
       nb.addEventListener('click', () => { sfx.ui(); startMission(nextIdx !== -1 ? nextIdx : 0); });
       w.append(nb);
-      if (doneSet.size === MISSIONS.length) {
+      if (doneSet.size === MISSIONS.length && !masteredShown) {
+        masteredShown = true;
         ctx.complete();
         later(() => {
           if (!alive) return;
@@ -342,7 +347,7 @@ export default {
       if (!alive || !scanningWord) return;
       clearAllTimers();
       scanningWord = null; busy = false;
-      paintLineup(); paintStamp();
+      paintLineup(); paintStamp(); paintChips();
     };
     let rsTimer = null;
     const rsHandler = () => { clearTimeout(rsTimer); rsTimer = setTimeout(onResize, 180); };

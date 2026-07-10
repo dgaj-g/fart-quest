@@ -147,7 +147,7 @@ export default {
       pictoCard.classList.add('read');
       sfx.blip(680);
       sparkleBurst(stage, stage.clientWidth / 2, 130, 8);
-      later(() => buildQuiz(MISSIONS[2]), 380);
+      later(() => { if (mode !== 'm3') return; buildQuiz(MISSIONS[2]); }, 380);
     });
 
     /* ----- scale dial ----- */
@@ -258,6 +258,8 @@ export default {
       dialSettleTo(next);
     }
     function dialSetInstant(idx) {
+      if (dialState.cancelTween) { dialState.cancelTween(); dialState.cancelTween = null; }
+      dialState.settling = false;
       dialState.targetIdx = idx; dialState.liveIdx = idx;
       dialSetPx((idx / (DIAL_STOPS.length - 1)) * dialState.W, true);
       dialLabelEls.forEach((d, i) => d.classList.toggle('active', i === idx));
@@ -304,12 +306,13 @@ export default {
       if (mode === 'm1' && !m1Revealed && scale === 5 && readings.has('swim')) {
         m1Revealed = true;
         dialState.disabled = true;
-        later(() => buildQuiz(MISSIONS[0]), 420);
-      } else if (mode === 'm2' && !m2Revealed && readings.has('swim') && readings.has('tag')) {
+        later(() => { if (mode !== 'm1') return; buildQuiz(MISSIONS[0]); }, 420);
+      } else if (mode === 'm2' && !m2Revealed && scale === 5 && readings.has('swim') && readings.has('tag')) {
         m2Revealed = true;
+        const swimVal = readings.get('swim'); const tagVal = readings.get('tag');
         later(() => {
-          if (!alive) return;
-          subStrip.innerHTML = `<b>${readings.get('swim')}</b> − <b>${readings.get('tag')}</b> = ?`;
+          if (!alive || mode !== 'm2') return;
+          subStrip.innerHTML = `<b>${swimVal}</b> − <b>${tagVal}</b> = ?`;
           buildQuiz(MISSIONS[1]);
         }, 420);
       }
@@ -428,6 +431,7 @@ export default {
       if (mode === 'm3') { pictoRead = false; pictoCard.classList.remove('read'); quizrow.innerHTML = ''; return; }
       clearReadingsVisual();
       quizrow.innerHTML = '';
+      winBox.innerHTML = '';
       subStrip.innerHTML = '';
       m1Revealed = false; m2Revealed = false;
       if (mode === 'm1' || mode === 'free') { dialState.disabled = false; dialSettleTo(0); }

@@ -92,7 +92,10 @@ function makeWheel(host, opts) {
   let lastZone = nearestSnapIndex(W.angle); // avoid a spurious zone-ding on first render
 
   W.layout = function layout() {
-    if (W.cancelTween) { W.cancelTween(); W.cancelTween = null; }
+    if (W.cancelTween) {
+      W.cancelTween(); W.cancelTween = null;
+      if (W.settling) { W.angle = W.targetIndex != null ? FRACTIONS[W.targetIndex].angle : W.angle; W.settling = false; }
+    }
     drag.abort();
     wrap.classList.remove('dragging');
     const avail = Math.min(230, Math.max(150, (host.clientWidth || 300)));
@@ -341,6 +344,7 @@ export default {
           picker.append(c);
         });
         predictRow.append(picker);
+        totalBanner.innerHTML = `🥧 <b>${FREE_TOTALS[0]}</b> pupils asked`;
         buildWheel(FREE_TOTALS[0], false);
         return;
       }
@@ -421,6 +425,8 @@ export default {
 
     function win(angle) {
       doneSet.add(mission.id);
+      if (wheel) wheel.setDisabled(true);
+      lock.disabled = true;
       sfx.win();
       party(stage);
       const stageRect = stage.getBoundingClientRect();

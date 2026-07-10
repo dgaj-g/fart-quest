@@ -350,8 +350,8 @@ function makeTwinGrid(host, opts) {
   host.append(wrap);
 
   function layout() {
-    const availW = Math.max(220, Math.min(300, (host.clientWidth || 640) - 30));
-    const size = Math.max(24, Math.floor(availW / G_COLS));
+    const availW = Math.max(352, Math.min(380, (host.clientWidth || 640) - 30));
+    const size = Math.max(44, Math.floor(availW / G_COLS));
     gridEl.style.gridTemplateColumns = `repeat(${G_COLS}, ${size}px)`;
     gridEl.style.gridTemplateRows = `repeat(${G_ROWS}, ${size}px)`;
     fence.style.left = (G_HALF * (size + 2)) + 'px';
@@ -364,18 +364,19 @@ function makeTwinGrid(host, opts) {
     sfx.ui();
     gridEl.classList.remove('fld-grid-folding'); void gridEl.offsetWidth; gridEl.classList.add('fld-grid-folding');
     let allOk = true;
+    let hasWrong = false; let hasMissing = false;
     for (let r = 0; r < G_ROWS; r += 1) {
       for (let c = G_HALF; c < G_COLS; c += 1) {
         const expected = !!ROCKET_LEFT[r][G_COLS - 1 - c];
         const actual = cells[r][c].classList.contains('fld-cell-filled');
         cells[r][c].classList.remove('fld-cell-ok', 'fld-cell-missing', 'fld-cell-wrong');
         if (expected && actual) cells[r][c].classList.add('fld-cell-ok');
-        else if (expected && !actual) { cells[r][c].classList.add('fld-cell-missing'); allOk = false; }
-        else if (!expected && actual) { cells[r][c].classList.add('fld-cell-wrong'); allOk = false; }
+        else if (expected && !actual) { cells[r][c].classList.add('fld-cell-missing'); allOk = false; hasMissing = true; }
+        else if (!expected && actual) { cells[r][c].classList.add('fld-cell-wrong'); allOk = false; hasWrong = true; }
       }
     }
     if (allOk) { if (!solved) { solved = true; sfx.win(); if (opts.onComplete) opts.onComplete(); } }
-    else { sfx.nudge(); if (opts.onWrong) opts.onWrong(); }
+    else { sfx.nudge(); if (opts.onWrong) opts.onWrong({ hasWrong, hasMissing }); }
   });
 
   layout();
@@ -412,16 +413,17 @@ function makeLetterParade(host, opts) {
     if (!alive) return;
     sfx.ui();
     let allOk = true;
+    let hasOk = false; let hasBad = false; let hasMiss = false;
     tiles.forEach((t) => {
       const sym = t.dataset.sym === '1';
       const chosen = t.classList.contains('fld-lchosen');
       t.classList.remove('fld-lok', 'fld-lbad', 'fld-lmiss');
-      if (sym && chosen) t.classList.add('fld-lok');
-      else if (!sym && chosen) { t.classList.add('fld-lbad'); allOk = false; }
-      else if (sym && !chosen) { t.classList.add('fld-lmiss'); allOk = false; }
+      if (sym && chosen) { t.classList.add('fld-lok'); hasOk = true; }
+      else if (!sym && chosen) { t.classList.add('fld-lbad'); allOk = false; hasBad = true; }
+      else if (sym && !chosen) { t.classList.add('fld-lmiss'); allOk = false; hasMiss = true; }
     });
     if (allOk) { if (!solved) { solved = true; sfx.win(); if (opts.onComplete) opts.onComplete(); } }
-    else { sfx.nudge(); if (opts.onWrong) opts.onWrong(); }
+    else { sfx.nudge(); if (opts.onWrong) opts.onWrong({ hasOk, hasBad, hasMiss }); }
   });
 
   return {
@@ -518,7 +520,13 @@ export default {
               }).then(() => win(m, 'Every square found its twin — the rocket is complete!'));
             }, 200);
           },
-          onWrong() { toast(stage, '🎨 Not twinned yet — red squares don’t belong there, glowing gold squares are still hiding. Fix them and fold again!'); },
+          onWrong({ hasWrong, hasMissing }) {
+            let msg;
+            if (hasWrong && hasMissing) msg = '🎨 Not twinned yet — red squares don’t belong there, glowing gold squares are still hiding. Fix them and fold again!';
+            else if (hasWrong) msg = '🎨 Not twinned yet — red squares don’t belong there. Clear them and fold again!';
+            else msg = '🎨 Not twinned yet — glowing gold squares are still hiding their twin. Paint them in and fold again!';
+            toast(stage, msg);
+          },
         });
       } else {
         board = makeLetterParade(boardHost, {
@@ -532,7 +540,13 @@ export default {
               }).then(() => win(m, 'A H M T fold true down the middle — F and G never could.'));
             }, 200);
           },
-          onWrong() { toast(stage, '🪞 Not quite lined up — green means matched, red should hop back off, gold is still hiding. Try again!'); },
+          onWrong({ hasOk, hasBad, hasMiss }) {
+            const parts = [];
+            if (hasOk) parts.push('green means matched');
+            if (hasBad) parts.push('red should hop back off');
+            if (hasMiss) parts.push('gold is still hiding');
+            toast(stage, `🪞 Not quite lined up — ${parts.join(', ')}. Try again!`);
+          },
         });
       }
     }
@@ -551,7 +565,7 @@ export default {
       const nextIdx = MISSIONS.findIndex((mm) => !doneSet.has(mm.id));
       if (nextIdx !== -1) {
         const nb = el('button', 'btn btn-gold', 'NEXT ONE ➡');
-        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+        nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;';
         nb.addEventListener('click', () => { sfx.ui(); start(nextIdx); });
         w.append(nb);
       } else {

@@ -384,7 +384,7 @@ function t2SquareAreaFromSide(rng) {
   };
 }
 
-// -------- T3 templates (num format): reverse, decimal dimensions, compound splitting --------
+// -------- T3 templates (num format): reverse, decimal dimensions, larger numbers --------
 
 // (a) reverse: given the area and one side, write in the missing side.
 function t3ReverseMissingSide(rng) {
@@ -437,56 +437,57 @@ function t3DecimalDimensionArea(rng) {
   };
 }
 
-// (c) compound area by splitting into two given rectangles, then summing.
-function t3CompoundSplitAreas(rng) {
-  const a1 = rngInt(rng, 2, 9);
-  const b1 = rngInt(rng, 2, 9);
-  const a2 = rngInt(rng, 2, 9);
-  const b2 = rngInt(rng, 2, 9);
-  const areaA = a1 * b1;
-  const areaB = a2 * b2;
-  const total = areaA + areaB;
-  const stem = `A patio is made of two rectangular sections: <b>${a1} m × ${b1} m</b> and <b>${a2} m × ${b2} m</b>. What is the TOTAL area?`;
+// (c) larger-number rectangle area, open-response (num) format — a harder plain "calculate
+// the area" question than T2's mcq5 version, using bigger dimensions so the multiplication
+// itself carries the difficulty rather than any new sub-skill.
+function t3LargeRectangleArea(rng) {
+  const l = rngInt(rng, 13, 25);
+  const w = rngInt(rng, 6, 12);
+  const area = l * w;
+  const stem = `A school hall floor is <b>${fmt(l)} m</b> long and <b>${fmt(w)} m</b> wide. What is its area?`;
 
   return {
-    templateId: 'av-t3-compound-split',
+    templateId: 'av-t3-large-area',
     stem,
     format: 'num',
     unit: 'm²',
-    accept: [String(total), fmt(total)],
+    accept: [String(area), fmt(area)],
     hintSteps: [
-      'Find the area of each rectangle separately first.',
-      `${a1} × ${b1} = ${areaA}, and ${a2} × ${b2} = ${areaB}. Now ADD the two areas together.`,
+      'Area = length × width — multiply the two measurements together.',
+      `${fmt(l)} × ${fmt(w)} = …?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${a1} × ${b1} = ${fmt(areaA)} m². ${a2} × ${b2} = ${fmt(areaB)} m². Total = ${fmt(total)} m².`,
+      worked: `${fmt(l)} m × ${fmt(w)} m = ${fmt(area)} m².`,
       whyWrong: {},
     },
   };
 }
 
-// (d) reverse volume: given the volume and two of the three dimensions, find the third.
-function t3ReverseVolume(rng) {
-  const w = rngInt(rng, 2, 8);
-  const h = rngInt(rng, 2, 8);
-  const d = rngInt(rng, 2, 6);
-  const vol = w * h * d;
-  const stem = `A box has volume <b>${fmt(vol)} cm³</b>. Its length is <b>${fmt(w)} cm</b> and its width is <b>${fmt(h)} cm</b>. What is its height?`;
+// (d) decimal dimension volume (one side has 1dp, the other two whole) — the volume mirror of
+// t3DecimalDimensionArea above, staying inside "calculating volume" rather than introducing a
+// reverse-volume operation.
+function t3DecimalDimensionVolume(rng) {
+  const lWhole = rngInt(rng, 2, 6);
+  const l = lWhole + 0.5;
+  const w = rngInt(rng, 2, 6);
+  const h = rngInt(rng, 2, 5);
+  const vol = Math.round(l * w * h * 100) / 100;
+  const stem = `A storage box is <b>${fmt(l)} cm</b> long, <b>${fmt(w)} cm</b> wide and <b>${fmt(h)} cm</b> high. What is its volume?`;
 
   return {
-    templateId: 'av-t3-reverse-volume',
+    templateId: 'av-t3-decimal-volume',
     stem,
     format: 'num',
-    unit: 'cm',
-    accept: [String(d), fmt(d)],
+    unit: 'cm³',
+    accept: [String(vol), fmt(vol)],
     hintSteps: [
-      'Divide the volume by the two dimensions you already know.',
-      `${fmt(vol)} ÷ (${w} × ${h}) = …?`,
+      'Volume = length × width × height, even when one side has a decimal point.',
+      `${fmt(l)} × ${fmt(w)} × ${fmt(h)} = …?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${fmt(vol)} ÷ ${w} ÷ ${h} = ${fmt(d)} cm.`,
+      worked: `${fmt(l)} cm × ${fmt(w)} cm × ${fmt(h)} cm = ${fmt(vol)} cm³.`,
       whyWrong: {},
     },
   };
@@ -496,7 +497,7 @@ function t3ReverseVolume(rng) {
 
 const T1 = [t1CountSquaresGrid, t1CountCubesCuboid, t1IrregularShadedGrid];
 const T2 = [t2RectangleAreaFormula, t2CuboidVolumeFormula, t2SquareAreaFromSide];
-const T3 = [t3ReverseMissingSide, t3DecimalDimensionArea, t3CompoundSplitAreas, t3ReverseVolume];
+const T3 = [t3ReverseMissingSide, t3DecimalDimensionArea, t3LargeRectangleArea, t3DecimalDimensionVolume];
 
 export function generate(tier, rng) {
   let pool;

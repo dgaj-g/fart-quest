@@ -339,54 +339,80 @@ function t2Times100Or1000(rng) {
   };
 }
 
-function t2OrderFourDecimals(rng) {
-  // order 5 decimals (fix 7: T2 mcq5 needs >=5 options) incl. a longer-is-bigger trap pair (0.3 vs 0.25)
-  const askLargest = rng() < 0.5;
-  // build a trap pair: shortDec (e.g. 0.3) vs longerButSmaller (e.g. 0.25)
-  const shortTenths = rngInt(rng, 2, 8);
-  const shortHundredths = shortTenths * 10; // e.g. 0.3 -> 30
-  let longTenths = shortTenths - 1;
-  if (longTenths < 1) longTenths = shortTenths + 1;
-  const longHundredths = longTenths * 10 + rngInt(rng, 1, 9); // e.g. 0.25 (still < 0.30 if longTenths < shortTenths)
+function t2ChainTwoOps(rng) {
+  // Chain of two ×10/÷10 slides, e.g. "4.6 × 10 ÷ 10 = ?" — still squarely "×÷ by 10/100/1000"
+  // (bullet 23), just two operations back-to-back instead of one. Each op individually is a
+  // single throne-slide; when the two ops are opposite directions the slides cancel back to the
+  // start, which is a genuine test of the "digits slide, point never moves" rule rather than a
+  // new skill.
+  const op1Mul = rng() < 0.5;
+  const op2Mul = rng() < 0.5;
 
-  const others = new Set([shortHundredths, longHundredths]);
-  const values = [shortHundredths, longHundredths];
-  while (values.length < 5) {
-    const v = rngInt(rng, 5, 95);
-    if (others.has(v)) continue;
-    others.add(v);
-    values.push(v);
+  let baseHundredths;
+  if (!op1Mul && !op2Mul) {
+    // both slides divide: base must be a whole number so both divisions stay ≤2dp
+    baseHundredths = rngInt(rng, 2, 99) * 100;
+  } else if (!op1Mul) {
+    // first slide divides: base needs 0 or 1dp so the first division stays clean
+    const whole = rngInt(rng, 1, 99);
+    const tenths = rngInt(rng, 0, 9);
+    baseHundredths = whole * 100 + tenths * 10;
+  } else {
+    // first slide multiplies: any 0/1/2dp base is safe, multiplying never adds precision
+    const dp = pick(rng, [0, 1, 2]);
+    if (dp === 0) baseHundredths = rngInt(rng, 1, 99) * 100;
+    else if (dp === 1) baseHundredths = rngInt(rng, 10, 999) * 10;
+    else baseHundredths = rngInt(rng, 100, 9999);
   }
-  const shuffledVals = shuffle(rng, values);
-  const sorted = [...shuffledVals].sort((a, b) => a - b);
-  const answerHundredths = askLargest ? sorted[sorted.length - 1] : sorted[0];
-  const secondPlace = askLargest ? sorted[sorted.length - 2] : sorted[1];
+  const baseText = fromHundredths(baseHundredths);
 
-  const stem = `Which of these decimals is the <b>${askLargest ? 'largest' : 'smallest'}</b>?`;
-  const options = shuffledVals.map((h) => ({
-    text: fromHundredths(h),
-    misconception: h === answerHundredths ? null : (h === secondPlace ? 'longer-is-bigger-trap' : 'middle-value'),
-  }));
-  const correctIndex = options.findIndex((o) => o.misconception === null);
+  const afterOp1Hundredths = op1Mul ? baseHundredths * 10 : baseHundredths / 10;
+  const finalHundredths = op2Mul ? afterOp1Hundredths * 10 : afterOp1Hundredths / 10;
+  const afterOp1Text = fromHundredths(afterOp1Hundredths);
+  const resultText = fromHundredths(finalHundredths);
+
+  const stem = `${baseText} ${op1Mul ? '×' : '÷'} 10 ${op2Mul ? '×' : '÷'} 10 = ?`;
+
+  const distractors = [];
+  // stopped after the first slide
+  distractors.push({ text: afterOp1Text, misconception: 'forgot-second-slide' });
+  // treated both slides as going the same way as the first operation
+  const sameDirHundredths = op1Mul ? baseHundredths * 100 : baseHundredths / 100;
+  distractors.push({ text: fromHundredths(sameDirHundredths), misconception: 'both-as-first-direction' });
+  // both slides went the wrong way (× swapped for ÷ and vice versa, throughout) — NOTE: when the
+  // two real ops are opposite directions (they cancel), this mirror also cancels and lands back
+  // on the correct answer, so it gets deduped away by makeMcq; the fourth candidate below covers
+  // that case so the option count never comes up short.
+  const wrongOp1Hundredths = op1Mul ? baseHundredths / 10 : baseHundredths * 10;
+  const wrongFinalHundredths = op2Mul ? wrongOp1Hundredths / 10 : wrongOp1Hundredths * 10;
+  distractors.push({ text: fromHundredths(wrongFinalHundredths), misconception: 'both-wrong-way' });
+  // got only the FIRST operation's direction wrong, then applied the second correctly
+  const secondSlideFromWrongFirst = op2Mul ? wrongOp1Hundredths * 10 : wrongOp1Hundredths / 10;
+  distractors.push({ text: fromHundredths(secondSlideFromWrongFirst), misconception: 'first-op-wrong-way' });
+
+  const correct = { text: resultText, misconception: null };
+  const options = makeMcq(correct, shuffle(rng, distractors), 4, { rng, correctHundredths: finalHundredths, min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
-    if (o.misconception === 'longer-is-bigger-trap') whyWrong[o.text] = 'More digits doesn’t mean bigger! Compare the tenths digit first, then hundredths.';
-    else if (o.misconception === 'middle-value') whyWrong[o.text] = 'Close, but another decimal wins when you compare the tenths digit.';
+    if (o.misconception === 'forgot-second-slide') whyWrong[o.text] = 'You stopped after the first slide! There are TWO operations here — keep going.';
+    else if (o.misconception === 'both-as-first-direction') whyWrong[o.text] = 'That treats both slides as going the same way — check each operation’s own direction.';
+    else if (o.misconception === 'both-wrong-way' || o.misconception === 'first-op-wrong-way') whyWrong[o.text] = 'One of those slides went the wrong way — × slides LEFT, ÷ slides RIGHT. Check each operation on its own.';
+    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = 'Count how many thrones the digits actually slid, and which way, for EACH operation.';
   }
 
   return {
-    templateId: 'dec-t2-order-four',
+    templateId: 'dec-t2-chain-two-slides',
     stem,
     options,
-    correctIndex,
+    correctIndex: 0,
     hintSteps: [
-      'Compare the tenths digit of each decimal first — the biggest tenths digit usually wins.',
-      'Watch out: a longer decimal isn’t automatically bigger. 0.3 is bigger than 0.25!',
+      'Do the operations one at a time, left to right — slide for the first one, then slide again for the second.',
+      '× 10 slides LEFT. ÷ 10 slides RIGHT. Two operations means two slides.',
     ],
     explain: {
       rule: RULE,
-      worked: `Comparing tenths first, ${fromHundredths(answerHundredths)} is the ${askLargest ? 'largest' : 'smallest'}.`,
+      worked: `${baseText} ${op1Mul ? '×' : '÷'} 10 → ${afterOp1Text} (slide ${op1Mul ? 'left' : 'right'}). Then ${afterOp1Text} ${op2Mul ? '×' : '÷'} 10 → ${resultText} (slide ${op2Mul ? 'left' : 'right'}).`,
       whyWrong,
     },
   };
@@ -564,7 +590,7 @@ function t3RealLifeMetres(rng) {
 // -------- dispatch --------
 
 const T1 = [t1TimesOrDivideBy10, t1WhichDigitTenths, t1TenTimesWords];
-const T2 = [t2Times100Or1000, t2OrderFourDecimals, t2MissingOp];
+const T2 = [t2Times100Or1000, t2ChainTwoOps, t2MissingOp];
 const T3 = [t3Times100, t3DivideWriteIn, t3RealLifeMetres];
 
 export function generate(tier, rng) {

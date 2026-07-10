@@ -18,22 +18,22 @@ const RULE = "An apostrophe either OWNS something (the dog's ball) or SQUEEZES l
    whole word in its `sentence`. ---------- */
 const MISSIONS = [
   {
-    id: 'owner1', sentence: "the dog's ball bounced", target: "dog's", track: 'owner',
+    id: 'owner1', sentence: "The dog's ball bounced.", target: "dog's", track: 'owner',
     owner: 'dog', owned: 'ball',
     worked: "The dog's ball is OWNED by the dog — one owner, so the apostrophe sits before the s.",
   },
   {
-    id: 'squeeze1', sentence: "it's raining again", target: "it's", track: 'squeezer',
+    id: 'squeeze1', sentence: "It's raining again.", target: "it's", track: 'squeezer',
     squeezeTo: 'it is',
     worked: "It's raining means it is raining — a SQUEEZE. Un-squeeze it and the sentence still makes perfect sense.",
   },
   {
-    id: 'nomark1', sentence: 'the cat licked its paw', target: 'its', track: 'nomark',
+    id: 'nomark1', sentence: 'The cat licked its paw.', target: 'its', track: 'nomark',
     reason: 'its = belonging, like his and hers — no mark at all',
     worked: 'The paw belongs to the cat, but its never wears an apostrophe — just like his and hers.',
   },
   {
-    id: 'nomark2', sentence: 'the dogs barked all night', target: 'dogs', track: 'nomark',
+    id: 'nomark2', sentence: 'The dogs barked all night.', target: 'dogs', track: 'nomark',
     reason: 'a plain plural earns nothing',
     worked: 'Just several dogs, barking all together — a plain plural earns nothing.',
   },
@@ -65,8 +65,13 @@ function mismatchText(mission, chosen) {
 }
 
 function renderSentence(mission) {
+  // Sentences are properly capitalised/punctuated; strip trailing punctuation
+  // and compare case-insensitively so a sentence-initial target (e.g. "It's")
+  // still matches its lowercase `target` string — the ORIGINAL word (with its
+  // real casing/punctuation) is what gets displayed inside the highlight.
   return mission.sentence.split(' ')
-    .map((wd) => (wd === mission.target ? `<span class="iij-target">${wd}</span>` : wd))
+    .map((wd) => (wd.replace(/[.,!?]+$/, '').toLowerCase() === mission.target.toLowerCase()
+      ? `<span class="iij-target">${wd}</span>` : wd))
     .join(' ');
 }
 function renderProof(mission) {
@@ -108,6 +113,7 @@ export default {
     let currentPathKey = null; // null == train sits idle at the junction
     let travelT = 0;
     let cancelTravel = null;
+    let masteredShown = false;
     const doneSet = new Set();
     const timers = new Set();
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); };
@@ -196,7 +202,8 @@ export default {
       nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
       nb.addEventListener('click', () => { sfx.ui(); startMission(nextIdx !== -1 ? nextIdx : 0); });
       w.append(nb);
-      if (doneSet.size === MISSIONS.length) {
+      if (doneSet.size === MISSIONS.length && !masteredShown) {
+        masteredShown = true;
         ctx.complete();
         later(() => {
           if (!alive) return;
@@ -228,9 +235,14 @@ export default {
       if (!alive) return;
       const wasTravelling = !!cancelTravel;
       if (cancelTravel) { cancelTravel(); cancelTravel = null; }
-      if (wasTravelling && !doneSet.has(mission.id)) {
+      if (wasTravelling) {
         // abandon ANY live tween on relayout (forward check or reverse
-        // whistle-back) rather than guess where it was heading
+        // whistle-back) rather than guess where it was heading — this must
+        // fire on a REPLAY of an already-completed mission too (doneSet
+        // already holds mission.id in that case), otherwise a resize mid-pull
+        // cancels the tween's done-callback without ever re-enabling the
+        // levers, permanently wedging the module until the child escapes
+        // via a chip tap
         currentPathKey = null; travelT = 0; busy = false; setButtonsEnabled(true);
       }
       applyTrainPos();

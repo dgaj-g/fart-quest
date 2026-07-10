@@ -87,12 +87,6 @@ const PAIR = {
   L_ML: { key: 'l_ml', factor: 1000, bigUnit: 'l', smallUnit: 'ml' },
 };
 
-const COMPARE_WORD = {
-  m_cm: { big: 'longest', small: 'shortest' },
-  kg_g: { big: 'heaviest', small: 'lightest' },
-  l_ml: { big: 'largest amount', small: 'smallest amount' },
-};
-
 function confusionFactor(factor) {
   if (factor === 10) return 100;
   if (factor === 100) return 1000;
@@ -345,52 +339,62 @@ function t2LMl(rng) {
   };
 }
 
-function t2CompareDifferentUnits(rng) {
-  const pair = pick(rng, [PAIR.M_CM, PAIR.KG_G, PAIR.L_ML]);
-  const askLargest = rng() < 0.5;
+// Container holds a nice big-unit amount; portion is a nice small-unit amount that divides
+// evenly into it. Asks how many portions fit -- a convert-then-divide word problem
+// (PP1 Q33: "how many 60ml glasses from half a litre", cited under bullet 30 in SPEC_CANON.md).
+const FIT_CONTAINER = {
+  l_ml: { big: 'jug', small: 'glasses', verb: 'poured from' },
+  kg_g: { big: 'sack', small: 'bags', verb: 'weighed out from' },
+};
 
-  // Ground truth in SMALL-unit terms, all multiples of 10 (safe for a clean <=2dp big-unit form).
-  const trueSet = new Set();
-  while (trueSet.size < 5) trueSet.add(rngInt(rng, 5, 95) * 10);
-  const vals = shuffle(rng, Array.from(trueSet));
-  const sorted = [...vals].sort((a, b) => a - b);
-  const targetVal = askLargest ? sorted[sorted.length - 1] : sorted[0];
+function t2FitHowMany(rng) {
+  const pair = pick(rng, [PAIR.L_ML, PAIR.KG_G]);
+  const info = FIT_CONTAINER[pair.key];
+  const portionPool = pair.key === 'l_ml' ? [50, 60, 100, 150, 200, 250] : [50, 100, 150, 200, 250];
+  const portion = pick(rng, portionPool);
+  const count = rngInt(rng, 2, 10);
+  const totalSmall = portion * count;
+  const bigValue = clean2dp(totalSmall / pair.factor);
+  const bigText = fmt(bigValue);
 
-  // Force a genuine mix of display units (at least 2 shown each way).
-  const bigFlags = shuffle(rng, [true, true, false, false, rng() < 0.5]);
-  const seenText = new Set();
-  const displayVals = vals.map((v, i) => {
-    let text = bigFlags[i]
-      ? `${fmt(clean2dp(v / pair.factor))} ${pair.bigUnit}`
-      : `${fmt(v)} ${pair.smallUnit}`;
-    while (seenText.has(text)) text += ' ';
-    seenText.add(text);
-    return { v, text };
-  });
+  const stem = `A ${info.big} holds <b>${bigText} ${pair.bigUnit}</b>. How many <b>${portion} ${pair.smallUnit}</b> ${info.small} can be ${info.verb} it?`;
 
-  const words = COMPARE_WORD[pair.key];
-  const wordFinal = askLargest ? words.big : words.small;
-  const stem = `Which of these is the <b>${wordFinal}</b>?`;
+  const otherFactor = confusionFactor(pair.factor);
+  const wrongPlaceCount = Math.max(1, Math.round((bigValue * otherFactor) / portion));
+  const noConvertCount = Math.max(1, Math.round(bigValue * 10)); // muddled the decimal place converting the portion
+  const totalAsCount = totalSmall; // reported the total amount instead of the number of portions
 
-  const options = displayVals.map((d) => ({ text: d.text, misconception: d.v === targetVal ? null : 'raw-number-trick' }));
-  const correctIdx = options.findIndex((o) => o.misconception === null);
-  const [correctOpt] = options.splice(correctIdx, 1);
-  options.unshift(correctOpt);
+  const seen = new Set([String(count)]);
+  const distractors = [];
+  for (const [val, mis] of [[wrongPlaceCount, 'wrong-place'], [noConvertCount, 'no-convert'], [totalAsCount, 'wrong-direction']]) {
+    const text = String(val);
+    if (seen.has(text)) continue;
+    seen.add(text);
+    distractors.push({ text, misconception: mis });
+  }
+  let options = [{ text: String(count), misconception: null }, ...distractors];
+  options = padWithNearMiss(rng, options, 5, count, 1);
 
-  const whyWrong = buildWhyWrong(options, 'toSmall');
+  const whyWrong = {};
+  for (const o of options) {
+    if (o.misconception === 'wrong-place') whyWrong[o.text] = `That used the wrong ladder jump — ${pair.bigUnit} to ${pair.smallUnit} is ×${pair.factor}, not ×${otherFactor}.`;
+    else if (o.misconception === 'no-convert') whyWrong[o.text] = `That mixed up the decimal place when converting — check ${bigText} ${pair.bigUnit} = ${totalSmall} ${pair.smallUnit} first.`;
+    else if (o.misconception === 'wrong-direction') whyWrong[o.text] = `That is the TOTAL amount in ${pair.smallUnit}, not how many ${info.small} it makes — you still need to divide by ${portion}.`;
+    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = 'Check the division again — how many times does the portion fit into the total?';
+  }
 
   return {
-    templateId: 'mu-t2-compare-units',
+    templateId: 'mu-t2-fit-how-many',
     stem,
     options,
     correctIndex: 0,
     hintSteps: [
-      'You cannot compare different units directly — convert them ALL to the same unit first.',
-      `Turn every option into ${pair.smallUnit} (or ${pair.bigUnit}) and then compare.`,
+      `First convert ${bigText} ${pair.bigUnit} into ${pair.smallUnit}: ${bigText} × ${pair.factor} = ${totalSmall} ${pair.smallUnit}.`,
+      `Then divide by the portion size: ${totalSmall} ÷ ${portion} = ?`,
     ],
     explain: {
       rule: RULE,
-      worked: `Converted to the same unit, the ${wordFinal} amount is ${correctOpt.text}.`,
+      worked: `${bigText} ${pair.bigUnit} = ${totalSmall} ${pair.smallUnit}. ${totalSmall} ÷ ${portion} = ${count} ${info.small}.`,
       whyWrong,
     },
   };
@@ -552,7 +556,7 @@ function t3DirectConversion(rng) {
 // -------- dispatch --------
 
 const T1 = [t1BigToSmall, t1SmallToBig, t1LadderVisual, t1UnitsPerOne];
-const T2 = [t2CmMm, t2LMl, t2CompareDifferentUnits, t2ReverseWhichEquals];
+const T2 = [t2CmMm, t2LMl, t2FitHowMany, t2ReverseWhichEquals];
 const T3 = [t3RibbonSubtract, t3CombineWeights, t3CapacityMultiply, t3DirectConversion];
 
 export function generate(tier, rng) {

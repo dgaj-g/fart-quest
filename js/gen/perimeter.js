@@ -352,7 +352,7 @@ function t2ReverseFindSide(rng) {
   };
 }
 
-// -------- T3 templates (num, L-shape derivation + shared-edge word problem) --------
+// -------- T3 templates (num, L-shape derivation + algebraic reverse-perimeter) --------
 
 function buildLShape(rng) {
   const unit = pick(rng, ['m', 'cm']);
@@ -440,43 +440,31 @@ function t3LShapeFindHiddenSide(rng) {
   };
 }
 
-function t3JoinedRectangles(rng) {
-  const unit = pick(rng, ['m', 'cm']);
-  const min = unit === 'm' ? 4 : 8;
-  const max = unit === 'm' ? 18 : 40;
-  const sharedW = rngInt(rng, min, max);
-  let L1 = rngInt(rng, min, max);
-  let L2 = rngInt(rng, min, max);
-  while (L2 === L1) L2 = rngInt(rng, min, max);
+function t3AlgebraicReverse(rng) {
+  const cfg = pick(rng, UNITS);
+  const { unit } = cfg;
+  const w = rngInt(rng, cfg.min, cfg.max);
+  const diff = rngInt(rng, 2, Math.max(3, Math.floor(cfg.max / 3)));
+  const l = w + diff;
+  const total = 2 * (l + w);
+  const halfPerim = total / 2;
 
-  const perim1 = 2 * (L1 + sharedW);
-  const perim2 = 2 * (L2 + sharedW);
-  const correct = perim1 + perim2 - 2 * sharedW;
-
-  const stem = `Two rectangular rooms are joined along one shared wall of length <b>${fmtUnit(sharedW, unit)}</b> (see the table). Room A is ${fmtUnit(L1, unit)} long; Room B is ${fmtUnit(L2, unit)} long. The shared wall is <b>NOT</b> part of the outside — don't count it. What is the perimeter of the combined room?`;
-  const visual = {
-    kind: 'table',
-    headers: ['Room', 'Length', 'Shared width'],
-    rows: [
-      ['Room A', fmtUnit(L1, unit), fmtUnit(sharedW, unit)],
-      ['Room B', fmtUnit(L2, unit), fmtUnit(sharedW, unit)],
-    ],
-  };
+  const stem = `A rectangular pen has a perimeter of <b>${fmtUnit(total, unit)}</b>. Its length is <b>${fmtUnit(diff, unit)}</b> more than its width. What is the width?`;
 
   return {
-    templateId: 'perim-t3-joined-rectangles',
+    templateId: 'perim-t3-algebraic-reverse',
     stem,
     format: 'num',
-    visual,
+    visual: null,
     unit,
-    accept: [String(correct), fmt(correct)],
+    accept: [String(w)],
     hintSteps: [
-      `Both rooms share the same ${fmtUnit(sharedW, unit)} wall, so joined together they make ONE big rectangle: ${L1} + ${L2} = ${L1 + L2} ${unit} long, and ${sharedW} ${unit} wide.`,
-      `Perimeter of that big rectangle = 2 × (${L1 + L2} + ${sharedW}) = ?`,
+      `Half the perimeter is one length + one width: ${fmtUnit(total, unit)} ÷ 2 = ${fmt(halfPerim)} ${unit}.`,
+      `The length is width + ${diff}, so width + (width + ${diff}) = ${fmt(halfPerim)}. That means 2 × width = ${fmt(halfPerim)} − ${diff} = ?`,
     ],
     explain: {
       rule: RULE,
-      worked: `Joined together, the two rooms make one rectangle ${L1 + L2} ${unit} by ${sharedW} ${unit}. Perimeter = 2 × (${L1 + L2} + ${sharedW}) = ${fmtUnit(correct, unit)}. (The shared wall vanishes inside — never count an internal wall.)`,
+      worked: `Half the perimeter = ${fmtUnit(total, unit)} ÷ 2 = ${fmt(halfPerim)} ${unit} — that's one length + one width. Since length = width + ${diff}, 2 × width = ${fmt(halfPerim)} − ${diff} = ${fmt(halfPerim - diff)}, so width = ${fmtUnit(w, unit)}.`,
       whyWrong: {},
     },
   };
@@ -486,7 +474,7 @@ function t3JoinedRectangles(rng) {
 
 const T1 = [t1RectAllSides, t1SquareAllSides, t1EquilateralTriangle];
 const T2 = [t2RectFromLW, t2RegularPolygonWord, t2ReverseFindSide];
-const T3 = [t3LShapeTotal, t3LShapeFindHiddenSide, t3JoinedRectangles];
+const T3 = [t3LShapeTotal, t3LShapeFindHiddenSide, t3AlgebraicReverse];
 
 export function generate(tier, rng) {
   let pool;

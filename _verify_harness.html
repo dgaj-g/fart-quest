@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>verify speech-brackets</title>
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/anims.css">
+<style>
+  body { padding: 16px; }
+  #widthbtns { margin-bottom: 10px; }
+  #widthbtns button { margin-right: 6px; }
+  #wrap { border: 2px dashed #888; }
+</style>
+</head>
+<body>
+  <div id="widthbtns">
+    <button onclick="document.getElementById('wrap').style.width='640px'">640px</button>
+    <button onclick="document.getElementById('wrap').style.width='800px'">800px</button>
+    <button onclick="document.getElementById('wrap').style.width='980px'">980px</button>
+    <button onclick="document.getElementById('wrap').style.width='100%'">100%</button>
+  </div>
+  <div id="wrap" style="width:640px;">
+    <div class="lesson-card anim-card">
+      <div class="anim-chip">TEST</div>
+      <h2 id="title"></h2>
+      <div class="anim-host" id="host"></div>
+      <button class="btn btn-gold anim-carry" id="carry">CARRY ON</button>
+    </div>
+  </div>
+  <div id="log" style="margin-top:14px;font-family:monospace;font-size:12px;white-space:pre-wrap;"></div>
+<script>
+  window.__listenerLog = [];
+  const _add = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function (type, fn, opts) {
+    if (type === 'click' && this.tagName === 'BUTTON') {
+      window.__listenerLog.push(this.className + '|' + this.textContent);
+    }
+    return _add.call(this, type, fn, opts);
+  };
+</script>
+<script type="module">
+  import mod from './js/anims/speech-brackets.js';
+  import { sfx } from './js/anims/_kit.js';
+  document.getElementById('title').textContent = mod.title;
+  const host = document.getElementById('host');
+  const carry = document.getElementById('carry');
+  const logEl = document.getElementById('log');
+  const cleanup = mod.mount(host, {
+    audio: { sfx() {} },
+    sfx,
+    complete() { carry.classList.add('pulse'); logEl.textContent += 'COMPLETE called\n'; },
+  });
+  window.__cleanup = cleanup;
+  logEl.textContent += 'mounted ok\n';
+</script>
+</body>
+</html>

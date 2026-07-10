@@ -206,8 +206,10 @@ export default {
       scene.style.perspective = Math.round(H * 15) + 'px';
       pivot.style.transformOrigin = '0 0';
       applyRot(true);
-      if (missionKind === 'tag') buildTagSolid(geom, true);
-      else if (missionKind === 'fold') {
+      if (missionKind === 'tag') {
+        const freshGeom = MISSIONS[mi].id === 'cube' ? buildCubeGeom(H) : buildPyramidGeom(BH, AY, BY);
+        buildTagSolid(freshGeom, true);
+      } else if (missionKind === 'fold') {
         // a live fold tween can't be resumed mid-flight at a new scale — abandon it
         // (hard rule 4/relayout rule) and drop back to the net-choice screen, same as start().
         foldCancels.forEach((c) => c()); foldCancels = [];
@@ -265,7 +267,7 @@ export default {
       } else if (mode === 'edge') {
         geom.edges.forEach(([a, b], i) => {
           const pa = project(geom.v[a], rx, ry); const pb = project(geom.v[b], rx, ry);
-          if (distSeg(pt, pa, pb) < THICK * 0.8 + 6) {
+          if (distSeg(pt, pa, pb) < Math.max(22, THICK * 0.8 + 6)) {
             const z = (pa.z + pb.z) / 2;
             if (z > bestZ) { bestZ = z; bestId = String(i); bestKind = 'edge'; }
           }
@@ -273,7 +275,7 @@ export default {
       } else if (mode === 'vert') {
         geom.v.forEach((v, i) => {
           const p = project(v, rx, ry);
-          if (Math.hypot(pt.x - p.x, pt.y - p.y) < 18) {
+          if (Math.hypot(pt.x - p.x, pt.y - p.y) < 22) {
             if (p.z > bestZ) { bestZ = p.z; bestId = String(i); bestKind = 'vert'; }
           }
         });
@@ -469,7 +471,7 @@ export default {
               .then(() => { if (alive) winFold(); });
           } else {
             sfx.thud(); later(() => sfx.tock(2), 120);
-            bubble(stage, { title: 'WOMP WOMP! 🎺', text: 'Two of the squares landed on the <b>same</b> face — and one face was left <b>bare</b>. An open box, not a cube. Same six squares as the other net, but this arrangement never works — <b>never assume "6 squares = it works."</b>', img: IMG })
+            bubble(stage, { title: 'WOMP WOMP! 🎺', text: 'Look at the box — one face was left <b>bare</b>. Somewhere in this net two squares had to double up on the same face to leave that gap. An open box, not a cube. Same six squares as the other net, but this arrangement never works — <b>never assume "6 squares = it works."</b>', img: IMG })
               .then(() => { if (alive) offerRetry(); });
           }
         });
@@ -516,6 +518,11 @@ export default {
     function start(i) {
       mi = i;
       winBox.innerHTML = '';
+      // cancel any pending delayed win/announce callback from whatever mission was
+      // showing before — otherwise a mission switch inside that delay (e.g. tapping a
+      // different chip right after tagging the last vertex) lets a stale callback
+      // fire on the NEW mission/board (marks it done, announces the wrong solid).
+      timers.forEach((t) => clearTimeout(t)); timers.clear();
       foldCancels.forEach((c) => c()); foldCancels = [];
       if (momentumCancel) { momentumCancel(); momentumCancel = null; }
       paintChips();
@@ -544,9 +551,16 @@ export default {
       if (mDef.id === 'cube') later(() => toast(stage, '👆 drag to spin Sir Facelot — find the hidden faces!'), 400);
     }
 
-    resetBtn.addEventListener('click', () => { sfx.ui(); rx = -18; ry = 30; applyRot(); });
+    resetBtn.addEventListener('click', () => {
+      sfx.ui();
+      if (momentumCancel) { momentumCancel(); momentumCancel = null; }
+      rx = -18; ry = 30; applyRot();
+    });
 
-    const onResize = () => { drag.abort(); layout(); };
+    const onResize = () => {
+      if (momentumCancel) { momentumCancel(); momentumCancel = null; }
+      drag.abort(); layout();
+    };
     let rsTimer = null;
     const rsHandler = () => { clearTimeout(rsTimer); rsTimer = setTimeout(onResize, 180); };
     window.addEventListener('resize', rsHandler);

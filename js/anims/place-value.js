@@ -214,6 +214,7 @@ export default {
     let meterDigits = 0;
     const doneSet = new Set();
     let seenSeatWarmer = false;
+    let masteryShown = false;
     let picker = null;
 
     function busy() { return anyDragging || !!meterTween; }
@@ -462,7 +463,8 @@ export default {
         + `<div class="wk">${workedText(t.value, place, mission.tail)}</div>`);
       winBox.append(w);
       const allDone = doneSet.size === MISSIONS.length;
-      if (allDone) {
+      if (allDone && !masteryShown) {
+        masteryShown = true;
         w.append(el('div', 'wa', 'Same digit, wildly different value — the THRONE does the work!'));
         ctx.complete();
       }

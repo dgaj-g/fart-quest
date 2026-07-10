@@ -89,9 +89,9 @@ const MISSIONS = [
   { id: 'c', kind: 'convert', family: 'length', fromIdx: 1, toIdx: 2, start: '3.5',
     q: '3.5 m = ? cm', instr: 'Drag Centi-Peed DOWN the ladder, from m to cm.',
     worked: '3.5 m — climbing DOWN from m to cm is ×100 → 350 cm.' },
-  { id: 'd', kind: 'sort', family: 'length', object: { emoji: '🚪', label: 'A door’s height' }, targetIdx: 1,
-    q: 'Which rung suits a door’s height?', instr: 'Drag the card onto the SENSIBLE rung.',
-    worked: 'A door is about a couple of metres tall — far too big for cm or mm, nowhere near a km. The m rung wins.' },
+  { id: 'd', kind: 'convert', family: 'capacity', fromIdx: 0, toIdx: 1, start: '1.5',
+    q: '1.5 l = ? ml', instr: 'Drag Centi-Peed DOWN the capacity ladder, from l to ml.',
+    worked: '1.5 l — climbing DOWN from l to ml is ×1000 → 1500 ml.' },
 ];
 const SANDBOX = {
   length: ['1.2', '640', '75'],
@@ -288,18 +288,20 @@ export default {
             const lay = layoutFor(model, off);
             renderChars(lay.chars, true);
             curChars = lay.chars;
-            updateStatus(off);
+            updateStatus(startRung, idx);
           }
         }
       }
-      function updateStatus(off) {
-        if (off === 0) { status.innerHTML = 'no rungs climbed yet'; return; }
+      function updateStatus(fromIdx, toIdx) {
+        if (fromIdx === toIdx) { status.innerHTML = 'no rungs climbed yet'; return; }
+        const rungDist = Math.abs(toIdx - fromIdx);
+        const off = offsetBetween(m.family, fromIdx, toIdx);
         const n = Math.abs(off);
-        status.innerHTML = `<b>${n}</b> rung${n === 1 ? '' : 's'} <b>${off > 0 ? 'DOWN' : 'UP'}</b> — that's <b>${off > 0 ? '× ' : '÷ '}${fmtFactor(n)}</b>`;
+        status.innerHTML = `<b>${rungDist}</b> rung${rungDist === 1 ? '' : 's'} <b>${off > 0 ? 'DOWN' : 'UP'}</b> — that's <b>${off > 0 ? '× ' : '÷ '}${fmtFactor(n)}</b>`;
       }
       setY(rig.rungYs[startRung], false);
       rig.litRange(startRung, startRung);
-      updateStatus(0);
+      updateStatus(startRung, startRung);
 
       function settleAt(idx) {
         pendingIdx = idx;
@@ -316,7 +318,7 @@ export default {
           const lay = layoutFor(model, off);
           renderChars(lay.chars, true);
           curChars = lay.chars;
-          updateStatus(off);
+          updateStatus(startRung, idx);
         });
       }
 
@@ -353,7 +355,7 @@ export default {
         if (curIdx === m.toIdx) { winConvert(m, model); return; }
         attempts += 1;
         sfx.nudge();
-        const need = Math.abs(offsetBetween(m.family, m.fromIdx, m.toIdx));
+        const need = Math.abs(m.toIdx - m.fromIdx);
         let text;
         if (curIdx === startRung) {
           text = 'Take hold of Centi-Peed and drag him up or down the ladder!';
@@ -563,17 +565,19 @@ export default {
               unitChip.textContent = rig.rungs[idx].label;
               const off = offsetBetween(fk, startRung, idx);
               renderChars(layoutFor(model, off).chars);
-              updateStatus(off);
+              updateStatus(startRung, idx);
             }
           }
         }
-        function updateStatus(off) {
-          if (off === 0) { status.innerHTML = 'no rungs climbed yet'; return; }
+        function updateStatus(fromIdx, toIdx) {
+          if (fromIdx === toIdx) { status.innerHTML = 'no rungs climbed yet'; return; }
+          const rungDist = Math.abs(toIdx - fromIdx);
+          const off = offsetBetween(fk, fromIdx, toIdx);
           const n = Math.abs(off);
-          status.innerHTML = `<b>${n}</b> rung${n === 1 ? '' : 's'} <b>${off > 0 ? 'DOWN' : 'UP'}</b> — that's <b>${off > 0 ? '× ' : '÷ '}${fmtFactor(n)}</b>`;
+          status.innerHTML = `<b>${rungDist}</b> rung${rungDist === 1 ? '' : 's'} <b>${off > 0 ? 'DOWN' : 'UP'}</b> — that's <b>${off > 0 ? '× ' : '÷ '}${fmtFactor(n)}</b>`;
         }
         setY(rig.rungYs[startRung], false);
-        updateStatus(0);
+        updateStatus(startRung, startRung);
 
         let dragBaseY = 0;
         const dragCtrl = makeDrag(platform, {
@@ -596,7 +600,7 @@ export default {
               sfx.settle();
               const off = offsetBetween(fk, startRung, idx);
               renderChars(layoutFor(model, off).chars);
-              updateStatus(off);
+              updateStatus(startRung, idx);
             });
           },
         });
@@ -615,7 +619,7 @@ export default {
             sfx.settle();
             const off = offsetBetween(fk, startRung, target);
             renderChars(layoutFor(model, off).chars);
-            updateStatus(off);
+            updateStatus(startRung, target);
           });
         }
         resetBtn.onclick = () => { sfx.ui(); if (!dragCtrl.dragging()) jumpTo(startRung); };

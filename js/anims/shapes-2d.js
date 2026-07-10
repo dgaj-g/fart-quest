@@ -79,13 +79,16 @@ function fisherYates(arr) {
   }
   return a;
 }
-// each corner stays inside its own quadrant (plus a generous overlap band)
-// so the quad never self-crosses while still reaching an exact square/rect.
+// each corner stays inside its own quadrant with NO overlap against its
+// horizontal/vertical neighbour, so TL.x < TR.x, BL.x < BR.x, TL.y < BL.y and
+// TR.y < BR.y always hold regardless of where the other corners are — the
+// quad can never fold into a bowtie/self-intersecting shape, while there is
+// still enough room in each quadrant to reach an exact rectangle/square.
 const QUAD_BOUNDS = [
-  { xmin: 0.03, xmax: 0.62, ymin: 0.06, ymax: 0.62 },
-  { xmin: 0.38, xmax: 0.97, ymin: 0.06, ymax: 0.62 },
-  { xmin: 0.38, xmax: 0.97, ymin: 0.38, ymax: 0.94 },
-  { xmin: 0.03, xmax: 0.62, ymin: 0.38, ymax: 0.94 },
+  { xmin: 0.03, xmax: 0.47, ymin: 0.06, ymax: 0.47 },
+  { xmin: 0.53, xmax: 0.97, ymin: 0.06, ymax: 0.47 },
+  { xmin: 0.53, xmax: 0.97, ymin: 0.53, ymax: 0.94 },
+  { xmin: 0.03, xmax: 0.47, ymin: 0.53, ymax: 0.94 },
 ];
 function clampCorner(i, p) {
   const b = QUAD_BOUNDS[i];
@@ -141,8 +144,9 @@ const CSS = `
 .pss-corner-poly { fill:#8577b0; fill-opacity:.55; stroke:var(--ink); stroke-width:3; }
 .pss-tick { stroke: var(--stink); stroke-width:3; stroke-linecap:round; }
 .pss-badge { fill: var(--gold-deep); stroke: var(--ink); stroke-width: 1.4; }
-.pss-corner { position:absolute; left:0; top:0; width:38px; height:38px; margin:-19px 0 0 -19px; border-radius:50%; background:#fff; border:3px solid var(--stink); box-shadow: 0 3px 0 rgba(51,38,29,.3); cursor:grab; }
-.pss-corner:active, .pss-corner.pss-dragging { cursor:grabbing; }
+.pss-corner-hit { position:absolute; left:0; top:0; width:48px; height:48px; margin:-24px 0 0 -24px; display:flex; align-items:center; justify-content:center; cursor:grab; touch-action:none; }
+.pss-corner-hit:active, .pss-corner-hit.pss-dragging { cursor:grabbing; }
+.pss-corner { width:38px; height:38px; border-radius:50%; background:#fff; border:3px solid var(--stink); box-shadow: 0 3px 0 rgba(51,38,29,.3); pointer-events:none; }
 .pss-quiz-canvas { position:relative; margin: 4px auto 10px; }
 .pss-quiz-canvas svg { display:block; }
 .pss-quiz-opts { display:flex; gap:9px; flex-wrap:wrap; justify-content:center; margin-top:10px; }
@@ -297,7 +301,13 @@ function makeCornersBoard(host, opts) {
   svg.append(poly, tickLayer, badgeLayer);
   wrap.appendChild(svg);
   const readout = el('div', 'pss-readout');
-  const cornerEls = [0, 1, 2, 3].map(() => { const c = el('div', 'pss-corner'); wrap.appendChild(c); return c; });
+  const cornerEls = [0, 1, 2, 3].map(() => {
+    const hit = el('div', 'pss-corner-hit');
+    const dot = el('div', 'pss-corner');
+    hit.appendChild(dot);
+    wrap.appendChild(hit);
+    return hit;
+  });
   host.append(wrap, readout);
 
   const B = { W: 0, H: 0, pts: opts.startFractions.map((p) => ({ ...p })), cancelTween: null, els: { wrap } };
@@ -615,11 +625,15 @@ export default {
       const w = el('div', 'pss-win', `<div class="wp">${mission ? mission.worked || 'NICE ONE! 🎉' : 'SORTED!'}</div>`);
       winBox.append(w);
       if (mission && mission.id === 'square') {
-        later(() => bubble(stage, {
-          title: 'FAMILY SECRET! 👑',
-          text: 'A square is <b>ALWAYS</b> a rectangle (4 right angles, opposite sides equal) AND <b>ALWAYS</b> a rhombus (4 equal sides). But a rectangle isn\'t always a square, and a rhombus isn\'t always a square — <b>family loyalty only flows one way!</b>',
-          img: POLLY_IMG,
-        }), 500);
+        const atMi = mi;
+        later(() => {
+          if (mi !== atMi) return; // child already navigated to a different mission/free play
+          bubble(stage, {
+            title: 'FAMILY SECRET! 👑',
+            text: 'A square is <b>ALWAYS</b> a rectangle (4 right angles, opposite sides equal) AND <b>ALWAYS</b> a rhombus (4 equal sides). But a rectangle isn\'t always a square, and a rhombus isn\'t always a square — <b>family loyalty only flows one way!</b>',
+            img: POLLY_IMG,
+          });
+        }, 500);
       }
       if (doneSet.size === MISSIONS.length) ctx.complete();
       const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));

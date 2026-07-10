@@ -19,6 +19,17 @@ export const ZONES = [
 export function zoneIndexOf(id) { return ZONES.findIndex((z) => z.id === id); }
 export function zoneIndexForPercent(pct) { return Math.max(0, Math.min(4, Math.floor(pct / 20))); }
 export function zoneIndexForDropX(dropX, lineWidth) { return zoneIndexForPercent((dropX / lineWidth) * 100); }
+// Dedicated zone mapping for "wanted out of total" dice counts — unlike the peg line's
+// equal-fifths zoneIndexForPercent(), only 0/total is truly IMPOSSIBLE and only total/total
+// is truly CERTAIN; the four in-between counts split unlikely/evens/likely around half.
+export function diceZoneIndex(count, total) {
+  if (count <= 0) return 0;
+  if (count >= total) return 4;
+  const half = total / 2;
+  if (count < half) return 1;
+  if (count > half) return 3;
+  return 2;
+}
 export function pegCorrect(targetId, zoneIdx) { return zoneIndexOf(targetId) === zoneIdx; }
 export function chancePercent(count, total) { return (count / total) * 100; }
 export function chipLabel(count, total) { return `${count} out of ${total}`; }
@@ -78,6 +89,10 @@ export default {
   mount(host, ctx) {
     let alive = true;
     const doneSet = new Set();
+    // Tracks whether the peg mission has EVER been solved, independent of doneSet('pegs'),
+    // so resetting the pegs mission after a dice mission is already done doesn't re-lock
+    // that dice mission's chip (doneSet('pegs') gets cleared on reset; this flag doesn't).
+    let pegsEverSolved = false;
     const timers = new Set();
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); };
     const liveCancels = new Set();
@@ -286,6 +301,7 @@ export default {
     }
     function pegWin() {
       doneSet.add('pegs');
+      pegsEverSolved = true;
       sfx.win(); party(stage);
       paintChips();
       winBox.innerHTML = '';
@@ -321,7 +337,7 @@ export default {
         pointerCancel = tween((v) => { pointerX = v; pointerEl.style.left = v + 'px'; }, pointerX, x, 260, () => { pointerCancel = null; });
       }
       chipEl.innerHTML = `Chance so far: <b>${chipLabel(count, 6)}</b>`;
-      const liveZoneIdx = zoneIndexForPercent(pct);
+      const liveZoneIdx = diceZoneIndex(count, 6);
       zoneEls.forEach((z, i) => z.classList.toggle('active', i === liveZoneIdx && MISSIONS[mi].kind === 'dice'));
     }
     function lockDice(missionDef) {
@@ -358,8 +374,7 @@ export default {
     }
     function diceWin(missionDef, count) {
       winBox.innerHTML = '';
-      const pct = chancePercent(count, 6);
-      const zoneLabel = ZONES[zoneIndexForPercent(pct)].label;
+      const zoneLabel = ZONES[diceZoneIndex(count, 6)].label;
       const phrase = WIN_PHRASES[Math.floor(Math.random() * WIN_PHRASES.length)];
       const w = el('div', 'mwl-win',
         `<div class="mw-title">${phrase}</div>`
@@ -372,7 +387,7 @@ export default {
     function paintChips() {
       chiprow.innerHTML = '';
       MISSIONS.forEach((m, i) => {
-        const locked = m.kind === 'dice' && !doneSet.has('pegs');
+        const locked = m.kind === 'dice' && !pegsEverSolved;
         const c = el('button', 'anim-mchip' + (i === mi ? ' active' : '') + (doneSet.has(m.id) ? ' done' : ''), (locked ? '🔒 ' : '') + m.label);
         c.addEventListener('click', () => {
           if (locked) { sfx.nudge(); toast(stage, 'Peg the Likelihood Line first!'); return; }
@@ -390,7 +405,7 @@ export default {
       } else {
         const nb = el('button', 'btn btn-gold mw-btn', 'PLAY IT AGAIN 🔁');
         nb.addEventListener('click', () => {
-          sfx.ui(); doneSet.clear(); resetPegs(); start(0);
+          sfx.ui(); doneSet.clear(); pegsEverSolved = false; resetPegs(); start(0);
         });
         container.append(nb);
       }

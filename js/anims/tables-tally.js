@@ -168,7 +168,7 @@ function makeTableBoard(host) {
     grid.append(el('div', 'wgb-rhead', r));
     const row = [];
     TABLE_COLS.forEach((c, ci) => {
-      const cell = el('div', 'wgb-tcell', String(TABLE_VALUES[ri][ci]));
+      const cell = el('div', 'wgb-tcell');
       row.push(cell);
       grid.append(cell);
     });
@@ -182,28 +182,35 @@ function makeTableBoard(host) {
   host.append(wrap);
 
   let rowIdx = 0; let colIdx = 0; let rowY = 0; let colX = 0;
+  let rowAnchor = 0; let colAnchor = 0;
   let settledRow = false; let settledCol = false;
   let cancelRow = null; let cancelCol = null;
   const api = { onCross: null };
 
   function paintActive() {
-    cells.forEach((row) => row.forEach((c) => c.classList.remove('active')));
+    cells.forEach((row) => row.forEach((c) => { c.classList.remove('active'); c.textContent = ''; }));
     if (settledRow && settledCol) {
-      cells[rowIdx][colIdx].classList.add('active');
+      const cell = cells[rowIdx][colIdx];
+      cell.classList.add('active');
+      cell.textContent = String(TABLE_VALUES[rowIdx][colIdx]);
       if (api.onCross) api.onCross(rowIdx, colIdx);
     }
   }
 
   const rowDrag = makeDrag(rowFinger, {
-    onStart() { if (cancelRow) { cancelRow(); cancelRow = null; } },
+    onStart() {
+      if (cancelRow) { cancelRow(); cancelRow = null; }
+      rowAnchor = rowY;
+      if (settledRow) { settledRow = false; paintActive(); }
+    },
     onMove(dx, dy) {
-      rowY = Math.max(-T_ROW * 0.3, Math.min(T_ROW * 1.3, (settledRow ? rowIdx * T_ROW : 0) + dy));
+      rowY = Math.max(-T_ROW * 0.3, Math.min(T_ROW * 1.3, rowAnchor + dy));
       rowFinger.style.transform = `translateY(${rowY}px)`;
     },
     onEnd() {
       const idx = rowY > T_ROW / 2 ? 1 : 0;
       const target = idx * T_ROW;
-      cancelRow = tween((v) => { rowFinger.style.transform = `translateY(${v}px)`; }, rowY, target, 220, () => {
+      cancelRow = tween((v) => { rowY = v; rowFinger.style.transform = `translateY(${v}px)`; }, rowY, target, 220, () => {
         cancelRow = null; rowY = target; rowIdx = idx; settledRow = true;
         rowFinger.classList.remove('unset');
         sfx.settle(); paintActive();
@@ -211,15 +218,19 @@ function makeTableBoard(host) {
     },
   });
   const colDrag = makeDrag(colFinger, {
-    onStart() { if (cancelCol) { cancelCol(); cancelCol = null; } },
+    onStart() {
+      if (cancelCol) { cancelCol(); cancelCol = null; }
+      colAnchor = colX;
+      if (settledCol) { settledCol = false; paintActive(); }
+    },
     onMove(dx) {
-      colX = Math.max(-T_COL * 0.3, Math.min(T_COL * 1.3, (settledCol ? colIdx * T_COL : 0) + dx));
+      colX = Math.max(-T_COL * 0.3, Math.min(T_COL * 1.3, colAnchor + dx));
       colFinger.style.transform = `translateX(${colX}px)`;
     },
     onEnd() {
       const idx = colX > T_COL / 2 ? 1 : 0;
       const target = idx * T_COL;
-      cancelCol = tween((v) => { colFinger.style.transform = `translateX(${v}px)`; }, colX, target, 220, () => {
+      cancelCol = tween((v) => { colX = v; colFinger.style.transform = `translateX(${v}px)`; }, colX, target, 220, () => {
         cancelCol = null; colX = target; colIdx = idx; settledCol = true;
         colFinger.classList.remove('unset');
         sfx.settle(); paintActive();
@@ -319,17 +330,17 @@ export default {
       let total = 0;
       let solved = false;
 
-      function render() {
+      function render(justAdded) {
         yard.innerHTML = '';
         const { gates, strays } = breakdown(total);
         for (let g = 0; g < gates; g += 1) {
           const cl = renderCluster(4, true);
-          if (g === gates - 1 && total > 0 && total % 5 === 0) cl.classList.add('justclosed');
+          if (justAdded && g === gates - 1 && total > 0 && total % 5 === 0) cl.classList.add('justclosed');
           yard.append(cl);
         }
         if (strays > 0 || total === 0) {
           const cl = renderCluster(strays, false);
-          if (strays > 0) cl.classList.add('pop');
+          if (strays > 0 && justAdded) cl.classList.add('pop');
           yard.append(cl);
         }
         chip.innerHTML = chipText(total);
@@ -342,15 +353,15 @@ export default {
       controls.append(addBtn, undoBtn, lock);
 
       addBtn.addEventListener('click', () => {
-        if (!alive || total >= 20) return;
+        if (!alive || solved || total >= 20) return;
         total += 1;
-        render();
+        render(true);
         if (total % 5 === 0) sfx.drop(); else sfx.tick((total - 1) % 5);
       });
       undoBtn.addEventListener('click', () => {
-        if (!alive || total === 0) return;
+        if (!alive || solved || total === 0) return;
         total -= 1;
-        render();
+        render(false);
         sfx.tock(0);
       });
       lock.addEventListener('click', () => {
@@ -359,10 +370,11 @@ export default {
         if (total === m.target) {
           solved = true;
           const { gates, strays } = breakdown(total);
-          winCard('GATE BY GATE! 🎉', `${gates} gates × 5 + ${strays} strays = ${total} — spot on!`);
+          const lockedTotal = total;
+          winCard('GATE BY GATE! 🎉', `${gates} gates × 5 + ${strays} strays = ${lockedTotal} — spot on!`);
           later(() => bubble(stage, {
             title: 'FIVE, NEVER SIX! 🚪',
-            text: `See how the yard settled? <b>${gates} gates</b> worth 5 each, plus <b>${strays} stray${strays === 1 ? '' : 's'}</b> — that's ${gates} × 5 + ${strays} = <b>${total}</b>. Gates first, strays second, every single time!`,
+            text: `See how the yard settled? <b>${gates} gates</b> worth 5 each, plus <b>${strays} stray${strays === 1 ? '' : 's'}</b> — that's ${gates} × 5 + ${strays} = <b>${lockedTotal}</b>. Gates first, strays second, every single time!`,
             img: WALLY_IMG,
           }), 350);
         } else {
@@ -481,6 +493,8 @@ export default {
     }
 
     function start(i) {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
       mi = i;
       winBox.innerHTML = '';
       dash.innerHTML = '';

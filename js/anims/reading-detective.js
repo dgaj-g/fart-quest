@@ -270,7 +270,7 @@ export default {
         sfx.nudge();
         btn.classList.add('wrongpick');
         btn.disabled = true;
-        later(() => { if (alive) bubble(stage, { title: 'NOT QUITE! \u{1F443}', text: opt.why, img: SNIFF_IMG }); }, 80);
+        later(() => { if (alive && !roundSolved && MISSIONS[mi] === mission) bubble(stage, { title: 'NOT QUITE! \u{1F443}', text: opt.why, img: SNIFF_IMG }); }, 80);
       }
     }
 

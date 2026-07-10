@@ -185,94 +185,46 @@ function t1SquareValue(rng) {
 
 const FACTOR_BASES_T1 = [12, 16, 18, 20, 24, 28, 30, 36, 40, 42, 45, 48, 50];
 
-function t1WhichIsFactor(rng) {
+function t1NotFactor(rng) {
   const N = pick(rng, FACTOR_BASES_T1);
-  const trueFactors = factorsOf(N).filter((f) => f !== N && f !== 1);
-  const correctVal = pick(rng, trueFactors);
-  const correctText = fmt(correctVal);
+  const allFactors = factorsOf(N);
+  const candidateFactors = allFactors.filter((f) => f !== N);
+  const chosenFactors = shuffle(rng, candidateFactors).slice(0, 3);
 
-  const unrelatedPool = [7, 9, 11, 13, 17, 19].filter((v) => N % v !== 0);
-  const candidatePool = [
-    { v: N * 2, m: 'multiple-not-factor' },
-    { v: N * 3, m: 'multiple-not-factor' },
+  const nonFactorPool = [
+    { v: N * 2, m: 'is-multiple-not-factor' },
     { v: N + 1, m: 'off-by-one' },
     { v: N - 1, m: 'off-by-one' },
-    ...(unrelatedPool.length ? [{ v: pick(rng, unrelatedPool), m: 'unrelated' }] : []),
-  ]
-    .filter((d) => d.v > 0 && N % d.v !== 0)
-    .map((d) => ({ text: fmt(d.v), misconception: d.m }));
+  ].filter((d) => d.v > 0 && !allFactors.includes(d.v));
+  const correctChoice = pick(rng, nonFactorPool.length ? nonFactorPool : [{ v: N * 2, m: 'is-multiple-not-factor' }]);
 
-  const distractors = takeUnique(shuffle(rng, candidatePool), 3, correctText);
-
-  const correct = { text: correctText, misconception: null };
-  const options = [correct, ...distractors];
+  const stem = `Which of these numbers is <b>NOT</b> a factor of ${N}?`;
+  const correct = { text: fmt(correctChoice.v), misconception: null };
+  const options = [correct, ...chosenFactors.map((f) => ({ text: fmt(f), misconception: 'is-actually-factor', _v: f }))];
 
   const whyWrong = {};
-  for (const d of distractors) {
-    if (d.misconception === 'multiple-not-factor') whyWrong[d.text] = `That’s a MULTIPLE of ${N} (you multiply UP to get it) — factors divide INTO ${N}, they don’t come from multiplying it.`;
-    else whyWrong[d.text] = `${N} ÷ ${d.text.replace(/,/g, '')} doesn’t give a whole number, so that isn’t a factor of ${N}.`;
+  for (const o of options) {
+    if (o.misconception === 'is-actually-factor') whyWrong[o.text] = `${N} ÷ ${o._v} = ${N / o._v} exactly — that IS a factor, not the odd one out.`;
   }
 
   return {
-    templateId: 'sn-t1-which-factor',
-    stem: `Which of these numbers is a <b>factor</b> of ${N}?`,
-    options,
+    templateId: 'sn-t1-not-factor',
+    stem,
+    options: options.map((o) => ({ text: o.text, misconception: o.misconception })),
     correctIndex: 0,
     hintSteps: [
-      `A factor divides into ${N} exactly, with nothing left over. Try dividing each option into ${N}.`,
-      `${N} ÷ ${correctVal} = ${N / correctVal} — a whole number, so…?`,
+      `A factor divides INTO ${N} exactly, with nothing left over. Try dividing ${N} by each option.`,
+      `${chosenFactors.map((f) => `${N} ÷ ${f} = ${N / f}`).join(', ')} — all whole numbers. Which option leaves a remainder?`,
     ],
     explain: {
       rule: RULE_FACTORS,
-      worked: `${N} ÷ ${correctVal} = ${N / correctVal} exactly, so ${correctVal} is a factor of ${N}.`,
+      worked: `${N} ÷ ${correctChoice.v} is not a whole number, so ${correctChoice.v} is NOT a factor of ${N}. Every other option divides in exactly.`,
       whyWrong,
     },
   };
 }
 
 // -------- T2 templates --------
-
-function t2NotMultiple(rng) {
-  const base = pick(rng, [3, 4, 5, 6, 7, 8, 9, 10, 12]);
-  const ks = shuffle(rng, [1, 2, 3, 4, 5, 6, 7, 8]).slice(0, 4);
-  const multiples = ks.map((k) => base * k).sort((a, b) => a - b);
-  const multipleSet = new Set(multiples);
-
-  let correctVal = Math.max(...multiples) + 1; // safe deterministic fallback (never a multiple of base>1)
-  const offsets = shuffle(rng, [1, -1, 2, -2]);
-  for (const off of offsets) {
-    const candidateBase = pick(rng, multiples);
-    const candidate = candidateBase + off;
-    if (candidate > 0 && candidate % base !== 0 && !multipleSet.has(candidate)) {
-      correctVal = candidate;
-      break;
-    }
-  }
-
-  const stem = `Which of these numbers is <b>NOT</b> a multiple of ${base}?`;
-  const distractors = multiples.map((v) => ({ text: fmt(v), misconception: 'is-multiple', _v: v }));
-  const correct = { text: fmt(correctVal), misconception: null };
-  const options = [correct, ...distractors.map((d) => ({ text: d.text, misconception: d.misconception }))];
-
-  const whyWrong = {};
-  for (const d of distractors) whyWrong[d.text] = `${d._v} = ${base} × ${d._v / base} — it IS a multiple of ${base}, not the odd one out.`;
-
-  return {
-    templateId: 'sn-t2-not-multiple',
-    stem,
-    options,
-    correctIndex: 0,
-    hintSteps: [
-      `Multiples of ${base} come from the ${base} times table: ${base}, ${base * 2}, ${base * 3}…`,
-      `Check each option: does dividing it by ${base} give a whole number? The one that doesn’t is the answer.`,
-    ],
-    explain: {
-      rule: RULE_FACTORS,
-      worked: `${correctVal} ÷ ${base} doesn’t give a whole number, so it is NOT a multiple of ${base}. Every other option is.`,
-      whyWrong,
-    },
-  };
-}
 
 const FACTOR_BASES_T2 = [12, 16, 18, 20, 24, 30, 36, 40, 42, 48, 60, 72];
 
@@ -519,8 +471,8 @@ function t3CubeValue(rng) {
 
 // -------- dispatch --------
 
-const T1 = [t1WhichIsPrime, t1NextSquare, t1SquareValue, t1WhichIsFactor];
-const T2 = [t2NotMultiple, t2NotFactor, t2SquareVsCube, t2PrimeInRange];
+const T1 = [t1WhichIsPrime, t1NextSquare, t1SquareValue, t1NotFactor];
+const T2 = [t2NotFactor, t2SquareVsCube, t2PrimeInRange];
 const T3 = [t3SquareMinus, t3SumPrimesRange, t3TriangularNext, t3CubeValue];
 
 export function generate(tier, rng) {

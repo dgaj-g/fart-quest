@@ -93,6 +93,9 @@ const CSS = `
 }
 .mls-block.ghost { background:linear-gradient(180deg,#f4efe3,#e5dcc8); border-color:rgba(51,38,29,.55); box-shadow:none; }
 .mls-block.grab { cursor:grab; }
+.mls-block.grab::before {
+  content:''; position:absolute; inset:-13px 0; /* invisible hit-area pad: 18px visual brick -> 44px effective touch target */
+}
 .mls-block.grab::after {
   content:''; position:absolute; inset:3px; border-radius:3px; border:1.5px dashed rgba(51,38,29,.3);
 }
@@ -258,6 +261,7 @@ export default {
         const blockEl = blockRefs[i][h - 1];
         blockEl.classList.add('grab');
         return makeDrag(blockEl, {
+          enabled: () => !flightCancel,
           onStart() {
             if (flightCancel) { flightCancel(); flightCancel = null; }
             blockEl.classList.add('dragging');
