@@ -1,7 +1,7 @@
 # Scout-Tech anim review findings — captured 9 Jul 2026 (run 3 mid-flight)
 
 Adversarial review findings for the 48 factory-built anim modules. Snapshot taken while
-**Coverage at snapshot: 41 of 48 reviews complete, 86 findings. Reviews still outstanding (or unattributed) at snapshot: place-value, coordinates, homophones, tricky-words, reading-detective, between-lines, poetry, kinds-of-writing, writers-tricks.**
+**Coverage: 48 of 48 reviews complete (updated 10 Jul 2026, run 4 completion). All topics reviewed.**
 
 the fixer wave was starting (only 1 fix had completed). THE FIX PROTOCOL: for each topic,
 verify each finding against the current js/anims/<id>.js (a fixer agent may have landed
@@ -588,3 +588,154 @@ later(() => {
 
 ## UNATTRIBUTED — 0 finding(s)
 CLEAN — reviewer returned no findings.
+
+## run 4 completion — 10 Jul 2026
+
+**Coverage: 48 of 48 reviews complete.**
+
+## place-value
+REVIEWED-CLEAN — reviewer returned no findings.
+
+## coordinates
+REVIEWED-CLEAN — reviewer returned no findings.
+
+## homophones — 4 finding(s)
+### 1. [CRITICAL] Mission chips stay clickable during an in-flight scan reveal; switching mission mid-scan renders a foreign word in the wrong sentence, then crashes paintProof with an uncaught TypeError
+**Evidence:** js/anims/homophones.js lines 186-193 (`paintChips`) attach a click handler to every mission chip with no `busy`/`disabled` gate at all:
+  const c = el('button', 'anim-mchip' + (i === mi ? ' active' : '') + ..., m.chip);
+  c.addEventListener('click', () => { sfx.ui(); startMission(i); });
+Compare to the lineup tiles (line 222: `b.disabled = busy;`) and stamp button (line 243: `stampBtn.disabled = !loaded || busy;`), which ARE gated on `busy` — the mission chips are the one interactive control in the module that is never disabled.
+`scanWord` (lines 264-279) schedules its reveal via `later(fn, 420)`, and the callback reads the CURRENT `mi`/`gi` at fire time rather than a value captured at call time:
+  later(() => {
+    scanningWord = null;
+    loaded = word;
+    const mission = MISSIONS[mi]; const gap = mission.gaps[gi];
+    const cand = candidateFor(gap, word);
+    ...
+    paintSentence(); paintLineup(); paintProof(); paintStamp();
+  }, 420);
+Concrete child scenario: on mission 'bags' (mi=0, twin set 'a' = there/their/they're) tap the tile 'there' — scanWord('there') sets busy=true, scanningWord='there' and schedules the 420ms reveal. Before it fires, tap the 'SWIM' chip (not disabled) — startMission(3) runs synchronously, setting mi=3, gi=0, busy=false, loaded=null and rebuilding the lineup for twin set 'b' (to/too/two). 420ms later the stale callback fires: `word` is still 'there' (closure from the OLD call), but `mission = MISSIONS[3]` and `gap = mission.gaps[0]` are now the SWIM mission's first gap (correct='too', pass={too}, fail={to,two}). `candidateFor(gap,'there')` computes `isPass=false` then `gap.fail['there']` → undefined (fail only has keys 'to'/'two'), so `cand = Object.assign({pass:false}, undefined) = {pass:false}` with no `.text`/`.anchor`. `loaded` is then set to `'there'` and `paintSentence()` (line 195-208) renders it straight into the SWIM sentence's active gap: `<span class="tsc-gap loaded fail">there</span>` — i.e. "It's there cold two swim." shows a word that was never offered as a candidate in this mission at all, and this persists on screen (no further repaint happens until the next scan/stamp). Then `paintProof()` (lines 228-239) runs `const meta = TWINSETS[mission.setKey].find((t) => t.word === loaded);` — TWINSETS.b only contains {to},{too},{two}, so `.find()` returns `undefined` for `loaded==='there'`. Line 235 then evaluates `kindLabel(meta.kind, cand.pass)` inside the `proofPanel.innerHTML =` template literal — `meta.kind` throws `TypeError: Cannot read properties of undefined (reading 'kind')`, an uncaught exception (the `later` helper on line 166 has no try/catch) that also aborts `paintStamp()` (never reached on that statement line), leaving the stamp button silently un-synced with the corrupted `loaded` state.
+**Suggested fix:** Disable/no-op the mission chip click handler while `busy` is true (mirroring the lineup-tile and stamp-button gating already in the module), and additionally snapshot `mi`/`gi` (or a per-mission token) at `scanWord()` call time so a stale callback can detect and bail out if the mission has changed underneath it before touching `loaded`/painting anything.
+
+### 2. [CRITICAL] The same unguarded mission-chip click during the post-stamp advance timer can silently mark an unattempted mission "done" and reveal all of its answers
+**Evidence:** `onStamp` (lines 281-304) captures `mission` by closure but the scheduled advance reads the shared module-level `gi` fresh at fire time:
+  const mission = MISSIONS[mi]; const gap = mission.gaps[gi];
+  if (loaded === gap.correct) {
+    busy = true;
+    ...
+    later(() => {
+      if (!alive) return;
+      gi += 1;
+      if (gi < mission.gaps.length) renderGapStart();
+      else finishMission();
+    }, 700);
+  }
+`finishMission()` (lines 307-336) then re-reads `MISSIONS[mi]` fresh too:
+  function finishMission() {
+    const mission = MISSIONS[mi];
+    doneSet.add(mission.id);
+    ...
+    q.innerHTML = renderTokens(mission.tokens, (idx) => `<span class="tsc-gap solved">${mission.gaps[idx].correct}</span>`);
+Concrete scenario: on mission 'bags' (mi=0, only 1 gap) stamp the correct twin 'their' — busy=true, the 700ms advance timer is scheduled with `mission` closed over as the 'bags' object. Before that timer fires, tap the 'SWIM' chip (still clickable — chips are never gated on `busy`, see finding 1) — `startMission(3)` runs, setting the shared `mi = 3` and resetting the shared `gi = 0` for the SWIM mission the child has done nothing in yet. 700ms after the original stamp, the stale callback fires: `gi += 1` bumps the SWIM mission's `gi` from 0 to 1 (not the 'bags' mission's, since `gi` is a single shared variable); `mission.gaps.length` is the CLOSED-OVER 'bags' mission's length (1), so `gi(1) < 1` is false, so `finishMission()` runs — and inside it, `MISSIONS[mi]` is now SWIM (mi=3), so `doneSet.add('swim')` marks the SWIM mission complete, its chip gets a done-checkmark, and its full sentence is rendered with `renderTokens(...gaps[idx].correct)` — showing "It's too cold to swim." with both answers revealed — even though the child has not scanned or stamped a single twin in that mission. If this was the last remaining mission, `doneSet.size === MISSIONS.length` also goes true prematurely, firing `ctx.complete()` and the mastery bubble for a set the child never actually finished.
+**Suggested fix:** Same underlying fix as finding 1 — gate the mission-chip handler on `busy`, and/or snapshot the target mission index at stamp time and have the deferred `gi`/`finishMission` logic verify `mi` is unchanged before mutating shared state, so a chip switch mid-advance can never credit or reveal answers for a different, unattempted mission.
+
+### 3. [MAJOR] The "TWIN SCANNER MASTERED!" bubble and ctx.complete() re-fire on every mission completed after the first full clear — a genuine win-card leak on replay
+**Evidence:** `finishMission()` (lines 307-336) never distinguishes "just reached full mastery for the first time" from "already mastered, redoing a mission":
+  const nextIdx = MISSIONS.findIndex((m) => !doneSet.has(m.id));
+  const nb = el('button', 'btn btn-gold', nextIdx !== -1 ? 'NEXT ONE ➡' : 'PLAY AGAIN 🔁');
+  ...
+  if (doneSet.size === MISSIONS.length) {
+    ctx.complete();
+    later(() => {
+      if (!alive) return;
+      bubble(stage, { title: 'TWIN SCANNER MASTERED! 🔎', text: 'Don't guess twins — run the proof: un-squeeze it, point at the place, or tie the belonging thread.', img: CREATURE_IMG });
+    }, 700);
+  }
+`doneSet` (declared line 164: `const doneSet = new Set();`) only ever grows via `.add()` and is never cleared or checked against a "mastery already celebrated" flag. Concrete scenario: after the child legitimately completes all 4 missions once (mastery bubble shown, `ctx.complete()` called — correctly, per the contract's "call it once"), the "PLAY AGAIN 🔁" button is now permanently shown (since `nextIdx` is always -1 once every mission id is in `doneSet`). Every subsequent time the child replays ANY mission (e.g. redoes 'bags' for fun) and stamps it correctly, `finishMission()` runs again: `doneSet.add('bags')` is a no-op (already present) so `doneSet.size` is still 4, so the `if (doneSet.size === MISSIONS.length)` branch is true AGAIN — `ctx.complete()` fires again and the full-screen "TWIN SCANNER MASTERED!" bubble pops up again, every single time, indefinitely, for as long as the child keeps replaying missions. This is exactly the "win-card leak on replay" bug class the review brief calls out — the celebratory overlay that should mark one specific achievement instead re-triggers on ordinary repeat play.
+**Suggested fix:** Track whether mastery has already been celebrated (e.g. `let masteredShown = false;`) and only run the `ctx.complete()` + bubble block the first time `doneSet.size === MISSIONS.length` becomes true, setting `masteredShown = true` immediately so later replays skip it.
+
+### 4. [MINOR] Mission-select chips are 2px short of the 44px touch-target minimum
+**Evidence:** `paintChips()` (homophones.js lines 186-193) renders every mission button with the shared class `anim-mchip`, defined in css/anims.css line 92: `min-height: 42px;` — below the review's stated 44px minimum (the module's own stamp button, by contrast, is explicitly set to `min-height: 48px;` at homophones.js line 415, showing the author was aware of the threshold for at least one control). All four of this module's mission chips (BAGS/OVER/LATE/SWIM, the primary navigation for switching between guided items) therefore render 2px under the minimum tappable height a 10-year-old on iPad Safari needs for reliable single-tap accuracy.
+**Suggested fix:** Raise `.anim-mchip`'s `min-height` to at least 44px in css/anims.css (a shared class, so this benefits every anim using mission chips, not just homophones).
+
+## tricky-words — 2 finding(s)
+### 1. [CRITICAL] Tapping a different mission chip during the ~260ms gap after finishing a dress fires the OLD advance/bubble/enterRebuild logic against the NEW mission — a false "congrats" bubble plus a skipped dress step
+**Evidence:** `advanceFromDress()` (js/anims/tricky-words.js lines 402-410) is scheduled from the drag-drop success callback (line 323: `if (dressComplete()) advanceFromDress();`) and from the chant continue button (line 366: `contBtn.addEventListener('click', () => { sfx.ui(); advanceFromDress(); });`). It reads the *live* outer `mission`/`phase` variables at fire time, not a snapshot, and its only guard is `phase !== 'dress'` — it never checks `genTok`:
+```
+function advanceFromDress() {
+  later(() => {
+    if (!alive || phase !== 'dress') return;
+    bubble(stage, { title: mission.bubbleTitle, text: mission.bubbleText, img: NECC_IMG }).then(() => {
+      if (!alive || phase !== 'dress') return;
+      enterRebuild();
+    });
+  }, 260);
+}
+```
+Meanwhile every mission chip is clickable at all times regardless of phase or completion state (`paintChips()`, lines 268-275): `c.addEventListener('click', () => { sfx.ui(); start(i); });` with no `disabled`/phase gate. `start(i)` (lines 483-488) always sets `phase = 'dress'` for whatever mission it switches to, and never bumps `genTok` itself (only `renderDress()`/`renderRebuild()` do) and never cancels a pending `advanceFromDress` timer.
+Concrete scenario: child finishes dressing NECESSARY (drags collar + both socks) → `dressComplete()` is true → `advanceFromDress()` schedules its 260ms `later()`. Before it fires, the child taps the SEPARATE chip (very plausible — impatient tapping, or just curiosity while the last drop is still settling): `start(1)` runs, setting `mission = MISSIONS[1]` (separate) and `phase = 'dress'` again. 260ms later the pending timer fires; `phase !== 'dress'` is false (phase IS 'dress', just for the new mission), so it proceeds and shows `bubble({ title: 'GOTCHA! 🐀', text: 'there is A RAT in the middle of sep-A-RAT-e...' })` — congratulating the rat hook for SEPARATE even though the child has done nothing to it yet (board is freshly reset, `state = { hookDone: false }`). When the child dismisses that bubble, `phase` is still `'dress'`, so `enterRebuild()` (lines 413-418) fires and sends SEPARATE straight into the scramble/rebuild phase — the dress mission (park the rat) is skipped entirely, and the rebuild board's ghost decorations (`applyGhostDecor`, lines 182-196) render the rat-hook ghost anchor as if the child had earned it. The same race is reachable via the RESET button (line 490: `resetBtn.addEventListener('click', () => { sfx.ui(); start(mi); });`) tapped on the SAME mission during that 260ms window — the state resets to undressed, yet the stale timer still fires the "you dressed it!" bubble and skips straight to rebuild.
+**Suggested fix:** Capture the mission identity (and/or `genTok`) at the moment `advanceFromDress()` is scheduled — e.g. `const myGen = genTok; const myMission = mission;` — and check both `myGen === genTok` and `myMission === mission` (not just `phase`) before showing the bubble and before calling `enterRebuild()`. Also have `start()` bump `genTok` itself (or clear any pending advance timer) so a mission switch always invalidates in-flight `later()` callbacks from the previous mission, matching the guard pattern already used correctly inside `renderChant()`'s `step()` closure (line 380: `if (!alive || myGen !== genTok) return;`).
+
+### 2. [MINOR] DEFINITELY's own instruction text promises a progressive "lights up while dragging" effect that the mechanic never provides
+**Evidence:** Line 46: `dressSub: 'Drag the torch along the word until FINITE lights up.'` implies the torch should illuminate letters progressively as it slides across the word. The actual mechanic only evaluates on drop: `attachDragChip`'s `onMove` (lines 206, `_kit.js` `makeDrag`) only updates `chip.style.transform` for 1:1 tracking, and the hit-test happens solely in `onEnd` via `resolve(cx, cy)` → `resolveHook('finite', cx, cy, tiles)` (lines 345-347), which is a single binary check `idx === mission.span.mid && !state.hookDone` performed once at release — identical in structure to the single-drop "park the rat" mechanic (lines 345-347 shared code path). Nothing lights up, dims, or previews FINITE while the torch is mid-drag; the "glow" only appears after release via `applyDressDecor`'s `addGlowCap` (line 148, called from line 174) once `state.hookDone` is set. A child following the instruction literally ("drag it along until it lights up") gets no feedback at all until they happen to release over the exact middle tile.
+**Suggested fix:** Either add a live preview during `onMove` (light the span while the torch's x-position is over `mission.span`, using the same generation-token discipline) so the copy is truthful, or change the copy to match the actual drop-and-check mechanic (e.g. "Drag the torch to the middle of the word and let go — find where FINITE lights up.").
+
+## reading-detective — 3 finding(s)
+### 1. [MAJOR] Deferred "NOT QUITE!" bubble is not re-checked against current state, so a fast tap or a mission-chip switch shows contradicting/mismatched feedback
+**Evidence:** js/anims/reading-detective.js line 273 (`onPickOption`'s wrong-answer branch): `later(() => { if (alive) bubble(stage, { title: 'NOT QUITE! 👃', text: opt.why, img: SNIFF_IMG }); }, 80);` — the only guard inside the deferred callback is `alive`; it never re-checks `roundSolved` or that the mission (`mi`) is still the one the child was answering when they tapped. Meanwhile: (a) the guard at line 258 (`if (!alive || roundSolved || btn.classList.contains('locked') || btn.classList.contains('wrongpick')) return;`) only blocks the OTHER option buttons from acting once `roundSolved` becomes true — it does not cancel this already-scheduled timer; and (b) mission chips built in `paintChips()` (lines 236-243) are always live and clickable (`c.addEventListener('click', () => { sfx.ui(); startMission(i); });`, line 240) with no gating on whether the child is mid-answer.
+Scenario A (no multi-touch needed): child taps a wrong option (schedules the 80ms bubble), then within 80ms taps the correct option on the SAME question. `roundSolved` flips true, all buttons disable, `showWin()` renders "CASE CRACKED! 🕵️" (lines 277-297). 80ms after the first tap, the deferred bubble still fires — a "NOT QUITE! 👃" modal veil (z-index 30, covers the whole stage per `.anim-bubble-veil` in css/anims.css) pops up quoting the wrong option's `why` text, directly on top of the success card the child just earned.
+Scenario B: child taps a wrong option, then within 80ms taps a different mission's chip. `startMission()` (lines 386-397) resets `qcard`, rebuilds `optionsBox` for the NEW mission, and clears `winBox`. The stale bubble still fires 80ms later, showing an explanation that quotes lines/wording from the mission the child just left, laid over the new mission's UI.
+Both are ordinary, easily-triggered child behaviour (fast re-tap; browsing mission chips) on the exact widget the brief says must never show feedback that doesn't match the state currently on screen (ANIM_BRIEFS.md hard rule 2).
+**Suggested fix:** Capture the mission/round identity at click time (e.g. `const missionAtClick = mi;`) and re-check it plus `roundSolved` inside the deferred callback before calling `bubble()` — skip the bubble entirely if the round was already solved or the active mission has changed by the time the timer fires.
+
+### 2. [MAJOR] "NEXT CLUE" button — the primary between-mission control, tapped on every single mission advance — renders under the 44px touch-target minimum this same module uses elsewhere
+**Evidence:** js/anims/reading-detective.js lines 285-286 in `showWin()`: `const nb = el('button', 'btn btn-gold', 'NEXT CLUE ➡️'); nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';`. The shared `.btn` class (css/main.css lines 175-183) sets no min-height, and `html,body` (css/main.css lines 46-53) set no explicit line-height, so with the global `* { box-sizing: border-box; }` (css/main.css line 44) the rendered height is just 10px+10px padding plus the ~15px-font line box (UA-default line-height ≈1.15-1.2, i.e. ≈17-18px) — roughly 37-38px total, well under the 44px minimum the module itself enforces for `.lnl-opt` (`min-height:44px;`, line 135 of the CSS block). This button appears after every one of the four missions except the last (`if (nextIdx !== -1)`, line 284) — i.e. it is the primary progression control a child taps 3 times per playthrough on an iPad, not an edge case.
+**Suggested fix:** Add `min-height:44px;` (and vertical centering, e.g. `display:inline-flex;align-items:center;justify-content:center;`) to the inline `nb.style.cssText`, matching the 44px floor already used for `.lnl-opt`.
+
+### 3. [MINOR] Rapid repeat wrong-lasso attempts on the same line silence the flash cue for the second (and later) attempt
+**Evidence:** js/anims/reading-detective.js `flashRow()` (lines 230-234): `function flashRow(line, cls) { if (line == null) return; setRowClass(line, cls, true); later(() => setRowClass(line, cls, false), 850); }`, called from `resolveDrop()` for both 'wrong' (line 322: `flashRow(result.line, 'wrongflash')`) and 'half' (line 317: `flashRow(result.line, 'half')`) outcomes. If a child lassos the same wrong (or same-half) line twice within 850ms, the second call's `setRowClass(line, cls, true)` is a no-op (the class is already present, and re-adding an already-present class does not restart a CSS animation, so `lnlWrongFlash`/`lnlHalfPulse` do not replay for the second miss) — yet it schedules its OWN 850ms removal on top of the first. The FIRST timer (started earlier, at t=0) still fires at t=850ms and removes the class, which lands before the second attempt's "own" 850ms window (started at, say, t=200ms) has elapsed — so the second miss gets no fresh visual pulse at all and the class is cut off earlier than its own schedule implies. A child double-lassoing the same wrong line in quick succession (plausible when confused about which line to try) gets no feedback confirming their second attempt registered.
+**Suggested fix:** Track the flash's own cancel/removal per line (e.g. store the pending timeout id per line and clear/replace it on each call, or force a reflow-based class removal+re-add to restart the animation) so each miss on the same line gets its own full flash window.
+
+## between-lines — 4 finding(s)
+### 1. [MINOR] The "NEXT ONE ➡" progression button is under the 44px touch-target minimum
+**Evidence:** js/anims/between-lines.js lines 463-464 (win()):
+```
+const nb = el('button', 'btn btn-gold', 'NEXT ONE ➡');
+nb.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
+```
+The shared `.btn`/`.btn-gold` classes (css/main.css lines 175-191) set no min-height/default padding, so this inline `cssText` is the button's only sizing rule. I mounted the live module in a puppeteer harness (host width 640-700px, the module's own documented range) and measured the rendered element after locking a mission: `getBoundingClientRect()` returned `{ w: 137.2, h: 36.98 }` — a ~37px-tall button, ~7px under the 44px minimum. Child scenario: after every correct lock (2 of the 3 guided missions), this is the button directly under the win text inviting the child to continue; a 10-year-old's fingertip landing on its top/bottom edge (a very plausible miss at 37px tall) simply produces no tap, with no feedback that anything was pressed.
+**Suggested fix:** Replace the ad-hoc `nb.style.cssText` with an explicit `min-height:44px;` (kept alongside the existing padding/font-size), matching the sizing already used for `.anim-ghostbtn` (`min-height:44px` in css/anims.css).
+
+### 2. [MINOR] Mission 1's third clue chip claims a detail the source passage line never states
+**Evidence:** js/anims/between-lines.js line 55: `{ id: 'm3', text: "Muddled a knot he's tied a thousand times.", zone: 'nervous', real: true, line: 3 }`. Its cited source, mission.passage[2] (line 49), reads only: `"He tried to tie his laces and got the knot muddled twice."` — the passage never says or implies anything about how many times he's tied that knot before ("a thousand times" is invented backstory, not a paraphrase of the line). This contradicts the file's own stated invariant at lines 39-40: "Every real clue's text is a faithful paraphrase of its own numbered passage line, so the clue chip and the passage always agree." It's also the one clue, in a topic whose entire mechanic and weapon rule ("The text gives clues, not answers…") hinges on never asserting more than the text actually supports, that itself asserts more than the text supports — the same overreach the game's own wrong-answer options (e.g. data/topics/between-lines.js's "Certain that he will never be picked for the team") are built to penalise.
+**Suggested fix:** Reword the m3 clue to something the passage actually supports, e.g. "Muddled a knot while tying his laces" or "Got his laces muddled — twice.", dropping the invented "a thousand times" claim.
+
+### 3. [MINOR] A window resize that interrupts a drag hovering over the pan leaves the pan's hover highlight stuck on
+**Evidence:** js/anims/between-lines.js `onMove` (lines 283-286) sets `pan.classList.toggle('ncs-hover', panHit(...))` while dragging, and `onEnd` (line 291) is the only other place that calls `pan.classList.remove('ncs-hover')`. `board.layout()` (lines 301-315), which runs on the module's debounced resize handler, calls `c.drag.abort()` and snaps any flying chip back to the tray, but never touches `pan.classList`. I reproduced this in a puppeteer harness: started dragging a real clue chip to hover directly over `.ncs-pan` (confirmed `panHover: "ncs-pan ncs-hover"`, pointer still down), then dispatched a `resize` event. After the 180ms debounce the chip correctly returned to the tray (`flyingChipExists: false`, `trayChipCount` back to 4), but `panHover` remained `"ncs-pan ncs-hover"` — even after the pointer was subsequently released (its `up()` handler no-ops because `board.layout()` already called `abort()`, setting the internal `drag` ref to null). Child scenario: an iPad orientation change (or any resize) mid-drag over the pan leaves the pan glowing purple ("ready to receive a clue") indefinitely, even though nothing is being dragged, until the child's next drag attempt happens to update the class.
+**Suggested fix:** In `board.layout()`, unconditionally call `pan.classList.remove('ncs-hover')` alongside the existing drag-abort/tween-cancel cleanup.
+
+### 4. [MINOR] The gold RULE card is appended as a second top-level element outside the module's single `anim-stage` container
+**Evidence:** js/anims/between-lines.js lines 410-419 build `const stage = el('div', 'anim-stage'); ... host.append(stage);`, but lines 421-422 then do `const ruleCard = el('div', 'ncs-rulecard', RULE); host.append(ruleCard);` — appending `ruleCard` directly to `host` as a sibling of `stage`, not inside it. ANIM_BRIEFS.md's contract (line 13) is explicit: "Build everything inside ONE `el('div','anim-stage')` appended to host." Not a lifecycle bug (cleanup at lines 499-500 correctly removes both `stage` and `ruleCard`), but it is a literal contract violation of the one-container rule, the same class of issue previously flagged (MINOR) in clocks-time.
+**Suggested fix:** Move the rule-card creation/append inside `stage` (e.g. `stage.append(ruleCard)` instead of `host.append(ruleCard)`), which the mount function already builds before appending `stage` to `host`.
+
+## poetry — 3 finding(s)
+### 1. [CRITICAL] A stale 300ms phase-completion bubble fires AFTER the child has already advanced to the next phase, throwing a full-screen veil with wrong-phase congratulation text over the live mission
+**Evidence:** js/anims/poetry.js lines 244-254 (`phase1Complete`):
+```
+function phase1Complete(wrap) {
+  doneSet.add(1); unlockedPhase = Math.max(unlockedPhase, 2); paintChips();
+  sfx.win();
+  later(() => {
+    bubble(stage, {
+      title: 'TWO VERSES FOUND! 📜',
+      ...
+    }).then(() => { if (alive && phase === 1) addNextButton(wrap, 2, 'NEXT: STRING THE RHYMES ➡'); });
+  }, 300);
+}
+```
+`unlockedPhase` is bumped to 2 and `paintChips()` re-renders the chip row SYNCHRONOUSLY, before the 300ms `later()` timer fires. The chip's own handler (line 116) is `c.addEventListener('click', () => { sfx.ui(); goPhase(p.n); });`, and `goPhase` (lines 121-131) only blocks navigation with `if (n > unlockedPhase) { sfx.nudge(); return; }` (line 122) — so the now-unlocked "② STRING THE RHYMES" chip is fully clickable the instant both verses are bracketed. `goPhase(2)` runs `phaseCleanups.forEach((fn) => fn())` (line 123) which only destroys Phase 1's drag listeners — it does nothing to the outstanding `later()` timer, which lives in the module-level `timers` Set and is only ever cleared on full unmount (line 423), never on a phase switch. So: child brackets both verses (unlockedPhase→2), immediately taps the just-unlocked chip (very plausible — nothing tells them to wait), lands in Phase 2's rhyme-stringing UI — then ~300ms later the queued callback fires and calls `bubble(stage, {...})` UNCONDITIONALLY (only the subsequent `.then()` is gated by `phase === 1`). `bubble()` renders `.anim-bubble-veil`, which per css/anims.css line 57-61 is `position:absolute; inset:0; z-index:30; background:rgba(16,24,18,.55)` — a full opaque modal covering the entire stage. The child, now mid-way through tapping rhyme strings in Phase 2, is suddenly interrupted by a blocking "TWO VERSES FOUND! 📜 ... Eight lines, split into two neat groups of four — you just SAW it happen." popup that describes the WRONG, already-finished phase. The identical pattern exists in `phase2Complete` (lines 336-346) for the Phase 2→3 transition.
+**Suggested fix:** Gate the `bubble()` call itself on the current phase, not just the button that follows it, e.g. `later(() => { if (!alive || phase !== 1) return; bubble(stage, {...}).then(...) }, 300)` — and do the same in `phase2Complete`. Better still, register the 300ms timer id in `phaseCleanups` (or a per-phase timer set) so `goPhase` cancels it outright when the child navigates away before it fires.
+
+### 2. [MAJOR] The Phase-1 bracket "fly-to-verse" tween is never cancelled on module cleanup, so an unmount during that ~320-570ms window still plays audio and mutates the (now detached) stage
+**Evidence:** js/anims/poetry.js, `makeToken()` (lines 191-238). The successful-drop tween is `animCancel = tween((v) => {...}, 0, 1, 320, () => { t.remove(); revealVerse(hit); });` (lines 222-225). Per `_kit.js` `tween()` (lines 120-146), even after the 320ms rAF portion the internal `guard = setTimeout(finish, dur + 250)` (line 140) can still fire up to ~570ms later if the tab is throttled — and nothing outside the tween cancels it except the token's own `reset()` method: `reset() { if (placed) return; drag.abort(); if (animCancel) { animCancel(); animCancel = null; } ... }` (lines 230-237). That `reset()` is invoked ONLY by `onPhaseResize = () => { tokenCtrls.forEach((c) => c.reset()); };` (line 241) — i.e. on a debounced window resize. It is never added to `phaseCleanups` and the module's `cleanup()` (lines 419-429) only runs `phaseCleanups.forEach((fn) => fn())` (line 425), which for Phase 1 only calls `drag.destroy()` (line 228), never `reset()`. So if the module is unmounted (child navigates away / closes the Scout Report) in the window between a correct bracket-drop and the tween's `done` firing, that `done` callback still runs post-teardown: `revealVerse(hit)` (lines 179-189) unconditionally calls `sfx.sparkle()`, `sparkleBurst(stage, ...)`, and `toast(stage, ...)` with no `alive` check anywhere in `revealVerse`, and if it's the second bracket, chains straight into `phase1Complete()` (lines 244-254) which calls `sfx.win()` synchronously (also unguarded) before its own internal `later()` (which IS `alive`-gated) even runs. The child hears sparkle/win SFX for an animation they can no longer see, and the module writes to nodes it just told itself to `.remove()`.
+**Suggested fix:** Push `tokenCtrls` reset (or the `animCancel` cancel functions themselves) into `phaseCleanups` alongside `drag.destroy()` so full unmount cancels in-flight tweens exactly as it already does for the drag listeners.
