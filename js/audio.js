@@ -448,6 +448,21 @@ async function tryLoadMusicEl(el, track) {
 
 const TRACK_ALIASES = { title: 'map' }; // title screen shares the map theme
 
+// Generation guard. music()/stopMusic() overlap in real navigation (music() has
+// network awaits before its 800ms fade, and map → topic → lesson can happen well
+// inside that) and both drive the SAME two elements. Only the NEWEST call may
+// keep touching them: older calls bail at their next checkpoint — without ever
+// touching the elements, which the newer call may already have re-src'd — and
+// there is only ever ONE live fade interval. Without this, two competing
+// crossfades can settle with BOTH tracks looping audibly (nobody pauses the
+// loser) — Damien heard exactly that.
+let musicGen = 0;
+let musicFadeIv = null;
+
+function cancelMusicFade() {
+  if (musicFadeIv) { clearInterval(musicFadeIv); musicFadeIv = null; }
+}
+
 async function music(track) {
   try {
     if (!track) return;
@@ -455,6 +470,7 @@ async function music(track) {
     if (track === currentTrackName) return; // already playing
     if (musicFailedTracks.has(track)) return; // remembered failure, stay silent
 
+    const gen = ++musicGen;
     const nextSlot = activeMusicSlot === 'a' ? 'b' : 'a';
     if (!musicEls[nextSlot]) {
       const el = new Audio();
@@ -466,6 +482,7 @@ async function music(track) {
     const prevEl = musicEls[activeMusicSlot];
 
     const loaded = await tryLoadMusicEl(nextEl, track);
+    if (gen !== musicGen) return; // superseded while loading (a "failure" here may just be the newer call re-src'ing the element — don't record it)
     if (!loaded) {
       musicFailedTracks.add(track);
       return; // stay silent, don't retry this track this session
@@ -475,28 +492,34 @@ async function music(track) {
     try {
       await nextEl.play();
     } catch (e) {
-      musicFailedTracks.add(track);
+      if (gen === musicGen) musicFailedTracks.add(track);
       return;
     }
+    if (gen !== musicGen) return; // superseded while starting — the newer call owns the elements now
 
     currentTrackName = track;
+    activeMusicSlot = nextSlot;
+    cancelMusicFade();
 
     // 800ms JS crossfade
     const steps = 16;
     const stepMs = 800 / steps;
-    const targetVol = clamp01(musicBaseVolume) * (duckActive ? 0.25 : 1);
+    const prevStart = prevEl ? clamp01(prevEl.volume) : 0; // continue from wherever an interrupted fade left it
     let i = 0;
-
-    activeMusicSlot = nextSlot;
 
     await new Promise((resolve) => {
       const iv = setInterval(() => {
+        if (gen !== musicGen) { clearInterval(iv); resolve(); return; } // superseded mid-fade
         i += 1;
         const frac = i / steps;
+        // target is read per-tick so a duck (VO starting) or a Music-toggle flip
+        // mid-fade still lands — a captured value would ramp back over them
+        const targetVol = clamp01(musicBaseVolume) * (duckActive ? 0.25 : 1);
         nextEl.volume = clamp01(targetVol * frac);
-        if (prevEl) prevEl.volume = clamp01(targetVol * (1 - frac));
+        if (prevEl) prevEl.volume = clamp01(prevStart * (1 - frac));
         if (i >= steps) {
           clearInterval(iv);
+          if (musicFadeIv === iv) musicFadeIv = null;
           if (prevEl && prevEl !== nextEl) {
             try {
               prevEl.pause();
@@ -508,6 +531,7 @@ async function music(track) {
           resolve();
         }
       }, stepMs);
+      musicFadeIv = iv;
     });
   } catch (e) {
     // swallow — music must never throw
@@ -520,11 +544,14 @@ async function music(track) {
 // cleanly instead of being swallowed by the "already playing" early-return in
 // music() above. Safe no-op when nothing is playing.
 function stopMusic(fadeMs = 600) {
+  const gen = ++musicGen; // supersede any in-flight music() call and its fade
+  cancelMusicFade();
+  // cleared immediately (not at fade end) so a music() call issued during the
+  // stop-fade isn't swallowed by the "already playing" early-return — it bumps
+  // the generation and this fade stands down at its next tick.
+  currentTrackName = null;
   const els = [musicEls.a, musicEls.b].filter((el) => el && !el.paused);
-  if (els.length === 0) {
-    currentTrackName = null;
-    return;
-  }
+  if (els.length === 0) return;
 
   const startVols = els.map((el) => el.volume);
   const steps = 12;
@@ -532,6 +559,7 @@ function stopMusic(fadeMs = 600) {
   let i = 0;
 
   const iv = setInterval(() => {
+    if (gen !== musicGen) { clearInterval(iv); return; } // superseded — the newer call owns the elements
     i += 1;
     const frac = i / steps;
     els.forEach((el, idx) => {
@@ -539,6 +567,7 @@ function stopMusic(fadeMs = 600) {
     });
     if (i >= steps) {
       clearInterval(iv);
+      if (musicFadeIv === iv) musicFadeIv = null;
       els.forEach((el) => {
         try {
           el.pause();
@@ -547,9 +576,9 @@ function stopMusic(fadeMs = 600) {
           // swallow
         }
       });
-      currentTrackName = null;
     }
   }, stepMs);
+  musicFadeIv = iv;
 }
 
 // ---------- page visibility: never play music from a hidden tab ----------
@@ -566,9 +595,14 @@ try {
         hiddenPausedEls.forEach((el) => { try { el.pause(); } catch (e) { /* swallow */ } });
       } else {
         hiddenPausedEls.forEach((el) => {
+          // only revive the ACTIVE slot — resuming a superseded/fading-out
+          // element is how a second track comes back from the dead after a
+          // tab-switch mid-crossfade
+          if (el !== musicEls[activeMusicSlot]) return;
           try { const p = el.play(); if (p && p.catch) p.catch(safeNoop); } catch (e) { /* swallow */ }
         });
         hiddenPausedEls = [];
+        applyMusicVolume();
       }
     } catch (e) { /* audio must never throw */ }
   });
