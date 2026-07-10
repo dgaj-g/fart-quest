@@ -44,11 +44,11 @@ export default {
     {
       type: 'show',
       title: 'More Twins in the Sewer',
-      html: `<p>The sewer is full of them. Here are two more sets of twins, and this time none of them can be un-squeezed — you have to know each one’s JOB.</p>
+      html: `<p>The sewer is full of them. Here’s one more set of twins, and this time none of them can be un-squeezed — you have to know each one’s JOB.</p>
 <div class="law-scroll">👕 <b>WEAR</b> = putting clothes on a body. <b>WHERE</b> = asks "which place?" <b>WERE</b> = the PAST of "are" (we were, they were).</div>
 <p>Example: <b>"Where were you? I was wondering where you’d wear that scarf."</b></p>
-<div class="law-scroll">→ <b>TO</b> = towards something, or joins a verb (to run). <b>TOO</b> = "as well" or "more than enough". <b>TWO</b> = the number 2.</div>
-<p>Example: <b>"The two players ran to the goal, but the keeper dived too late."</b> Two = the number of players. To = direction (towards the goal). Too = "not soon enough" — more than was needed.</p>`,
+<div class="law-scroll">🎵 <b>HIM</b> = a person. <b>HYMN</b> = a song (the N is silent — it sounds exactly like "him").</div>
+<p>Example: <b>"Everyone stood to sing hymn number three, then sat back down beside him."</b> Hymn = the song being sung. Him = the person sitting down.</p>`,
     },
     {
       type: 'try',
@@ -73,40 +73,30 @@ export default {
       },
     },
     {
-      type: 'show',
-      title: 'Four Quick-Fire Twins',
-      html: `<p>Whiffbeard demands you learn these four before you go any further into the sewer.</p>
-<div class="law-scroll">👂 <b>HEAR</b> = to listen (spot the word "ear" hiding inside it!). <b>HERE</b> = this place.</div>
-<div class="law-scroll">🚫 <b>NO</b> = the opposite of yes. <b>KNOW</b> = to understand something (that silent K is guarding the knowledge inside).</div>
-<div class="law-scroll">🦢 <b>LOOSE</b> rhymes with "goose" — not tight. <b>LOSE</b> rhymes with "shoes" — to not win, or to misplace something.</div>
-<div class="law-scroll">🎵 <b>HIM</b> = a person. <b>HYMN</b> = a song (the N is silent — it sounds exactly like "him").</div>
-<p>Example: <b>"Milo the dog runs to the window because he can hear the postman — you’ll never lose that habit, even with a loose gate between them."</b></p>`,
-    },
-    {
       type: 'try',
       q: {
         id: 'homophones-try-2', topicId: 'homophones', tier: 1, format: 'errorspot',
         segments: [
-          { text: "Sam's dog has a" },
-          { text: 'lose collar that keeps' },
-          { text: 'slipping off during walks' },
-          { text: 'around the village green.' },
+          { text: 'Everyone in assembly stood' },
+          { text: 'to sing him number' },
+          { text: 'seven before the notices' },
+          { text: 'began after break time.' },
         ],
         faultyIndex: 1,
         explain: {
           rule: RULE,
-          worked: 'A collar that keeps slipping off is NOT TIGHT — that’s "loose" (rhymes with goose), not "lose" (rhymes with shoes, meaning to not win or to misplace).',
+          worked: 'A numbered song sung by everyone standing is a "hymn" (silent N), not "him" (a person).',
           whyN: null,
         },
         hintSteps: [
-          'Say both words out loud: one rhymes with "goose", one rhymes with "shoes". Which meaning fits a collar that keeps slipping off?',
-          'A collar that’s NOT TIGHT is described by the one that rhymes with "goose".',
+          'A HYMN is a song — it just happens to sound exactly like HIM.',
+          'Is the sentence naming a SONG being sung, or a person?',
         ],
       },
     },
     {
       type: 'talk',
-      text: 'One last warning, brave stinker: sometimes the sewer is a trap in the OTHER direction — every single twin sitting perfectly in its correct seat, and nothing out of place at all. Read every word before you shout an answer, or you’ll accuse an innocent sentence! And watch for the sneaky pair <b>practice</b> (the noun — a THING you do) and <b>practise</b> (the verb — the DOING word) later in the sewer.',
+      text: 'One last warning, brave stinker: sometimes the sewer is a trap in the OTHER direction — every single twin sitting perfectly in its correct seat, and nothing out of place at all. Read every word before you shout an answer, or you’ll accuse an innocent sentence!',
     },
     { type: 'weapon' },
   ],
@@ -114,12 +104,9 @@ export default {
   tips: [
     'THERE = place, THEIR = belonging, THEY’RE = they are — only "they’re" un-squeezes cleanly into "they are".',
     'WHERE asks a place question; WERE is the past of "are"; WEAR means putting clothes on a body.',
-    'TO = towards something or joins a verb; TOO = "as well" or "too much"; TWO = the number 2.',
-    'HEAR has "ear" hiding inside it — it’s the one you do with your ears. HERE means "this place".',
-    'NO is the opposite of yes. KNOW has a silent K guarding the knowledge inside the word.',
-    'LOOSE rhymes with "goose" and means not tight. LOSE rhymes with "shoes" and means to not win, or to misplace something.',
     'HYMN sounds exactly like HIM, but a hymn is a song, not a person.',
-    'PRACTICE is the noun (football practice — a thing). PRACTISE is the verb (to practise — the doing word).',
+    'Try the "un-squeeze" test: split the word back into two whole words. If it still makes sense, it was the squeezed twin — if not, it wasn’t.',
+    'Some sentences are traps in the OTHER direction — every twin sitting correctly, nothing to accuse. Read every word before you decide ALL CLEAN.',
   ],
 
   bank: [
@@ -127,58 +114,58 @@ export default {
     {
       id: 'homophones-t1-01', topicId: 'homophones', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'The team walked too' },
-        { text: 'the changing rooms slowly' },
-        { text: 'after the muddy match' },
-        { text: 'on Saturday afternoon.' },
+        { text: 'Every Friday the whole' },
+        { text: 'school sings him number' },
+        { text: 'four during morning assembly' },
+        { text: 'before the notices begin.' },
       ],
-      faultyIndex: 0,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'Walking is a MOVEMENT towards a place, so it needs "to" (direction). "Too" means "as well" or "excessively" — it can’t sit in front of "the changing rooms".',
+        worked: 'A numbered song sung in assembly is a "hymn" (silent N), not "him" (a person).',
         whyN: null,
       },
       hintSteps: [
-        'TWO is always the number. TOO always means "as well" or "more than enough". TO points towards somewhere or joins a verb.',
-        'The team is heading somewhere — which job does that need?',
+        'A HYMN is a song — it just happens to sound exactly like HIM.',
+        'Is the sentence naming a SONG being sung, or a person?',
       ],
     },
     {
       id: 'homophones-t1-02', topicId: 'homophones', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'Callum bragged that he' },
-        { text: 'no all the rules' },
-        { text: 'of the school trip' },
-        { text: 'before the coach left.' },
+        { text: 'Nobody could quite remember' },
+        { text: 'were the spare key' },
+        { text: 'had been hidden after' },
+        { text: 'the caretaker locked up.' },
       ],
       faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'Understanding the rules is "know" (the silent K guards the knowledge). "No" is only ever the opposite of yes.',
+        worked: 'This is asking "which place?" — that’s "where", not "were" (the past of "are").',
         whyN: null,
       },
       hintSteps: [
-        'Is this sentence about understanding something, or about saying no to something?',
-        'Callum is claiming he UNDERSTANDS the rules — that’s the word with the silent K.',
+        'WHERE always asks "which place?" WERE is simply the past of "are".',
+        'Is this sentence asking a PLACE question?',
       ],
     },
     {
       id: 'homophones-t1-03', topicId: 'homophones', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'Milo the dog' },
-        { text: 'runs to the window' },
-        { text: 'because he can here' },
-        { text: 'the postman arriving outside.' },
+        { text: 'The netball team stacked' },
+        { text: 'there kit bags neatly' },
+        { text: 'beside the changing room' },
+        { text: 'before Wednesday evening practice.' },
       ],
-      faultyIndex: 2,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'Listening for the postman is done with your ears — that’s "hear" (spot the "ear" hiding inside). "Here" only ever means "this place".',
+        worked: 'The kit bags are OWNED by the team, so it needs "their" (belonging), not "there" (a place).',
         whyN: null,
       },
       hintSteps: [
-        'HEAR has "ear" hiding inside it — it’s the listening word. HERE means "this place".',
-        'Is Milo LISTENING for the postman, or pointing at a place?',
+        'Is this word pointing at a PLACE, or naming something that’s OWNED?',
+        'The kit bags belong to the team — so the sound-twin you need is the OWNING one.',
       ],
     },
     {
@@ -222,77 +209,77 @@ export default {
     {
       id: 'homophones-t1-06', topicId: 'homophones', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'The old garden gate' },
-        { text: 'has a lose hinge' },
-        { text: 'that squeaks every morning' },
-        { text: 'when the wind blows.' },
+        { text: 'Sam couldn’t decide wear' },
+        { text: 'to leave his muddy' },
+        { text: 'trainers before stepping inside' },
+        { text: 'the busy school hallway.' },
       ],
-      faultyIndex: 1,
+      faultyIndex: 0,
       explain: {
         rule: RULE,
-        worked: 'A hinge that squeaks and wobbles is NOT TIGHT — that’s "loose" (rhymes with goose), not "lose" (to not win, or misplace).',
+        worked: 'This is asking "which place?" — that’s "where". "Wear" only ever means putting clothes on a body.',
         whyN: null,
       },
       hintSteps: [
-        'Say both words out loud: one rhymes with "goose", one rhymes with "shoes".',
-        'A wobbly, not-tight hinge needs the one that rhymes with "goose".',
+        'WEAR always means putting clothes on a body. WHERE always asks "which place?"',
+        'Is this sentence asking about a PLACE, or about clothing?',
       ],
     },
     {
       id: 'homophones-t1-07', topicId: 'homophones', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'Jarlath let out' },
-        { text: 'an enormous fart' },
-        { text: 'that lasted to whole' },
-        { text: 'minutes during assembly.' },
+        { text: 'The whole choir insisted' },
+        { text: 'there definitely ready to' },
+        { text: 'perform the assembly hymn' },
+        { text: 'in front of parents.' },
       ],
-      faultyIndex: 2,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'This is counting a quantity — "two whole minutes" needs the NUMBER, not "to" (direction/joining a verb).',
+        worked: 'Un-squeeze it: "they are definitely ready" still makes perfect sense — so it must be "they’re", not "there" (a place).',
         whyN: null,
       },
       hintSteps: [
-        'TWO is always the number. TO points towards something or joins a verb.',
-        'Count how many whole minutes — that’s the number twin.',
+        'Try un-squeezing the word into "they are" — does the sentence still make sense?',
+        '"They are definitely ready" works perfectly — so the sound-twin needed here is "they’re".',
       ],
     },
     {
       id: 'homophones-t1-08', topicId: 'homophones', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'Nobody in the class' },
-        { text: 'could work out why' },
-        { text: 'the hamster kept escaping' },
-        { text: 'because nobody would no.' },
+        { text: 'The choir leader chose' },
+        { text: 'a brand new him' },
+        { text: 'for the whole school' },
+        { text: 'to learn this term.' },
       ],
-      faultyIndex: 3,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'Nobody could UNDERSTAND why the hamster escaped — that needs "know" (silent K), not "no" (opposite of yes).',
+        worked: 'A song chosen for the whole school to learn is a "hymn" (silent N), not "him" (a person).',
         whyN: null,
       },
       hintSteps: [
-        'KNOW has a silent K guarding the knowledge inside the word. NO is only ever the opposite of yes.',
-        'Is this about UNDERSTANDING something, or refusing something?',
+        'A HYMN is a song — it just happens to sound exactly like HIM.',
+        'Is the sentence naming a SONG being chosen, or a person?',
       ],
     },
     {
       id: 'homophones-t1-09', topicId: 'homophones', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'Hear is where we' },
-        { text: 'pitched our tent last' },
-        { text: 'summer beside the river' },
-        { text: 'before the storm arrived.' },
+        { text: 'Both goalkeepers where late' },
+        { text: 'arriving for Saturday’s big' },
+        { text: 'match against the rival' },
+        { text: 'school across the county.' },
       ],
       faultyIndex: 0,
       explain: {
         rule: RULE,
-        worked: 'This is pointing at "this place" — that’s "here". "Hear" is only ever the listening word.',
+        worked: '"Both goalkeepers WERE late" needs the past tense of "are" — "where" only ever asks "which place?"',
         whyN: null,
       },
       hintSteps: [
-        'HERE means "this place". HEAR has "ear" hiding inside it — it’s the listening word.',
-        'Is the sentence pointing at a place, or talking about listening?',
+        'WHERE always asks "which place?" WERE is simply the past of "are".',
+        'Is this sentence describing something that happened in the past, or asking a place question?',
       ],
     },
     {
@@ -317,15 +304,15 @@ export default {
     {
       id: 'homophones-t1-11', topicId: 'homophones', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'We travelled to two' },
-        { text: 'seaside towns on Friday' },
-        { text: 'but the coach ride' },
-        { text: 'felt too long overall.' },
+        { text: 'They’re bringing the trophy' },
+        { text: 'back because their assembly' },
+        { text: 'case sits over there' },
+        { text: 'beside the school office.' },
       ],
       faultyIndex: null,
       explain: {
         rule: RULE,
-        worked: '"To" shows direction (travelled to), "two" is the number of towns, and "too" means excessively (felt too long) — every single twin is sitting in its correct seat.',
+        worked: '"They’re" un-squeezes cleanly to "they are", "their assembly case" correctly shows belonging, and "over there beside the office" correctly points at a place — all three jobs are correct.',
         whyN: 'All three twins are doing their real job here — nothing to accuse.',
       },
       hintSteps: [
@@ -395,77 +382,77 @@ export default {
     {
       id: 'homophones-t2-03', topicId: 'homophones', tier: 2, format: 'errorspot',
       segments: [
-        { text: 'It was to noisy' },
-        { text: 'in the changing rooms' },
-        { text: 'for anyone to hear' },
-        { text: "the referee's final whistle." },
+        { text: 'The whole team hummed' },
+        { text: 'him number nine quietly' },
+        { text: 'while waiting for the' },
+        { text: 'referee’s final whistle.' },
       ],
-      faultyIndex: 0,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: '"Too noisy" means "excessively noisy" — that’s "too", not "to" (which only points towards something or joins a verb, as it correctly does later in "to hear").',
+        worked: 'A numbered song hummed quietly by the team is a "hymn" (silent N), not "him" (a person).',
         whyN: null,
       },
       hintSteps: [
-        'TOO always means "as well" or "more than enough". TO points towards something or joins a verb.',
-        'Notice "to hear" later in the sentence is correct — the imposter twin is hiding earlier.',
+        'A HYMN is a song — it just happens to sound exactly like HIM.',
+        'Is the sentence naming a SONG being hummed, or a person?',
       ],
     },
     {
       id: 'homophones-t2-04', topicId: 'homophones', tier: 2, format: 'errorspot',
       segments: [
         { text: 'Come and sit down' },
-        { text: 'hear quietly on the' },
-        { text: 'carpet until the teacher' },
-        { text: 'finishes calling the register.' },
+        { text: 'quietly on there mats' },
+        { text: 'until the teacher finishes' },
+        { text: 'calling the whole register.' },
       ],
       faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'This is pointing at "this place" (on the carpet) — that’s "here", not "hear" (the listening word).',
+        worked: 'The mats belong to the class, so this needs "their" (belonging), not "there" (a place).',
         whyN: null,
       },
       hintSteps: [
-        'HERE means "this place". HEAR has "ear" hiding inside it — the listening word.',
-        'Is the class being asked to sit in a PLACE, or to listen?',
+        'Is this word pointing at a PLACE, or naming something that’s OWNED?',
+        'The mats belong to the class — that’s the OWNING twin.',
       ],
     },
     {
       id: 'homophones-t2-05', topicId: 'homophones', tier: 2, format: 'errorspot',
       segments: [
-        { text: 'None of the swimmers' },
-        { text: 'arrived early enough to' },
-        { text: 'no the pool timetable' },
-        { text: 'had changed that week.' },
+        { text: 'Every swimmer needed to' },
+        { text: 'know wear their goggles' },
+        { text: 'had been left before' },
+        { text: 'the gala could begin.' },
       ],
-      faultyIndex: 2,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'Understanding that the timetable had changed needs "know" (silent K), not "no" (opposite of yes).',
+        worked: 'This is asking "which place?" — that’s "where". "Wear" only ever means putting clothes on a body.',
         whyN: null,
       },
       hintSteps: [
-        'KNOW has a silent K guarding the knowledge inside the word. NO is only ever the opposite of yes.',
-        'Is this about UNDERSTANDING a change, or refusing something?',
+        'WEAR always means putting clothes on a body. WHERE always asks "which place?"',
+        'Is this sentence asking about a PLACE, or about clothing?',
       ],
     },
     {
       id: 'homophones-t2-06', topicId: 'homophones', tier: 2, format: 'errorspot',
       segments: [
-        { text: 'Careless goalkeepers often struggle' },
-        { text: 'to keep their focus' },
-        { text: 'during extra time and' },
-        { text: 'sometimes loose the match.' },
+        { text: 'The relay team promised' },
+        { text: 'there definitely bringing spare' },
+        { text: 'batons to Saturday’s athletics' },
+        { text: 'meet at the stadium.' },
       ],
-      faultyIndex: 3,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'Not winning the match is "lose" (rhymes with shoes), not "loose" (rhymes with goose, meaning not tight).',
+        worked: 'Un-squeeze it: "they are definitely bringing spare batons" still makes sense — so it must be "they’re", not "there" (a place).',
         whyN: null,
       },
       hintSteps: [
-        'Say both words out loud: one rhymes with "goose", one rhymes with "shoes".',
-        'NOT winning a match is the one that rhymes with "shoes".',
+        'Try un-squeezing the word into "they are" — does the sentence still make sense?',
+        '"They are definitely bringing spare batons" works perfectly — so the sound-twin needed here is "they’re".',
       ],
     },
     {
@@ -528,53 +515,53 @@ export default {
     {
       id: 'homophones-t2-10', topicId: 'homophones', tier: 2, format: 'errorspot',
       segments: [
-        { text: 'The farmer taught everyone' },
-        { text: 'the right way' },
-        { text: 'to hold buckets' },
-        { text: 'and how two milk cows.' },
+        { text: 'The farmer couldn’t remember' },
+        { text: 'were he had left' },
+        { text: 'the milking buckets after' },
+        { text: 'finishing the morning round.' },
       ],
-      faultyIndex: 3,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: '"How to milk cows" needs "to" (joining the verb "milk"), not "two" (the number).',
+        worked: 'This is asking "which place?" — that’s "where", not "were" (the past of "are").',
         whyN: null,
       },
       hintSteps: [
-        'TO joins a verb (to milk, to hold). TWO is always the number.',
-        'Is a quantity of cows being counted, or is a verb being joined?',
+        'WHERE always asks "which place?" WERE is simply the past of "are".',
+        'Is this sentence asking a PLACE question?',
       ],
     },
     {
       id: 'homophones-t2-11', topicId: 'homophones', tier: 2, format: 'errorspot',
       segments: [
-        { text: 'Nobody seems to no' },
-        { text: 'why the class hamster' },
-        { text: 'keeps escaping its cage' },
-        { text: 'every single night now.' },
+        { text: 'Everybody in the hall' },
+        { text: 'stood to sing him' },
+        { text: 'number twelve before the' },
+        { text: 'head teacher’s final notices.' },
       ],
-      faultyIndex: 0,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'Understanding WHY the hamster escapes needs "know" (silent K), not "no" (opposite of yes).',
+        worked: 'A numbered song sung by everybody standing is a "hymn" (silent N), not "him" (a person).',
         whyN: null,
       },
       hintSteps: [
-        'KNOW has a silent K guarding the knowledge inside the word. NO is only ever the opposite of yes.',
-        'Is this about UNDERSTANDING a reason, or refusing something?',
+        'A HYMN is a song — it just happens to sound exactly like HIM.',
+        'Is the sentence naming a SONG being sung, or a person?',
       ],
     },
     {
       id: 'homophones-t2-12', topicId: 'homophones', tier: 2, format: 'errorspot',
       segments: [
-        { text: 'Their dog escaped again' },
-        { text: 'because the loose gate' },
-        { text: 'was left open where' },
-        { text: 'they always leave it.' },
+        { text: 'Nobody quite knew where' },
+        { text: 'the spare goggles were' },
+        { text: 'kept, so everyone had' },
+        { text: 'to wear their own instead.' },
       ],
       faultyIndex: null,
       explain: {
         rule: RULE,
-        worked: '"Their dog" correctly shows belonging, "loose gate" correctly means not tight, and "where" correctly asks a place question — every twin is in its right seat.',
+        worked: '"Where" correctly asks a place question, "were" correctly shows the past of "are", and "wear" correctly means putting something on — every twin is in its right seat.',
         whyN: 'Three sound-twins hiding in one sentence, and every single one is doing its real job.',
       },
       hintSteps: [
@@ -587,39 +574,39 @@ export default {
     {
       id: 'homophones-t3-01', topicId: 'homophones', tier: 3, format: 'errorspot',
       segments: [
-        { text: 'Every Tuesday the choir' },
-        { text: 'gathers to practice their' },
-        { text: 'assembly hymn in the' },
-        { text: 'school hall before lunch.' },
+        { text: 'During the carol concert' },
+        { text: 'the choir sang him' },
+        { text: 'number seven twice because' },
+        { text: 'the vicar requested it.' },
       ],
       faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: '"To practise" is a verb (the doing word), so it needs the S spelling — "practice" (with a C) is only ever the noun, a thing you do.',
+        worked: 'A numbered song requested twice by the vicar is a "hymn" (silent N), not "him" (a person) — easy to skim past when a number sits right beside it.',
         whyN: null,
       },
       hintSteps: [
-        'PRACTICE is the noun (a thing — football practice). PRACTISE is the verb (the doing word — to practise).',
-        'Could you put "the" in front of the word instead? If not, it’s the doing word — practise.',
+        'A HYMN is a song — it just happens to sound exactly like HIM.',
+        'Is the choir naming a numbered SONG, or referring to a person?',
       ],
     },
     {
       id: 'homophones-t3-02', topicId: 'homophones', tier: 3, format: 'errorspot',
       segments: [
-        { text: 'Jarlath always feels exhausted' },
-        { text: 'after every single rugby' },
-        { text: 'practise session on Thursdays' },
-        { text: 'even during the holidays.' },
+        { text: 'The rugby squad always' },
+        { text: 'complain that there Thursday' },
+        { text: 'session runs far longer' },
+        { text: 'than any other training.' },
       ],
-      faultyIndex: 2,
+      faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: '"Rugby practice session" is naming a THING (a noun), so it needs the C spelling — "practise" (with an S) is only ever the verb, the doing word.',
+        worked: 'The Thursday session belongs to the squad, so it needs "their" (belonging), not "there" (a place) — easy to skim past mid-sentence.',
         whyN: null,
       },
       hintSteps: [
-        'PRACTICE is the noun (a thing — rugby practice). PRACTISE is the verb (the doing word — to practise).',
-        'Could you say "the rugby practice"? If so, it needs the noun spelling — practice.',
+        'Is this word pointing at a PLACE, or naming something that’s OWNED?',
+        'The Thursday session belongs to the squad — that’s the OWNING twin, however it’s tucked into the sentence.',
       ],
     },
     {
@@ -644,20 +631,20 @@ export default {
     {
       id: 'homophones-t3-04', topicId: 'homophones', tier: 3, format: 'errorspot',
       segments: [
-        { text: 'Lose change always jingles' },
-        { text: "annoyingly in Jarlath's tracksuit" },
-        { text: 'pockets during every single' },
-        { text: 'PE lesson this term.' },
+        { text: 'Nobody in the changing' },
+        { text: 'room could quite agree' },
+        { text: 'wear the missing whistle' },
+        { text: 'had rolled after training.' },
       ],
-      faultyIndex: 0,
+      faultyIndex: 2,
       explain: {
         rule: RULE,
-        worked: '"Loose change" means coins that rattle around loosely (not tight) — that’s "loose" (rhymes with goose), not "lose" (rhymes with shoes, to not win or misplace).',
+        worked: 'This is asking "which place?" — that’s "where". "Wear" only ever means putting clothes on a body — tricky here because it’s buried mid-sentence.',
         whyN: null,
       },
       hintSteps: [
-        'Say both words out loud: one rhymes with "goose", one rhymes with "shoes".',
-        'Coins rattling around loosely in a pocket need the one that rhymes with "goose".',
+        'WEAR always means putting clothes on a body. WHERE always asks "which place?"',
+        'Read it slowly — is a PLACE question hiding in that clause?',
       ],
     },
     {
@@ -701,16 +688,16 @@ export default {
     {
       id: 'homophones-t3-07', topicId: 'homophones', tier: 3, format: 'errorspot',
       segments: [
-        { text: 'Good practice always means' },
-        { text: 'you should practise your' },
-        { text: 'times tables every single' },
-        { text: 'evening before bedtime routine.' },
+        { text: 'Nobody could remember where' },
+        { text: 'the spare bibs were' },
+        { text: 'kept, so every player' },
+        { text: 'had to wear their own.' },
       ],
       faultyIndex: null,
       explain: {
         rule: RULE,
-        worked: '"Good practice" is the noun (a habit, a thing) and "should practise" is the verb (the doing word) — both spellings are doing their correct job.',
-        whyN: 'Noun and verb, both spelt correctly for their own job — nothing to accuse here.',
+        worked: '"Where" correctly asks a place question, "were kept" correctly uses the past of "are", and "wear their own" correctly means putting clothing on — every twin is doing its real job.',
+        whyN: 'Three sound-twins packed into one sentence, and every single one is honest.',
       },
       hintSteps: [
         'Check each twin word one at a time against its real job — don’t assume there’s always an imposter hiding.',
@@ -739,15 +726,15 @@ export default {
     {
       id: 'homophones-t3-09', topicId: 'homophones', tier: 3, format: 'errorspot',
       segments: [
-        { text: 'Two players ran to' },
-        { text: 'the penalty box, but' },
-        { text: 'the looping cross was' },
-        { text: 'too high to reach.' },
+        { text: 'They’re convinced their favourite' },
+        { text: 'hymn will be sung' },
+        { text: 'again this year over' },
+        { text: 'there in the cathedral.' },
       ],
       faultyIndex: null,
       explain: {
         rule: RULE,
-        worked: '"Two" is the number of players, "to" shows direction (ran to, to reach), and "too" means excessively (too high) — every twin is correct, even used twice.',
+        worked: '"They’re" un-squeezes cleanly to "they are", "their favourite hymn" correctly shows belonging (and "hymn" correctly names a song, not a person), and "over there" correctly points at the cathedral — every twin is honest.',
         whyN: 'Four homophone-risk words in one sentence, all wearing the correct outfit.',
       },
       hintSteps: [
@@ -758,16 +745,16 @@ export default {
     {
       id: 'homophones-t3-10', topicId: 'homophones', tier: 3, format: 'errorspot',
       segments: [
-        { text: 'A loose bootlace made' },
-        { text: 'Jarlath completely lose his' },
-        { text: 'balance halfway through' },
-        { text: 'the final lap today.' },
+        { text: 'Everyone finally worked out' },
+        { text: 'where the missing kit' },
+        { text: 'bags were sitting there' },
+        { text: 'beside the equipment shed.' },
       ],
       faultyIndex: null,
       explain: {
         rule: RULE,
-        worked: '"Loose bootlace" correctly means not tight, and "lose his balance" correctly means to no longer have it — both twins are in their right seat.',
-        whyN: 'One sentence, both twins, both correct — no imposter to catch.',
+        worked: '"Where" correctly asks the place question, "were" correctly shows the past of "are", and "there" correctly points at the equipment shed — every twin is in its right seat.',
+        whyN: 'One sentence, three sound-twins, all correct — no imposter to catch.',
       },
       hintSteps: [
         'Check each twin word one at a time against its real job — don’t assume there’s always an imposter hiding.',

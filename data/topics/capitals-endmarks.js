@@ -76,7 +76,7 @@ export default {
       title: 'The sentence\'s ending: . ? !',
       html: `<p>Every sentence needs exactly one ending mark, and the mark it needs depends on its JOB.</p>
 <div class="law-scroll">📜 A <b>telling</b> sentence ends with a full stop <b>.</b> — "Jarlath ate the sprouts."<br>📜 An <b>asking</b> sentence ends with a question mark <b>?</b> — "Did Jarlath eat the sprouts?"<br>📜 A <b>shouting or surprised</b> sentence ends with an exclamation mark <b>!</b> — "Jarlath ate ALL the sprouts!"</p>
-<p>Watch out: a sentence that only <i>reports</i> a question — "Jarlath asked if he could leave" — is really just TELLING you something, so it still gets a full stop, not a question mark. And any sentence starting "What a…" or "What an…" is always a shout, so it needs the exclamation mark, not a plain full stop.</p>`,
+<p>Watch out: some sentences try to sneak past with <b>no ending mark at all</b>. Always read all the way to the very last word before deciding which one it needs.</p>`,
     },
     {
       type: 'try',
@@ -109,10 +109,10 @@ export default {
     'Proper nouns (names, places, days, months) wear the cap wherever they sit in the sentence, not just at the start.',
     'The word "I" always wears the cap, even squeezed inside a contraction like "I\'ve".',
     'earth (the dirt) stays lowercase; Earth (our planet) is a proper noun and wears the cap.',
-    'Titles in front of a name — Mr, Mrs, Dr — wear the cap too, and in UK style they don\'t need a full stop after them.',
+    'Titles in front of a name — Mr, Mrs, Dr — wear the cap too, wherever they sit in the sentence.',
     'Telling sentences end in a full stop, asking sentences end in a question mark, shouting sentences end in an exclamation mark — check the sentence\'s JOB before you pick.',
-    'A sentence that only reports a question ("she asked if…") is really just telling — it still ends with a full stop.',
-    'Any sentence starting "What a…" or "What an…" is always a shout, so it needs the exclamation mark.',
+    'Seasons (summer, winter, spring, autumn) stay lowercase — unlike the months, they are not proper nouns.',
+    'A sentence with no ending mark at all still needs one — read all the way to the last word before you decide.',
   ],
 
   bank: [
@@ -215,20 +215,20 @@ export default {
     {
       id: 'capitals-endmarks-t1-06', tier: 1, format: 'errorspot',
       segments: [
-        { text: 'Chloe asked if' },
-        { text: 'she could borrow' },
-        { text: 'a pencil for' },
-        { text: 'maths class today.' },
+        { text: 'Did Freddie really' },
+        { text: 'score three goals' },
+        { text: 'against Chloe\'s team' },
+        { text: 'on Tuesday?' },
       ],
       faultyIndex: null,
       hintSteps: [
-        'Is this sentence ASKING something directly, or just TELLING you that someone asked?',
-        '"asked if…" only reports a question — it never asks one directly, so it needs a full stop.',
+        'Is this sentence ASKING something, or just TELLING you what happened?',
+        '"Did Freddie…" is a genuine direct question, so it\'s right to end with a question mark — now check the names and day.',
       ],
       explain: {
         rule: 'Names, places, days, months, I — and every sentence start — wear the cap.',
-        worked: 'This sentence only reports a question ("asked if") rather than asking one directly, so it correctly wears a full stop. Chloe is a name and correctly capped. ALL CLEAN!',
-        whyN: 'This sentence only REPORTS a question ("asked if") — it isn’t asking one directly, so it correctly wears a full stop, not a question mark. Chloe is a name and correctly capped.',
+        worked: 'This really is a direct question ("Did Freddie…"), so the question mark is correct, and Freddie, Chloe and Tuesday are all properly capped. ALL CLEAN!',
+        whyN: 'This is a genuine question ("Did Freddie…") so it correctly wears a question mark, and Freddie, Chloe and Tuesday are all proper nouns wearing the cap correctly.',
       },
     },
     {
@@ -694,19 +694,19 @@ export default {
     {
       id: 'capitals-endmarks-t3-07', tier: 3, format: 'errorspot',
       segments: [
-        { text: 'What an enormous' },
-        { text: 'mess Jarlath\'s homemade' },
-        { text: 'volcano made everywhere' },
-        { text: 'in the kitchen.' },
+        { text: 'Every family always' },
+        { text: 'enjoys a relaxing' },
+        { text: 'break during Summer' },
+        { text: 'near the beach.' },
       ],
-      faultyIndex: 3,
+      faultyIndex: 2,
       hintSteps: [
-        'Does this sentence start with "What a…" or "What an…"?',
-        'A sentence starting "What an…" is always a shout of surprise, so it needs an exclamation mark, not a full stop.',
+        'Is "Summer" the special NAME of one particular thing, like a month is, or just an ordinary season?',
+        'Seasons aren\'t proper nouns like the months are — only proper nouns wear the cap.',
       ],
       explain: {
         rule: 'Names, places, days, months, I — and every sentence start — wear the cap.',
-        worked: 'A sentence starting "What an…" is always a shout of surprise, so segment D needed an exclamation mark: "in the kitchen!"',
+        worked: '"Summer" is a season, not a proper noun like the months, so it should stay lowercase: "during summer near".',
         whyN: null,
       },
     },
@@ -751,20 +751,20 @@ export default {
     {
       id: 'capitals-endmarks-t3-10', tier: 3, format: 'errorspot',
       segments: [
-        { text: 'What a brilliant' },
-        { text: 'goal Chloe scored' },
-        { text: 'in the final' },
-        { text: 'minute of the match!' },
+        { text: 'Look out, everyone —' },
+        { text: 'Freddie\'s dodgeball is' },
+        { text: 'flying straight for' },
+        { text: 'the trophy shelf!' },
       ],
       faultyIndex: null,
       hintSteps: [
-        'Does this sentence really start with "What a…", and is the name capped correctly?',
-        'It genuinely is a shout of surprise, and Chloe is correctly capped — check the ending mark matches.',
+        'Is this sentence telling, asking, or shouting a warning — and is the name capped correctly?',
+        'It genuinely is a shout of warning, and Freddie is correctly capped — check the ending mark matches.',
       ],
       explain: {
         rule: 'Names, places, days, months, I — and every sentence start — wear the cap.',
-        worked: 'This really is a "What a…" shout of surprise, so the exclamation mark is correct, and Chloe is a properly capped name. ALL CLEAN!',
-        whyN: 'This really is a "What a…" shout of surprise, so the exclamation mark is correct, and Chloe is a properly capped name.',
+        worked: 'This really is a shout of warning, so the exclamation mark is correct, and Freddie is a properly capped name. ALL CLEAN!',
+        whyN: 'This really is a genuine shout of warning, so the exclamation mark is correct, and Freddie is a properly capped name.',
       },
     },
   ],

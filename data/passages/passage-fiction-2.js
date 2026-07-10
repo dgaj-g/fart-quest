@@ -210,26 +210,26 @@ export default {
     },
     // ---- Q7: language/effect ----
     {
-      id: 'passage-fiction-2-q7', tier: 2, format: 'mcq5', skill: 'lang', lineRef: '32-34',
-      stem: 'In <b>lines 32-34</b>, the writer describes only "something" and "two amber eyes" before finally naming the fox. What effect does this create?',
+      id: 'passage-fiction-2-q7', tier: 2, format: 'mcq5', skill: 'lang', lineRef: '4-5',
+      stem: 'In <b>lines 4-5</b>, the writer lists three things Duke does: "barked at strangers, herded sheep and guarded the gate." What effect does listing these three actions create?',
       options: [
-        { text: 'It builds suspense by delaying exactly what the danger is', misconception: null },
-        { text: 'It lists background facts about the farmyard setting', misconception: 'wrong-device' },
-        { text: 'It compares the fox directly to something else using "like" or "as"', misconception: 'wrong-device' },
+        { text: 'It piles up examples to show just how much a real guard dog actually does', misconception: null },
+        { text: 'It compares Duke directly to something else using "like" or "as"', misconception: 'wrong-device' },
+        { text: 'It says Duke IS something else entirely, without using "like" or "as"', misconception: 'wrong-device' },
         { text: 'It repeats the same word twice for comic effect', misconception: 'wrong-device' },
       ],
       correctIndex: 0,
       hintSteps: [
-        'A simile compares with like or as; a list piles things up; here, ask what EFFECT holding back information has.',
-        'The reader is told "something", then "two amber eyes" — only in line 34 is it named. What feeling does that delay create?',
+        'A simile compares with like or as; a metaphor says it IS; a list piles things up — always ask what EFFECT it has.',
+        'Barked, herded, guarded — three separate jobs stacked up one after another. What does piling up that many actions make Duke seem like?',
       ],
       explain: {
         rule: RULE_LANG,
-        worked: 'By calling the fox only "something" (line 32) and then "two amber eyes" (line 33), the writer hides its identity from the reader until line 34 — this delay builds suspense and makes the reveal feel more dramatic.',
+        worked: 'The writer piles up three separate actions — barked, herded, guarded — one after another. Listing that many jobs in a row builds up a picture of just how much real guard-dog work actually involves, which is exactly why Gerald is so impressed by Duke.',
         whyWrong: {
-          'It lists background facts about the farmyard setting': 'These lines describe one creeping shape approaching, not a list of separate facts about the setting.',
-          'It compares the fox directly to something else using "like" or "as"': 'There is no "like" or "as" comparison here — the fox is simply left unnamed, not compared to anything.',
-          'It repeats the same word twice for comic effect': 'No word is repeated for a joke here — the passage is building tension, not making a comic point.',
+          'It compares Duke directly to something else using "like" or "as"': 'There is no "like" or "as" comparison here — Duke is not being compared to another thing, his actions are simply listed.',
+          'It says Duke IS something else entirely, without using "like" or "as"': 'Nothing in these lines says Duke IS another thing — this is a list of his actions, not a metaphor.',
+          'It repeats the same word twice for comic effect': 'No word is repeated for a joke here — three different actions are listed, not one word repeated.',
         },
       },
     },

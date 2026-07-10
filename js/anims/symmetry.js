@@ -77,9 +77,9 @@ const MISSIONS = [
   { id: 'twin', kind: 'twin', chip: 'TWIN ROCKET',
     q: 'Paint the missing half of the rocket.',
     sub: 'Tap squares on the right — same distance from the fold line as their twin on the left. Then fold to check.' },
-  { id: 'letters', kind: 'letters', chip: 'LETTER PARADE',
-    q: 'Which letters have a vertical line of symmetry?',
-    sub: 'Tap every letter that folds perfectly down the middle, then check your line-up.' },
+  { id: 'lines', kind: 'lines', chip: 'MIRROR OR MYTH',
+    q: 'Which of these folds are GENUINE lines of symmetry?',
+    sub: 'Tap every fold that truly lands a shape on its twin, then check your line-up.' },
 ];
 
 const ROCKET_LEFT = [ // rows × 4 cols; col0 = outer edge, col3 = nearest the fold
@@ -94,9 +94,11 @@ const G_ROWS = ROCKET_LEFT.length;
 const G_HALF = 4;
 const G_COLS = G_HALF * 2;
 
-const LETTER_POOL = [
-  { ch: 'A', sym: true }, { ch: 'H', sym: true }, { ch: 'M', sym: true }, { ch: 'T', sym: true },
-  { ch: 'F', sym: false }, { ch: 'G', sym: false },
+// Genuine vs. trap fold lines — the same "distractor lines that are not true symmetry"
+// device taught in the Rectangle Trap (spec bullet 42, PP1 Q31 / PP2 Q30).
+const LINE_POOL = [
+  { label: 'RECT ↕', sym: true }, { label: 'SQUARE ⤢', sym: true }, { label: 'RHOMBUS ⤢', sym: true },
+  { label: 'RECT ⤢', sym: false }, { label: 'PARA ⤢', sym: false }, { label: 'TRAP ⤢', sym: false },
 ];
 
 const CSS = `
@@ -143,12 +145,12 @@ const CSS = `
 .fld-letterwrap { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px; }
 .fld-letterrow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .fld-letter {
-  position: relative; width: 62px; height: 70px; border-radius: 14px; background: var(--card);
+  position: relative; width: 86px; height: 70px; border-radius: 14px; background: var(--card);
   border: 3px solid var(--swamp-mid); box-shadow: 0 3px 0 rgba(0,0,0,.22); cursor: pointer;
-  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 4px;
 }
 .fld-lmirror { position: absolute; top: 6px; bottom: 6px; left: 50%; width: 0; border-left: 2px dashed rgba(51,38,29,.4); }
-.fld-lch { font-size: 30px; font-weight: 800; color: var(--ink); position: relative; }
+.fld-lch { font-size: 30px; font-weight: 800; color: var(--ink); position: relative; text-align: center; line-height: 1.15; }
 .fld-lchosen { border-color: var(--gold-deep); background: #FFF3D0; }
 .fld-lok { border-color: var(--correct); background: #E9FBEF; }
 .fld-lok .fld-lmirror { border-left-color: var(--correct); }
@@ -386,14 +388,14 @@ function makeTwinGrid(host, opts) {
   };
 }
 
-/* ---------- LETTER PARADE board (mission 4) ---------- */
-function makeLetterParade(host, opts) {
+/* ---------- MIRROR OR MYTH board (mission 4) ---------- */
+function makeLineParade(host, opts) {
   let alive = true;
   const wrap = el('div', 'fld-letterwrap');
   const row = el('div', 'fld-letterrow');
-  const order = fisherYates(LETTER_POOL);
+  const order = fisherYates(LINE_POOL);
   const tiles = order.map((L) => {
-    const t = el('button', 'fld-letter', `<span class="fld-lmirror"></span><span class="fld-lch">${L.ch}</span>`);
+    const t = el('button', 'fld-letter', `<span class="fld-lmirror"></span><span class="fld-lch" style="font-size:14px;">${L.label}</span>`);
     t.dataset.sym = L.sym ? '1' : '0';
     t.addEventListener('click', () => {
       if (!alive) return;
@@ -529,15 +531,15 @@ export default {
           },
         });
       } else {
-        board = makeLetterParade(boardHost, {
+        board = makeLineParade(boardHost, {
           onComplete() {
             later(() => {
               if (!alive || MISSIONS[mi] !== m) return;
               bubble(stage, {
                 title: 'LINE-UP CORRECT! 🎉',
-                text: 'A, H, M and T all fold perfectly down the middle — F and G never had a hope, their shapes don’t balance on either side of any vertical line.',
+                text: 'RECT ↕, SQUARE ⤢ and RHOMBUS ⤢ really do fold onto themselves — RECT ⤢, PARA ⤢ and TRAP ⤢ are trap lines that never land, no matter how central they look.',
                 img: REFLECTO_IMG,
-              }).then(() => win(m, 'A H M T fold true down the middle — F and G never could.'));
+              }).then(() => win(m, 'RECT ↕, SQUARE ⤢ and RHOMBUS ⤢ fold true — the rest are trap lines.'));
             }, 200);
           },
           onWrong({ hasOk, hasBad, hasMiss }) {

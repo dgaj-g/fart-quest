@@ -7,7 +7,7 @@ import { rngInt, pick, shuffle } from '../rng.js';
 // Weapon rule, used VERBATIM as explain.rule for every generated question (matches the
 // "explain.rule must be used verbatim so it matches the lesson" convention established by
 // placevalue.js/coordinates.js — one canonical rule constant, shared by every template/tier).
-const RULE = 'The whole pie = everything = 360°. Half the pie = half of everything.';
+const RULE = 'The whole pie = everything. Half the pie = half of everything.';
 
 // Single fmt() for all numeric text in this generator.
 function fmt(n) {
@@ -323,151 +323,137 @@ function t2RemainingCount(rng) {
   };
 }
 
-function t2ComparePies(rng) {
+// Percent pool for T2 — each entry's `denom` gives the matching CONFUSE_PERCENT partner below.
+const PERCENTS = [
+  { pct: 50, denom: 2 },
+  { pct: 25, denom: 4 },
+  { pct: 20, denom: 5 },
+  { pct: 10, denom: 10 },
+];
+const CONFUSE_PERCENT = { 50: 25, 25: 50, 20: 10, 10: 20 };
+
+function t2PercentCount(rng) {
   const { noun, items } = pickTheme(rng);
   const X = pick(rng, items);
-  const BIG_TOTALS = [40, 60, 80, 100, 120, 140, 160, 180, 200];
-  const BIG_DENOMS = [5, 10];
-  const SMALL_TOTALS = [8, 12, 16, 20, 24];
-  const SMALL_DENOMS = [2, 4];
+  const p = pick(rng, PERCENTS);
+  const N = pick(rng, NICE_N_POOL);
+  const correctVal = (N * p.pct) / 100;
+  const confusePct = CONFUSE_PERCENT[p.pct];
+  const wrongPctVal = (N * confusePct) / 100;
+  const rest = N - correctVal;
+  const forgotDivide = N * p.pct;
 
-  let bigTotal, bigDenom, smallTotal, smallDenom, countBig, countSmall;
-  let tries = 0;
-  do {
-    bigTotal = pick(rng, BIG_TOTALS);
-    bigDenom = pick(rng, BIG_DENOMS);
-    smallTotal = pick(rng, SMALL_TOTALS);
-    smallDenom = pick(rng, SMALL_DENOMS);
-    countBig = bigTotal / bigDenom;
-    countSmall = smallTotal / smallDenom;
-    tries++;
-  } while (countBig <= countSmall && tries < 50);
-  if (countBig <= countSmall) { bigTotal = 200; bigDenom = 10; countBig = 20; smallTotal = 8; smallDenom = 2; countSmall = 4; }
-
-  const bigIsA = rng() < 0.5;
-  const totalA = bigIsA ? bigTotal : smallTotal;
-  const denomA = bigIsA ? bigDenom : smallDenom;
-  const countA = bigIsA ? countBig : countSmall;
-  const totalB = bigIsA ? smallTotal : bigTotal;
-  const denomB = bigIsA ? smallDenom : bigDenom;
-  const countB = bigIsA ? countSmall : countBig;
-  const fracLabelA = FRAC_WORD_BY_DENOM[denomA];
-  const fracLabelB = FRAC_WORD_BY_DENOM[denomB];
-
-  const correctSurvey = countA > countB ? 'A' : 'B'; // strict by construction (countBig>countSmall)
-  const biggerFractionSurvey = bigIsA ? 'B' : 'A'; // the "small total, big fraction" role always holds the bigger FRACTION
-
-  const options = [
-    { text: 'More pupils chose it in Survey A than in Survey B', misconception: correctSurvey === 'A' ? null : 'wrong-comparison' },
-    { text: 'More pupils chose it in Survey B than in Survey A', misconception: correctSurvey === 'B' ? null : 'wrong-comparison' },
-    { text: 'The same number of pupils chose it in both surveys', misconception: 'assumed-equal' },
-    { text: 'You can’t compare them because the slices are different sizes', misconception: 'assumed-incomparable' },
-    { text: `Survey ${biggerFractionSurvey} has the bigger fraction, so it must have more pupils`, misconception: 'fraction-not-count' },
+  const distractorRaw = [
+    { text: fmt(wrongPctVal), misconception: 'wrong-percent-value' },
+    { text: fmt(p.pct), misconception: 'percent-as-count' },
+    { text: fmt(rest), misconception: 'found-the-rest' },
+    { text: fmt(forgotDivide), misconception: 'forgot-divide-100' },
   ];
-  const correctIndex = options.findIndex((o) => o.misconception === null);
+  const correct = { text: fmt(correctVal), misconception: null };
+  const options = assembleMcqOptions(correct, distractorRaw, 5);
 
   const whyWrong = {};
   options.forEach((o) => {
-    if (o.misconception === 'wrong-comparison') whyWrong[o.text] = `Survey ${correctSurvey} actually has MORE — ${fmt(correctSurvey === 'A' ? countA : countB)} vs ${fmt(correctSurvey === 'A' ? countB : countA)}, not the other way round.`;
-    else if (o.misconception === 'assumed-equal') whyWrong[o.text] = `The counts aren’t equal — Survey A had ${fmt(countA)} and Survey B had ${fmt(countB)}.`;
-    else if (o.misconception === 'assumed-incomparable') whyWrong[o.text] = 'You CAN compare them — you just need each survey’s TOTAL first, and we’re given both here.';
-    else if (o.misconception === 'fraction-not-count') whyWrong[o.text] = `A bigger FRACTION doesn’t mean a bigger NUMBER — Survey ${biggerFractionSurvey}’s total was much smaller, so its actual count is lower. Always check the real totals, not just the fraction size.`;
+    if (o.misconception === 'wrong-percent-value') whyWrong[o.text] = `That’s ${confusePct}% of ${fmt(N)}, not ${p.pct}% — check which percentage the question actually asked for.`;
+    else if (o.misconception === 'percent-as-count') whyWrong[o.text] = `That treats “${p.pct}%” as if it were literally the number ${p.pct} — a percentage of the total means you must find ${p.pct}% of ${fmt(N)}, not just write down the percentage.`;
+    else if (o.misconception === 'found-the-rest') whyWrong[o.text] = `That’s the pupils who did NOT choose ${X} (${fmt(N)} − ${fmt(correctVal)} = ${fmt(rest)}) — the question asks how many DID choose it.`;
+    else if (o.misconception === 'forgot-divide-100') whyWrong[o.text] = `That multiplies ${fmt(N)} by ${p.pct} without dividing by 100 first — turn the percentage into a decimal (÷100) before you multiply.`;
+    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = `Check the arithmetic again — turn ${p.pct}% into a decimal, then multiply by ${fmt(N)}.`;
   });
 
   return {
-    templateId: 'pie-t2-compare-pies',
-    stem: `Survey A asked <b>${fmt(totalA)}</b> pupils their favourite ${noun}; <b>${fracLabelA}</b> of them chose ${X}. Survey B asked <b>${fmt(totalB)}</b> pupils; <b>${fracLabelB}</b> of them also chose ${X}. Which statement is TRUE?`,
+    templateId: 'pie-t2-percent-count',
+    stem: `${fmt(N)} pupils were asked their favourite ${noun}. <b>${X}</b> is shown as <b>${p.pct}%</b> of the pie chart. How many pupils chose ${X}?`,
     options,
-    correctIndex,
+    correctIndex: 0,
     hintSteps: [
-      'Don’t just compare the FRACTIONS — work out the actual NUMBER of pupils in each survey first.',
-      `Survey A: ${fracLabelA} of ${fmt(totalA)}. Survey B: ${fracLabelB} of ${fmt(totalB)}. Which actual number is bigger?`,
+      `Turn ${p.pct}% into a decimal: ${p.pct} ÷ 100 = ${p.pct / 100}.`,
+      `Now multiply that decimal by the total: ${p.pct / 100} × ${fmt(N)} = …?`,
     ],
     explain: {
       rule: RULE,
-      worked: `Survey A: ${fracLabelA} of ${fmt(totalA)} = ${fmt(countA)}. Survey B: ${fracLabelB} of ${fmt(totalB)} = ${fmt(countB)}. ${fmt(countA)} vs ${fmt(countB)} — Survey ${correctSurvey} has more, even though the fractions might look different.`,
+      worked: `${p.pct} ÷ 100 = ${p.pct / 100}. ${p.pct / 100} × ${fmt(N)} = ${fmt(correctVal)} pupils chose ${X}.`,
       whyWrong,
     },
   };
 }
 
-// -------- T3 templates (num format — angle <-> count <-> total, never negative) --------
+// -------- T3 templates (num format — percentage <-> count <-> total, never negative) --------
 
-// Totals that divide 360 exactly, so count*step and count*360/angle are always whole numbers —
-// no rounding is ever needed anywhere in this generator's angle arithmetic.
-const NICE_TOTALS_360 = [8, 9, 10, 12, 15, 18, 20, 24, 30, 36, 40, 45, 60, 72, 90, 120];
+// Percentages whose fraction reduces to a denominator that divides 20 exactly, paired with
+// totals that are all multiples of 20 — so every percent*total/100 below is a whole number,
+// no rounding ever needed anywhere in this generator's percentage arithmetic.
+const PCT_LIST = [5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90];
+const NICE_TOTALS_PCT = [40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340, 380, 400];
 
-function t3AngleFromCount(rng) {
+function t3CountFromPercent(rng) {
   const { noun, items } = pickTheme(rng);
   const X = pick(rng, items);
-  const total = pick(rng, NICE_TOTALS_360);
-  const step = 360 / total;
-  const count = rngInt(rng, 1, total - 1);
-  const angle = count * step;
+  const total = pick(rng, NICE_TOTALS_PCT);
+  const pct = pick(rng, PCT_LIST);
+  const count = (total * pct) / 100;
 
   return {
-    templateId: 'pie-t3-angle-from-count',
-    stem: `${fmt(total)} pupils were asked their favourite ${noun}. <b>${fmt(count)}</b> of them chose ${X}. What is the angle for ${X} on the pie chart?`,
-    format: 'num',
-    unit: '°',
-    accept: [String(angle)],
-    hintSteps: [
-      `Divide the ${X} count by the total number of pupils: ${fmt(count)} ÷ ${fmt(total)}.`,
-      'Now multiply that answer by 360.',
-    ],
-    explain: {
-      rule: RULE,
-      worked: `${fmt(count)} ÷ ${fmt(total)} × 360 = ${angle}°.`,
-      whyWrong: {},
-    },
-  };
-}
-
-function t3CountFromAngle(rng) {
-  const { noun, items } = pickTheme(rng);
-  const X = pick(rng, items);
-  const total = pick(rng, NICE_TOTALS_360);
-  const step = 360 / total;
-  const count = rngInt(rng, 1, total - 1);
-  const angle = count * step;
-
-  return {
-    templateId: 'pie-t3-count-from-angle',
-    stem: `${fmt(total)} pupils were asked their favourite ${noun}. The angle for ${X} on the pie chart is <b>${angle}°</b>. How many pupils chose ${X}?`,
+    templateId: 'pie-t3-count-from-percent',
+    stem: `${fmt(total)} pupils were asked their favourite ${noun}. ${X} is shown as <b>${pct}%</b> of the pie chart. How many pupils chose ${X}?`,
     format: 'num',
     accept: [String(count)],
     hintSteps: [
-      'Divide the angle by 360 first — that tells you what FRACTION of the whole pie this slice is.',
-      `Now multiply that fraction by the total number of pupils: ${angle} ÷ 360 × ${fmt(total)}.`,
+      `Turn ${pct}% into a decimal: ${pct} ÷ 100 = ${pct / 100}.`,
+      `Now multiply that decimal by the total: ${pct / 100} × ${fmt(total)}.`,
     ],
     explain: {
       rule: RULE,
-      worked: `${angle} ÷ 360 × ${fmt(total)} = ${fmt(count)}.`,
+      worked: `${pct} ÷ 100 = ${pct / 100}. ${pct / 100} × ${fmt(total)} = ${fmt(count)}.`,
       whyWrong: {},
     },
   };
 }
 
-function t3TotalFromCountAngle(rng) {
+function t3PercentFromCount(rng) {
   const { noun, items } = pickTheme(rng);
   const X = pick(rng, items);
-  const total = pick(rng, NICE_TOTALS_360);
-  const step = 360 / total;
-  const count = rngInt(rng, 1, total - 1);
-  const angle = count * step;
+  const total = pick(rng, NICE_TOTALS_PCT);
+  const pct = pick(rng, PCT_LIST);
+  const count = (total * pct) / 100;
 
   return {
-    templateId: 'pie-t3-total-from-count-angle',
-    stem: `${fmt(count)} pupils chose ${X} as their favourite ${noun}, and ${X}’s slice has an angle of <b>${angle}°</b>. How many pupils were asked in total?`,
+    templateId: 'pie-t3-percent-from-count',
+    stem: `${fmt(total)} pupils were asked their favourite ${noun}. <b>${fmt(count)}</b> of them chose ${X}. What percentage of the pie chart is ${X}?`,
     format: 'num',
-    accept: [String(total)],
+    unit: '%',
+    accept: [String(pct)],
     hintSteps: [
-      'The angle tells you what FRACTION of the whole pie this slice is: angle ÷ 360.',
-      `Divide the count by that fraction — ${fmt(count)} × 360 ÷ ${angle} — to find the total.`,
+      `Divide the ${X} count by the total: ${fmt(count)} ÷ ${fmt(total)}.`,
+      'Now multiply that answer by 100 to turn it into a percentage.',
     ],
     explain: {
       rule: RULE,
-      worked: `${fmt(count)} × 360 ÷ ${angle} = ${fmt(total)}.`,
+      worked: `${fmt(count)} ÷ ${fmt(total)} × 100 = ${pct}%.`,
+      whyWrong: {},
+    },
+  };
+}
+
+function t3TotalFromCountPercent(rng) {
+  const { noun, items } = pickTheme(rng);
+  const X = pick(rng, items);
+  const total = pick(rng, NICE_TOTALS_PCT);
+  const pct = pick(rng, PCT_LIST);
+  const count = (total * pct) / 100;
+
+  return {
+    templateId: 'pie-t3-total-from-count-percent',
+    stem: `${fmt(count)} pupils chose ${X} as their favourite ${noun}, and ${X} is shown as <b>${pct}%</b> of the pie chart. How many pupils were asked in total?`,
+    format: 'num',
+    accept: [String(total)],
+    hintSteps: [
+      `${pct}% tells you what FRACTION of the whole pie this slice is: ${pct} ÷ 100.`,
+      `Divide the count by that fraction — ${fmt(count)} ÷ (${pct} ÷ 100) — to find the total.`,
+    ],
+    explain: {
+      rule: RULE,
+      worked: `${fmt(count)} ÷ (${pct} ÷ 100) = ${fmt(total)}.`,
       whyWrong: {},
     },
   };
@@ -476,8 +462,8 @@ function t3TotalFromCountAngle(rng) {
 // -------- dispatch --------
 
 const T1 = [t1MostPopular, t1LeastPopular, t1CompareTwo];
-const T2 = [t2FractionCount, t2RemainingCount, t2ComparePies];
-const T3 = [t3AngleFromCount, t3CountFromAngle, t3TotalFromCountAngle];
+const T2 = [t2FractionCount, t2RemainingCount, t2PercentCount];
+const T3 = [t3CountFromPercent, t3PercentFromCount, t3TotalFromCountPercent];
 
 export function generate(tier, rng) {
   let pool;

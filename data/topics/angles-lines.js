@@ -14,7 +14,7 @@ export default {
     rarity: 'rare',
     image: 'assets/monsters/obtusius.png',
     bio: 'Obtusius takes up FAR more room than is strictly polite — a proper 90°-plus of pure wobbling drama, and not a right angle in sight. He has never once fitted through a doorway without loudly blaming the doorway.',
-    factSneak: 'Acute is sharp (under 90°), right is exactly 90°, obtuse is wide like Obtusius (between 90° and 180°), straight is flat (exactly 180°), and reflex is wider than a straight line (over 180°).',
+    factSneak: 'Acute is sharp (under 90°), obtuse is wide like Obtusius (between 90° and 180°), and reflex is wider than a straight line (over 180°).',
   },
 
   weapon: {
@@ -42,19 +42,9 @@ export default {
     <div style="font-size:11px;color:#8c7a63;">under 90°</div>
   </div>
   <div style="text-align:center;width:82px;">
-    <div style="width:70px;height:70px;border-radius:50%;background:conic-gradient(var(--stink) 0deg 90deg, #e8e0cd 90deg 360deg);border:2px solid var(--ink);margin:0 auto 6px;"></div>
-    <div style="font-weight:700;font-size:13px;">Right</div>
-    <div style="font-size:11px;color:#8c7a63;">exactly 90°</div>
-  </div>
-  <div style="text-align:center;width:82px;">
     <div style="width:70px;height:70px;border-radius:50%;background:conic-gradient(var(--gold-deep) 0deg 140deg, #e8e0cd 140deg 360deg);border:2px solid var(--ink);margin:0 auto 6px;"></div>
     <div style="font-weight:700;font-size:13px;">Obtuse</div>
     <div style="font-size:11px;color:#8c7a63;">90°–180°</div>
-  </div>
-  <div style="text-align:center;width:82px;">
-    <div style="width:70px;height:70px;border-radius:50%;background:conic-gradient(#b06a86 0deg 180deg, #e8e0cd 180deg 360deg);border:2px solid var(--ink);margin:0 auto 6px;"></div>
-    <div style="font-weight:700;font-size:13px;">Straight</div>
-    <div style="font-size:11px;color:#8c7a63;">exactly 180°</div>
   </div>
   <div style="text-align:center;width:82px;">
     <div style="width:70px;height:70px;border-radius:50%;background:conic-gradient(#4f9c9c 0deg 300deg, #e8e0cd 300deg 360deg);border:2px solid var(--ink);margin:0 auto 6px;"></div>
@@ -62,7 +52,7 @@ export default {
     <div style="font-size:11px;color:#8c7a63;">over 180°</div>
   </div>
 </div>
-<p>See a little square 🔲 drawn in the corner of an angle? That is the official “this one is EXACTLY 90°” stamp. No square mark, no guarantee — you must work it out properly, never guess by eye. <b>Every angle diagram you meet is drawn NOT TO SCALE</b> — the picture is just a rough sketch, so trust the numbers, never a ruler.</p>`,
+<p><b>Every angle diagram you meet is drawn NOT TO SCALE</b> — the picture is just a rough sketch, so trust the numbers, never a ruler.</p>`,
     },
     {
       type: 'try',
@@ -73,13 +63,11 @@ export default {
         options: [
           { text: 'Obtuse', misconception: null },
           { text: 'Acute', misconception: 'wrong-cat-acute' },
-          { text: 'Right', misconception: 'wrong-cat-right' },
           { text: 'Reflex', misconception: 'wrong-cat-reflex' },
-          { text: 'Straight', misconception: 'wrong-cat-straight' },
         ],
         correctIndex: 0,
         hintSteps: [
-          'Compare 130° to 90° and 180°. Is it smaller than 90°, exactly 90°, in between, exactly 180°, or bigger than 180°?',
+          'Compare 130° to 90° and 180°. Is it smaller than 90°, in between the two, or bigger than 180°?',
           '130° is bigger than 90° but smaller than 180° — that makes it…?',
         ],
         explain: {
@@ -87,9 +75,7 @@ export default {
           worked: '130° sits between 90° and 180°, so it’s obtuse.',
           whyWrong: {
             'Acute': '130° is way more than 90° — too big for acute (acute means UNDER 90°).',
-            'Right': '130° isn’t exactly 90°, so it can’t be a right angle.',
             'Reflex': '130° isn’t over 180°, so it isn’t reflex.',
-            'Straight': '130° isn’t exactly 180°, so it isn’t a straight angle.',
           },
         },
       },
@@ -135,48 +121,38 @@ export default {
     },
     {
       type: 'show',
-      title: 'The Law of Straight Lines',
-      html: `<p>Take any straight line and stick a ray into the middle of it. You have just chopped it into two angles — and here is the ancient law:</p>
-<div class="law-scroll">📜 <b>THE LAW OF STRAIGHT LINES:</b> the two angles on a straight line ALWAYS add up to <b>180°</b>. No exceptions.</div>
-<div style="position:relative;width:240px;height:110px;margin:20px auto 34px;">
-  <div style="position:absolute;left:0;right:0;top:86px;height:3px;background:var(--ink);"></div>
-  <div style="position:absolute;left:50%;top:86px;width:110px;height:3px;background:var(--stink);transform-origin:0 50%;transform:rotate(-65deg);border-radius:2px;"></div>
-  <div style="position:absolute;left:calc(50% - 5px);top:81px;width:10px;height:10px;border-radius:50%;background:var(--ink);"></div>
-  <div style="position:absolute;left:22%;top:8px;font-weight:700;">65°</div>
-  <div style="position:absolute;left:64%;top:8px;font-weight:700;">?</div>
+      title: 'Perpendicular in Action',
+      html: `<p>You’ve just met <b>perpendicular</b> — lines that cross at exactly 90°. Here’s the giveaway to look for in a question:</p>
+<div style="position:relative;width:200px;height:120px;margin:20px auto;">
+  <div style="position:absolute;left:0;right:0;top:60px;height:4px;background:var(--ink);border-radius:2px;"></div>
+  <div style="position:absolute;left:calc(50% - 2px);top:0;width:4px;height:120px;background:var(--stink);border-radius:2px;"></div>
+  <div style="position:absolute;left:calc(50% + 8px);top:40px;font-weight:700;">90°</div>
 </div>
-<div class="estimate-demo">
-  <div class="est-line">Total on the line: <b>180°</b></div>
-  <div class="est-line">One angle is 65°, so the other is 180 − 65 = <b>115°</b></div>
-</div>
-<p>That’s it. Whatever one angle is, the other is “180 take away that number”. Obtusius uses this to check whether HE is being obtuse or just a very generous right angle. (He is always, always obtuse.)</p>`,
+<p>Two lines cross and make a perfect right angle where they meet — that’s the whole test. Whenever a crossing measures exactly 90°, the word the examiners want is <b>perpendicular</b>. No 90° crossing? Then it isn’t.</p>`,
     },
     {
       type: 'try',
       q: {
         id: 'angle-try-2', topicId: 'angles-lines', tier: 2, format: 'mcq5',
-        stem: 'Two angles sit together on a straight line. One angle is <b>65°</b>. What is the other angle?',
-        visual: { kind: 'angle', deg: 65 },
+        stem: 'Two lines cross, and the angle where they meet is exactly <b>90°</b>. What word best describes these two lines?',
         options: [
-          { text: '115°', misconception: null },
-          { text: '65°', misconception: 'copied-given' },
-          { text: '295°', misconception: 'wrong-total-360' },
-          { text: '25°', misconception: 'wrong-total-90' },
-          { text: '125°', misconception: 'arithmetic-slip' },
+          { text: 'Perpendicular', misconception: null },
+          { text: 'Parallel', misconception: 'parallel' },
+          { text: 'Vertical', misconception: 'vertical' },
+          { text: 'Horizontal', misconception: 'horizontal' },
         ],
         correctIndex: 0,
         hintSteps: [
-          'Angles on a straight line always add up to 180°. Which two numbers are we working with here?',
-          '180 − 65 = …?',
+          'Think about the special word for two lines that cross at a perfect right angle.',
+          'Not lines that never meet, and not a direction word — the crossing word for exactly 90°…?',
         ],
         explain: {
           rule: 'Sharper than a corner = acute. Past a corner = obtuse. Past a straight line = reflex. A triangle’s angles always total 180°.',
-          worked: '65° and the missing angle sit on a straight line, so together they make 180°. 180° − 65° = 115°.',
+          worked: 'Lines that cross at exactly a right angle (90°) are called perpendicular.',
           whyWrong: {
-            '65°': 'That’s just the angle you were already given — the question wants the OTHER one.',
-            '295°': 'That uses 360° as the total — that’s for angles all the way round a point, not a straight line.',
-            '25°': 'That treats the line like a right angle (90°) instead of a full straight line (180°).',
-            '125°': 'Close — but check the subtraction again, it’s a few degrees out.',
+            'Parallel': 'Parallel lines never cross at all — but these two do, at 90°.',
+            'Vertical': 'Vertical just means pointing straight up and down — it doesn’t describe how two lines cross.',
+            'Horizontal': 'Horizontal just means lying flat, side to side — it doesn’t describe how two lines cross.',
           },
         },
       },
@@ -193,7 +169,6 @@ export default {
   <div style="position:absolute;bottom:6px;right:8px;font-weight:700;color:#fff;">70°</div>
 </div>
 <p>50 + 60 + 70 = 180. Every single time. So if a triangle question gives you TWO angles, the third is no mystery: <b>180 minus the two you already know</b>.</p>
-<p><b>Watch out for isosceles triangles</b> — they have TWO equal angles (called the “base angles”), sitting opposite the two equal sides. If you are told a triangle is isosceles and given ONE base angle, the OTHER base angle is a free copy — the SAME number. Only the third, different angle (the “apex”) needs working out: 180 minus BOTH base angles.</p>
 <p>Quadrilaterals — any 4-sided shape — make an even BIGGER promise:</p>
 <div class="law-scroll">📜 <b>THE QUADRILATERAL PROMISE:</b> the four angles inside ANY quadrilateral always add up to <b>360°</b> — double the triangle’s promise.</div>
 <div style="position:relative;width:160px;height:110px;margin:20px auto;border:4px solid var(--ink);background:rgba(155,89,208,.15);border-radius:6px;">
@@ -208,27 +183,27 @@ export default {
       type: 'try',
       q: {
         id: 'angle-try-3', topicId: 'angles-lines', tier: 2, format: 'mcq5',
-        stem: 'An isosceles triangle has a top (apex) angle of <b>40°</b>. The other two angles are equal to each other. What is the size of EACH of those two equal angles?',
+        stem: 'A triangle has angles of <b>55°</b> and <b>65°</b>. What is the third angle?',
         options: [
-          { text: '70°', misconception: null },
-          { text: '140°', misconception: 'remainder-not-halved' },
-          { text: '20°', misconception: 'halved-wrong-number' },
-          { text: '90°', misconception: 'assumed-right' },
-          { text: '75°', misconception: 'arithmetic-slip' },
+          { text: '60°', misconception: null },
+          { text: '120°', misconception: 'added-instead' },
+          { text: '125°', misconception: 'forgot-second-angle' },
+          { text: '240°', misconception: 'used-360-total' },
+          { text: '70°', misconception: 'arithmetic-slip' },
         ],
         correctIndex: 0,
         hintSteps: [
-          'The two equal angles share what’s left after the apex: 180 − 40 = ?',
-          'Now split that remainder equally between the two equal angles: ÷ 2 = …?',
+          'Every triangle’s three angles add up to 180°. Add the two you know: 55 + 65 = ?',
+          '180 − 120 = …?',
         ],
         explain: {
           rule: 'Sharper than a corner = acute. Past a corner = obtuse. Past a straight line = reflex. A triangle’s angles always total 180°.',
-          worked: '180° − 40° = 140°. Shared equally between the two base angles: 140° ÷ 2 = 70° each.',
+          worked: '55° + 65° = 120°. 180° − 120° = 60°.',
           whyWrong: {
-            '140°': 'That’s the leftover after the apex angle — but it needs to be SHARED between the two equal base angles, not left as one.',
-            '20°': 'That halves the apex angle (40°) by mistake — it’s the remainder (180° minus the apex) that gets shared.',
-            '90°': 'That assumes a right angle — nothing in the question tells you that.',
-            '75°': 'Close — but check the division again, it’s a few degrees out.',
+            '120°': 'That’s the two given angles added together — you still need to take that away from 180°.',
+            '125°': 'That only takes away ONE of the two known angles — both need to come off 180°.',
+            '240°': 'That’s the QUADRILATERAL total (360°) — this is a triangle, which totals 180°.',
+            '70°': 'Close — but check the subtraction again, it’s a few degrees out.',
           },
         },
       },
@@ -239,10 +214,10 @@ export default {
   tips: [
     'Sharper than a corner = acute. Past a corner = obtuse. Past a straight line = reflex. Learn the shapes, not just the words.',
     'Diagrams in this topic are NEVER to scale — always work the angle out, never guess by eye or by measuring.',
-    'Angles on a straight line always add up to 180°. Angles inside ANY triangle always add up to 180° too — different picture, same total.',
+    'Angles inside ANY triangle always add up to 180° — tall, squat or lopsided, doesn’t matter.',
     'Angles inside a quadrilateral add up to 360° — DOUBLE the triangle’s total. Don’t mix the two up.',
-    'Isosceles triangle? Two angles are EQUAL (the base angles). If you’re given one, the other is a free copy — only the apex is different.',
+    'Careful at the edges: acute is strictly UNDER 90°, obtuse is strictly BETWEEN 90° and 180°, reflex is OVER 180°. Work from the number, never a guess by eye.',
     'Perpendicular = crosses at exactly 90° (look for the little square mark). Parallel = never meets, always the same distance apart.',
-    'Two-step angle questions: work out the FIRST missing angle (often on a line), then use THAT number to find the one they actually asked for.',
+    'Two-step angle questions: work out one triangle’s (or shape’s) missing angle first, then use THAT number for the step they actually asked about.',
   ],
 };

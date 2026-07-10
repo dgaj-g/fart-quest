@@ -126,40 +126,43 @@ export default {
     },
     {
       type: 'show',
-      title: 'The Papers’ Favourite Trap: Working BACKWARDS',
-      html: `<p>Here is where most heroes get caught out. Sometimes the question tells you where Wanda <b>ENDED UP</b>, and asks where she <b>STARTED</b>. The trap: you must undo the turn by going the <b>OPPOSITE way round</b>.</p>
+      title: 'The Whole Turn: Right The Way Round',
+      html: `<p>There’s one more size of turn: the <b>WHOLE turn</b>. It’s all <b>8 points</b> of the compass in one go — 360°, the entire circle.</p>
 <table style="border-collapse:collapse;width:100%;font-size:13px;margin:14px 0;">
-<tr style="background:#eee;"><th style="border:1px solid #999;padding:6px;">She ended facing</th><th style="border:1px solid #999;padding:6px;">She turned</th><th style="border:1px solid #999;padding:6px;">To undo it, turn…</th><th style="border:1px solid #999;padding:6px;">So she STARTED facing</th></tr>
-<tr><td style="border:1px solid #999;padding:6px;">East</td><td style="border:1px solid #999;padding:6px;">quarter turn CLOCKWISE</td><td style="border:1px solid #999;padding:6px;">quarter turn ANTI-clockwise</td><td style="border:1px solid #999;padding:6px;">North</td></tr>
+<tr style="background:#eee;"><th style="border:1px solid #999;padding:6px;">Size</th><th style="border:1px solid #999;padding:6px;">Points</th><th style="border:1px solid #999;padding:6px;">Degrees</th></tr>
+<tr><td style="border:1px solid #999;padding:6px;">quarter turn</td><td style="border:1px solid #999;padding:6px;">2</td><td style="border:1px solid #999;padding:6px;">90°</td></tr>
+<tr><td style="border:1px solid #999;padding:6px;">half turn</td><td style="border:1px solid #999;padding:6px;">4</td><td style="border:1px solid #999;padding:6px;">180°</td></tr>
+<tr><td style="border:1px solid #999;padding:6px;">three-quarter turn</td><td style="border:1px solid #999;padding:6px;">6</td><td style="border:1px solid #999;padding:6px;">270°</td></tr>
+<tr><td style="border:1px solid #999;padding:6px;"><b>whole turn</b></td><td style="border:1px solid #999;padding:6px;"><b>8</b></td><td style="border:1px solid #999;padding:6px;"><b>360°</b></td></tr>
 </table>
-<p>Never undo a turn by repeating the same direction — that just carries on turning the SAME way, spinning you even further from the true start! Always flip clockwise ↔ anticlockwise, keep the SAME size, and you’ll land exactly back on the start.</p>
-<p><b>Multi-instruction chains</b> are the other papers’ favourite: two or three turns in a row. The trick is simple — do them <b>ONE AT A TIME</b>, in order. Work out the direction after the FIRST turn, then apply the SECOND turn to THAT new direction. Never skip a step, and never mix up which direction belongs to which turn.</p>`,
+<p>Because a whole turn goes ALL the way round the circle, it always lands you back facing the <b>exact same direction</b> you started in — it doesn’t matter one bit whether you count it out clockwise or anticlockwise, the answer is identical. Facing South-West and told to make a whole turn? You’re still facing South-West.</p>
+<p>Watch out for the trick question: a whole turn is <b>four</b> quarter turns put together (2 + 2 + 2 + 2 = 8 points), not just one giant single step — but the destination is always the direction you began in.</p>`,
     },
     {
       type: 'try',
       q: {
         id: 'turnscompass-try-3', topicId: 'turns-compass', tier: 3, format: 'mcq5',
-        stem: 'Wanda ends up facing <b>East</b> after making a <b>quarter turn</b> clockwise. Which direction was she facing at the START?',
+        stem: 'Wanda is facing <b>South-West</b>. She makes a <b>whole turn</b> anticlockwise. Which direction is she facing now?',
         options: [
-          { text: 'North', misconception: null },
-          { text: 'South', misconception: 'forgot-invert' },
-          { text: 'East', misconception: 'no-turn' },
-          { text: 'West', misconception: 'wrong-size' },
-          { text: 'North-East', misconception: 'plausible-other-point' },
+          { text: 'South-West', misconception: null },
+          { text: 'North-East', misconception: 'opposite' },
+          { text: 'South', misconception: 'wrong-size-smaller' },
+          { text: 'West', misconception: 'wrong-size-smaller' },
+          { text: 'North-West', misconception: 'plausible-other-point' },
         ],
         correctIndex: 0,
         hintSteps: [
-          'To find the START, undo the turn: same size, but the OPPOSITE direction.',
-          'Undo a quarter turn clockwise by turning a quarter turn ANTI-clockwise from East — one letter back.',
+          'A whole turn is all 8 points of the compass — right the way round.',
+          'That always brings you back to face exactly where you started, whichever way you turn.',
         ],
         explain: {
           rule: "N-E-S-W clockwise ('Naughty Elephants Squirt Water'). A quarter turn = one letter along.",
-          worked: 'To reverse a quarter turn clockwise, turn a quarter turn ANTI-clockwise from East: one letter back is North.',
+          worked: 'A whole turn (360°, 8 points) always ends facing the SAME direction you started in — South-West — whichever way you turn.',
           whyWrong: {
-            South: 'That turns FORWARDS again in the same clockwise direction — but to find the START you must go the OPPOSITE way to undo the turn.',
-            East: 'That’s where she ENDED, not started — a real turn always begins somewhere different.',
-            West: 'That undoes a HALF turn, not a quarter turn — check the size again.',
-            'North-East': 'That’s not reachable by undoing a quarter turn from East at all — recount the points.',
+            'North-East': 'That’s the point directly OPPOSITE — a whole turn goes all the way round, not just halfway.',
+            South: 'That’s only ONE point along — a whole turn is 8 points, the entire circle.',
+            West: 'That’s only ONE point back — a whole turn is 8 points, the entire circle.',
+            'North-West': 'Walk the full 8 points round from South-West — that’s not where a whole turn lands.',
           },
         },
       },
@@ -171,8 +174,8 @@ export default {
     'N-E-S-W clockwise: "Naughty Elephants Squirt Water". A quarter turn is always one letter along.',
     'Quarter turn = 90° = 2 compass points. Half turn = 180° = 4 points. Three-quarter turn = 270° = 6 points.',
     'Anticlockwise means going BACKWARDS through the letters — the opposite way round the circle from clockwise.',
-    'Given the END direction and asked for the START? Undo the turn: same size, but the OPPOSITE direction round.',
-    'Multi-instruction chains: do ONE turn at a time, in order — never combine them in your head in one go.',
+    'On the 8-point compass, clockwise runs N → NE → E → SE → S → SW → W → NW → back to N. Anticlockwise runs the exact same list backwards.',
+    'Quarter, half, three-quarter and whole are just fractions of ONE full turn (360°) — a whole turn is all four quarters put together, right the way round.',
     'A three-quarter turn moves you THREE quarter-steps (6 points) — don’t mistake it for just one big single step.',
     'A full turn (360°, 8 points) always brings you back to face exactly the direction you started in.',
   ],

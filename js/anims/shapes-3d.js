@@ -1,21 +1,21 @@
 // FART QUEST — js/anims/shapes-3d.js
 // SIR FACELOT'S TAG COUNT — a real CSS-3D solid the child spins by dragging.
 // Three tag modes (FACES/EDGES/VERTICES) build the strict-order count; a
-// pyramid speed-round, a curved cylinder guest, and a "does it fold?" net
-// mission round out the Solid Cellar. Prefix: sfc.
+// pyramid speed-round, a triangular-prism tie-breaker round, and a curved
+// cylinder guest round out the Solid Cellar. Prefix: sfc.
+//
+// SPEC_CANON.md audit note: the former ③ mission was "DOES IT FOLD?" (cube-net
+// folding) — removed entirely, since no spec bullet names nets and Section C has
+// zero PP1/PP2 citation for a net-folding question. It is replaced by a triangular
+// prism tag-and-count mission (bullet 38 + PP2 Q55 FEV-recall style), which also
+// dramatises the topic's own "Face-Count Trap" teaching card (a triangular prism
+// and a square-based pyramid both have 5 faces — edges/vertices tell them apart).
+// Do not re-add net content without a spec bullet or paper citation (Section D).
 
 import { el, sfx, tween, makeDrag, toast, bubble, sparkleBurst, party, injectCss } from './_kit.js';
 
 const IMG = 'assets/monsters/sir-facelot.png';
 const RULE = 'Faces are flat, edges are where faces meet, vertices are the corners. Count in that order.';
-const FACE_ORDER = ['front', 'back', 'top', 'bottom', 'left', 'right'];
-// the topic's own two nets (verbatim from data/topics/shapes-3d.js "Meet the Solid
-// Family" ✅ example and the try-3 quiz's ❌ 2x3-block example)
-const NET_VALID = { cells: [[0,0],[0,1],[0,2],[1,1],[2,1],[3,1]], map: FACE_ORDER.slice(), valid: true };
-// omits 'top' (not 'back', collided twice instead) so the gap is clearly visible from
-// the default fold camera angle (rx=-32 looks down into the box) — a hidden omission
-// would prove nothing to a child watching the fold.
-const NET_INVALID = { cells: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]], map: ['front','back','back','bottom','left','right'], valid: false };
 
 /* ---------- pure 3D geometry engine (proven in /tmp/geom-test.mjs) ---------- */
 function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }; }
@@ -25,7 +25,6 @@ function dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 function cross(a, b) { return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }; }
 function vlen(a) { return Math.sqrt(dot(a, a)) || 1; }
 function vnorm(a) { const l = vlen(a); return { x: a.x / l, y: a.y / l, z: a.z / l }; }
-function lerpPt(a, b, t) { return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t }; }
 
 // Orthographic re-projection of the SAME rotation the pivot's CSS transform applies
 // (rotateX(rx) rotateY(ry), composed as Rx(Ry(p)) — verified against real getBoundingClientRect
@@ -93,15 +92,32 @@ function buildPyramidGeom(bh, apexY, baseY) {
   const edges = [[1,2],[2,3],[3,4],[4,1],[0,1],[0,2],[0,3],[0,4]];
   return { v, faces, edges, name: 'square-based pyramid', counts: { face: 5, edge: 8, vert: 5 } };
 }
+// Two triangular ends (front/back, z = ∓pz) joined by three rectangles — the "Toblerone
+// box" from data/topics/shapes-3d.js. Shares its 5-face count with the pyramid above (the
+// topic's own "Face-Count Trap" tie), but has 9 edges/6 vertices, not 8/5.
+function buildPrismGeom(h) {
+  const pw = h * 1.15; const pz = h; const apexY = -h * 1.3; const baseY = h * 0.75;
+  const v = [
+    { x: 0, y: apexY, z: -pz }, { x: -pw, y: baseY, z: -pz }, { x: pw, y: baseY, z: -pz },
+    { x: 0, y: apexY, z: pz }, { x: -pw, y: baseY, z: pz }, { x: pw, y: baseY, z: pz },
+  ];
+  const faces = [
+    { id: 'front', vi: [0,1,2] }, { id: 'back', vi: [3,5,4] },
+    { id: 'left', vi: [0,1,4,3] }, { id: 'bottom', vi: [1,2,5,4] }, { id: 'right', vi: [2,0,3,5] },
+  ];
+  const edges = [[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]];
+  return { v, faces, edges, name: 'triangular prism', counts: { face: 5, edge: 9, vert: 6 } };
+}
 
 /* ---------- content ---------- */
 const MISSIONS = [
   { id: 'cube', chip: '① CUBE', label: "SIR FACELOT'S OWN DICE", q: 'Drag to spin the cube. Tag every FACE, then every EDGE, then every VERTEX.' },
   { id: 'pyramid', chip: '⚡ ② PYRAMID SPEED', label: 'SPEED ROUND: SQUARE-BASED PYRAMID', q: 'Same drill, new solid — tag every face, edge and vertex!' },
-  { id: 'fold', chip: '③ DOES IT FOLD?', label: 'DOES IT FOLD?', q: 'Two nets, six squares each. Tap the one you think folds into a closed cube.' },
+  { id: 'prism', chip: '③ THE TIE-BREAKER', label: 'THE TIE-BREAKER: TRIANGULAR PRISM', q: 'Watch out — this one has 5 faces too, just like the pyramid! Tag every face, edge and vertex to prove which solid it really is.' },
 ];
 function announceCube() { return 'A cube: <b>6</b> flat faces, <b>12</b> edges (where two faces meet), <b>8</b> vertices (where edges meet at a point) → <b>6, 12, 8</b>. Sir Facelot could not be prouder.'; }
 function announcePyramid() { return 'A square-based pyramid: <b>5</b> faces, <b>8</b> edges, <b>5</b> vertices → <b>5, 8, 5</b>! Same order, new solid — speed round SMASHED.'; }
+function announcePrism() { return 'A triangular prism: <b>5</b> faces, <b>9</b> edges, <b>6</b> vertices → <b>5, 9, 6</b>! Same face count as the pyramid — but the edges and vertices prove it\'s a different solid entirely.'; }
 
 const CSS = `
 .sfc-q { text-align: center; font-weight: 700; font-size: clamp(14px, 2.4vw, 17px); margin-bottom: 8px; color: var(--ink); }
@@ -109,7 +125,7 @@ const CSS = `
 .sfc-scene { position: relative; width: 100%; touch-action: none; cursor: grab; }
 .sfc-scene:active { cursor: grabbing; }
 .sfc-pivot { position: absolute; left: 50%; top: 50%; transform-style: preserve-3d; will-change: transform; }
-.sfc-face, .sfc-edge, .sfc-netpanel {
+.sfc-face, .sfc-edge {
   position: absolute; left: 0; top: 0; transform-origin: 0 0; box-sizing: border-box;
   cursor: pointer;
 }
@@ -127,15 +143,6 @@ const CSS = `
 .sfc-scene.mode-face .sfc-vert, .sfc-scene.mode-edge .sfc-vert { opacity: .25; pointer-events: none; }
 .sfc-modebar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
 .sfc-modebtn { font-size: 12.5px; padding: 7px 11px; }
-.sfc-netwrap { display: flex; gap: 18px; justify-content: center; align-items: flex-start; flex-wrap: wrap; padding: 10px 0; }
-.sfc-netcard {
-  background: var(--card); border: 3px solid var(--swamp-mid); border-radius: 14px; padding: 12px;
-  cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.2); transition: transform .12s var(--spring);
-}
-.sfc-netcard:active { transform: translateY(2px); }
-.sfc-netgrid { display: grid; gap: 3px; }
-.sfc-cell { width: 22px; height: 22px; border-radius: 3px; background: rgba(51,38,29,.08); }
-.sfc-cell.on { background: var(--stink); border: 1.5px solid #5e3387; }
 .sfc-cylwrap { display: flex; justify-content: center; padding: 10px 0; }
 .sfc-cyl { display: flex; flex-direction: column; align-items: center; }
 .sfc-cylcap {
@@ -168,9 +175,8 @@ export default {
     let rx = -18, ry = 30;
     let mode = 'face';
     let tagged = { face: new Set(), edge: new Set(), vert: new Set() };
-    let geom = null; let missionKind = null; // 'tag' | 'fold' | 'cyl'
-    let momentumCancel = null; let foldCancels = [];
-    let netChoiceOrder = [0, 1];
+    let geom = null; let missionKind = null; // 'tag' | 'cyl'
+    let momentumCancel = null;
 
     const stage = el('div', 'anim-stage');
     const chiprow = el('div', 'anim-chiprow');
@@ -180,13 +186,12 @@ export default {
     const pivot = el('div', 'sfc-pivot');
     scene.append(pivot);
     const modebar = el('div', 'sfc-modebar');
-    const netWrap = el('div', 'sfc-netwrap');
     const cylWrap = el('div', 'sfc-cylwrap');
     const winBox = el('div');
     const controls = el('div', 'anim-controls');
     const resetBtn = el('button', 'anim-ghostbtn', '↩ FACE ME FORWARD');
     controls.append(resetBtn);
-    dash.append(scene, netWrap, cylWrap);
+    dash.append(scene, cylWrap);
     stage.append(chiprow, q, modebar, dash, winBox, controls);
     host.append(stage);
 
@@ -194,6 +199,12 @@ export default {
     const ruleCard = el('div', 'goldcard sfc-rule', RULE);
     ruleCard.style.cssText = 'margin-top:12px;font-size:13.5px;line-height:1.35;background:linear-gradient(180deg,#FFF3CE,#FBE29A);border:3px solid var(--gold-deep);border-radius:14px;padding:10px 14px;color:#5a4408;font-weight:700;';
     host.append(ruleCard);
+
+    function geomForMission(id) {
+      if (id === 'cube') return buildCubeGeom(H);
+      if (id === 'pyramid') return buildPyramidGeom(BH, AY, BY);
+      return buildPrismGeom(H);
+    }
 
     /* ---------- layout / sizing ---------- */
     function layout() {
@@ -207,14 +218,8 @@ export default {
       pivot.style.transformOrigin = '0 0';
       applyRot(true);
       if (missionKind === 'tag') {
-        const freshGeom = MISSIONS[mi].id === 'cube' ? buildCubeGeom(H) : buildPyramidGeom(BH, AY, BY);
+        const freshGeom = geomForMission(MISSIONS[mi].id);
         buildTagSolid(freshGeom, true);
-      } else if (missionKind === 'fold') {
-        // a live fold tween can't be resumed mid-flight at a new scale — abandon it
-        // (hard rule 4/relayout rule) and drop back to the net-choice screen, same as start().
-        foldCancels.forEach((c) => c()); foldCancels = [];
-        pivot.innerHTML = '';
-        renderNetChoice();
       } else if (missionKind === 'cyl') buildCylinder(true);
     }
 
@@ -354,7 +359,7 @@ export default {
       const rect = scene.getBoundingClientRect(); const srect = stage.getBoundingClientRect();
       sparkleBurst(stage, rect.left - srect.left + rect.width / 2, rect.top - srect.top + rect.height / 2, 16);
       paintChips();
-      const text = mDef.id === 'cube' ? announceCube() : announcePyramid();
+      const text = mDef.id === 'cube' ? announceCube() : mDef.id === 'pyramid' ? announcePyramid() : announcePrism();
       bubble(stage, { title: 'FACES. EDGES. VERTICES. 🎩', text, img: IMG }).then(() => { if (alive) showWinBox(mDef); });
       if (doneSet.size === MISSIONS.length) ctx.complete();
     }
@@ -410,95 +415,6 @@ export default {
       }
     }
 
-    /* ---------- does-it-fold: net chooser + 3D fold-proof ---------- */
-    function renderNetChoice() {
-      netWrap.innerHTML = '';
-      const arr = [NET_VALID, NET_INVALID];
-      const order = netChoiceOrder;
-      order.forEach((idx) => {
-        const net = arr[idx];
-        const rows = Math.max(...net.cells.map((c) => c[0])) + 1;
-        const cols = Math.max(...net.cells.map((c) => c[1])) + 1;
-        const on = new Set(net.cells.map((c) => c.join(',')));
-        const card = el('div', 'sfc-netcard');
-        const grid = el('div', 'sfc-netgrid');
-        grid.style.gridTemplateColumns = `repeat(${cols},1fr)`;
-        grid.style.gridTemplateRows = `repeat(${rows},1fr)`;
-        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-          const cell = el('div', 'sfc-cell' + (on.has(r + ',' + c) ? ' on' : ''));
-          grid.append(cell);
-        }
-        card.append(grid);
-        card.addEventListener('click', () => { sfx.ui(); pickNet(net); });
-        netWrap.append(card);
-      });
-    }
-    function pickNet(net) {
-      foldCancels.forEach((c) => c()); foldCancels = [];
-      netWrap.innerHTML = '';
-      rx = -32; ry = 22; applyRot();
-      pivot.innerHTML = '';
-      const cubeG = buildCubeGeom(H);
-      const rowsCols = net.cells.reduce((a, c) => ({ minR: Math.min(a.minR, c[0]), maxR: Math.max(a.maxR, c[0]), minC: Math.min(a.minC, c[1]), maxC: Math.max(a.maxC, c[1]) }), { minR: 99, maxR: -99, minC: 99, maxC: -99 });
-      const midR = (rowsCols.minR + rowsCols.maxR) / 2; const midC = (rowsCols.minC + rowsCols.maxC) / 2;
-      const FY = H * 2.5; const step = H * 2 + 8;
-      const panels = net.cells.map((cell, i) => {
-        const cx = (cell[1] - midC) * step; const cz = (cell[0] - midR) * step;
-        const flat = [{ x: cx - H, y: FY, z: cz - H }, { x: cx + H, y: FY, z: cz - H }, { x: cx + H, y: FY, z: cz + H }, { x: cx - H, y: FY, z: cz + H }];
-        const faceId = net.map[i];
-        const face = cubeG.faces.find((f) => f.id === faceId);
-        const target = face.vi.map((vi) => cubeG.v[vi]);
-        const d = el('div', 'sfc-face sfc-netpanel');
-        pivot.append(d);
-        return { flat, target, d };
-      });
-      const applyPanels = (p) => {
-        panels.forEach((pn) => {
-          const pts = pn.flat.map((f, i) => lerpPt(f, pn.target[i], p));
-          const { m, w, h, clip } = faceBasis(pts);
-          pn.d.style.cssText = `width:${w}px;height:${h}px;transform:${m};clip-path:${clip};`;
-        });
-      };
-      applyPanels(0);
-      later(() => {
-        if (!alive) return;
-        sfx.whoosh();
-        const c1 = tween(applyPanels, 0, 1, 900, () => {
-          if (!alive) return;
-          if (net.valid) {
-            sfx.win(); party(stage);
-            bubble(stage, { title: 'CASE CLOSED — IT FOLDS! 🎩', text: 'Six squares, six faces, no gaps, no overlaps — a <b>perfect cube</b>. Same square count as the other net, but THIS arrangement actually works.', img: IMG })
-              .then(() => { if (alive) winFold(); });
-          } else {
-            sfx.thud(); later(() => sfx.tock(2), 120);
-            bubble(stage, { title: 'WOMP WOMP! 🎺', text: 'Look at the box — one face was left <b>bare</b>. Somewhere in this net two squares had to double up on the same face to leave that gap. An open box, not a cube. Same six squares as the other net, but this arrangement never works — <b>never assume "6 squares = it works."</b>', img: IMG })
-              .then(() => { if (alive) offerRetry(); });
-          }
-        });
-        foldCancels.push(c1);
-      }, 500);
-    }
-    function offerRetry() {
-      winBox.innerHTML = '';
-      const w = el('div', 'som-win', '<div class="wp">TRY THE OTHER NET 🔄</div><div class="wk">Head back and pick again — the gap is waiting to be found.</div>');
-      const btn = el('button', 'btn btn-gold', 'BACK TO THE NETS'); btn.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
-      btn.addEventListener('click', () => { sfx.ui(); winBox.innerHTML = ''; netChoiceOrder = shuffle2(netChoiceOrder); renderNetChoice(); pivot.innerHTML = ''; });
-      w.append(btn);
-      winBox.append(w);
-    }
-    function winFold() {
-      doneSet.add('fold');
-      paintChips();
-      winBox.innerHTML = '';
-      const w = el('div', 'som-win', '<div class="wp">NET, FOLDED, PROVEN! 🎩</div><div class="wk">Trace the fold, don\'t just count the squares.</div>');
-      const nextIdx = nextUndone();
-      const btn = el('button', 'btn btn-gold', nextIdx === -1 ? 'FREE EXPLORE 🔄' : 'NEXT ➡'); btn.style.cssText = 'margin-top:8px;padding:10px 22px;font-size:15px;';
-      btn.addEventListener('click', () => { sfx.ui(); start(nextIdx === -1 ? mi : nextIdx); });
-      w.append(btn);
-      winBox.append(w);
-      if (doneSet.size === MISSIONS.length) ctx.complete();
-    }
-    function shuffle2(arr) { return Math.random() < 0.5 ? [arr[0], arr[1]] : [arr[1], arr[0]]; }
 
     /* ---------- mission chrome ---------- */
     function paintChips() {
@@ -523,10 +439,9 @@ export default {
       // different chip right after tagging the last vertex) lets a stale callback
       // fire on the NEW mission/board (marks it done, announces the wrong solid).
       timers.forEach((t) => clearTimeout(t)); timers.clear();
-      foldCancels.forEach((c) => c()); foldCancels = [];
       if (momentumCancel) { momentumCancel(); momentumCancel = null; }
       paintChips();
-      scene.style.display = ''; netWrap.style.display = 'none'; cylWrap.style.display = 'none'; modebar.style.display = '';
+      scene.style.display = ''; cylWrap.style.display = 'none'; modebar.style.display = '';
       scene.className = 'sfc-scene'; // clear any stale mode-edge/mode-vert dimming left from a tag mission
       const mDef = MISSIONS[i];
       if (i === MISSIONS.length) { // bonus cylinder
@@ -537,17 +452,8 @@ export default {
         return;
       }
       q.textContent = mDef.q;
-      if (mDef.id === 'fold') {
-        missionKind = 'fold';
-        scene.style.display = ''; modebar.style.display = 'none'; netWrap.style.display = '';
-        pivot.innerHTML = '';
-        netChoiceOrder = shuffle2([0, 1]);
-        renderNetChoice();
-        return;
-      }
       missionKind = 'tag';
-      const g = mDef.id === 'cube' ? buildCubeGeom(H) : buildPyramidGeom(BH, AY, BY);
-      buildTagSolid(g, false);
+      buildTagSolid(geomForMission(mDef.id), false);
       if (mDef.id === 'cube') later(() => toast(stage, '👆 drag to spin Sir Facelot — find the hidden faces!'), 400);
     }
 
@@ -574,7 +480,6 @@ export default {
       clearTimeout(rsTimer);
       timers.forEach((t) => clearTimeout(t));
       if (momentumCancel) momentumCancel();
-      foldCancels.forEach((c) => c());
       drag.destroy();
       stage.remove();
       ruleCard.remove();

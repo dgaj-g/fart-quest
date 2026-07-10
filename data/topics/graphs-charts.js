@@ -196,35 +196,36 @@ ${miniBarChart(['Mon', 'Tue', 'Wed', 'Thu'], [20, 15, 25, 10], 5, { yLabel: 'Ice
       type: 'show',
       title: 'Pictograms: the symbol isn’t always worth ONE either',
       html: `<p>Barry’s cousins in the Data Dump draw their data differently. A <b>pictogram</b> uses a picture instead of a bar — but the same trap is hiding: <b>check what ONE symbol is worth</b> before you count them.</p>
-${miniPictogram([['Sam', 7], ['Priya', 4], ['Tom', 5]], '🍕', 2)}
-<p>Here, <b>🍕 = 2 slices</b>. Sam has 3 whole pizzas plus a HALF pizza. A half symbol means HALF of what one symbol is worth: half of 2 is 1. So Sam ate (3 × 2) + 1 = <b>7</b> slices. Don’t just count the pictures — always multiply by what each one is worth, and remember a half symbol is worth HALF the symbol’s value, not the whole thing.</p>`,
+${miniPictogram([['Sam', 10], ['Priya', 4], ['Tom', 6]], '🍕', 2)}
+<p>Here, <b>🍕 = 2 slices</b>. Sam has 5 whole pizzas, so 5 × 2 = <b>10</b> slices. Don’t just count the pictures — always multiply by what each one is worth.</p>
+<p>The exam also loves a "how many MORE" question across two rows. <b>How many MORE slices did Sam eat than Priya?</b> Convert both rows to their real values first — Sam = 10, Priya = 4 — THEN subtract: 10 − 4 = <b>6</b>. Never subtract the number of PICTURES directly; always convert to the real value first, just like with bar charts.</p>`,
     },
     {
       type: 'try',
       q: {
         id: 'gc-try-3', topicId: 'graphs-charts', tier: 2, format: 'mcq5',
-        stem: 'On the pizza pictogram above (🍕 = 2 slices), how many slices did <b>Sam</b> eat?',
-        visual: { kind: 'pictogram', html: miniPictogram([['Sam', 7], ['Priya', 4], ['Tom', 5]], '🍕', 2) },
+        stem: 'On the pizza pictogram above (🍕 = 2 slices), how many MORE slices did <b>Sam</b> eat than <b>Priya</b>?',
+        visual: { kind: 'pictogram', html: miniPictogram([['Sam', 10], ['Priya', 4], ['Tom', 6]], '🍕', 2) },
         options: [
-          { text: '7', misconception: null },
-          { text: '6', misconception: 'ignored-half' },
-          { text: '8', misconception: 'half-as-full' },
-          { text: '3', misconception: 'counted-symbols-not-value' },
-          { text: '4', misconception: 'wrong-row' },
+          { text: '6', misconception: null },
+          { text: '14', misconception: 'added-not-subtracted' },
+          { text: '3', misconception: 'scale-misread' },
+          { text: '10', misconception: 'bare-value' },
+          { text: '4', misconception: 'bare-value' },
         ],
         correctIndex: 0,
         hintSteps: [
-          'Count Sam’s symbols: 3 whole pizzas and 1 half pizza. Each whole 🍕 is worth 2 slices.',
-          '3 whole symbols = 3 × 2 = 6. Now add the half symbol: half of 2 is 1. 6 + 1 = …?',
+          'Read both rows off the real values first: Sam = ?, Priya = ?',
+          'Sam is 10 and Priya is 4. Now subtract: 10 − 4 = …?',
         ],
         explain: {
           rule: 'Read the SCALE before the bars — one square is not always one.',
-          worked: 'Sam has 3 whole 🍕 (3 × 2 = 6) plus a half 🍕 (half of 2 = 1). 6 + 1 = 7 slices.',
+          worked: 'Sam = 10, Priya = 4. 10 − 4 = 6 more slices.',
           whyWrong: {
-            '6': 'That’s just the whole symbols — you forgot the half symbol is still worth something (half of 2 = 1).',
-            '8': 'That treats the half symbol as if it were a WHOLE one — a half symbol is only worth half the value.',
-            '3': 'That’s the number of PICTURES, not the number of slices — each picture is worth 2, not 1.',
-            '4': 'That’s Priya’s row, not Sam’s — check the label on the left.',
+            '14': 'That’s 10 + 4 added together — "how many MORE" means subtract, not add.',
+            '3': 'That’s the difference in PICTURES (5 − 2), not the difference in slices. Convert to the real values first (each picture is worth 2).',
+            '10': 'That’s just Sam’s total on its own — the question wants the DIFFERENCE between the two.',
+            '4': 'That’s just Priya’s total on its own — the question wants the DIFFERENCE between the two.',
           },
         },
       },
@@ -244,7 +245,7 @@ ${miniVenn('Maths', 'Art', 8, 5, 6, 3)}
     'To read any bar or point: count the gridlines to it, then MULTIPLY by what each gridline is worth.',
     '"How many more/fewer" questions need TWO reads and a subtraction — read both bars off the real scale first, then subtract.',
     'Totals from a chart: read every bar off the scale, THEN add them all together.',
-    'Pictograms: check what ONE symbol is worth first. A half symbol is worth HALF that amount, not a whole one and not zero.',
+    'Pictograms: check what ONE symbol is worth first, then multiply symbols × value. For "how many more", convert BOTH rows to real values before you subtract.',
     'Venn diagrams: the overlap in the middle belongs to BOTH groups — never add it into an "only" answer. "Neither" sits outside every circle.',
     'Add up every region of a Venn diagram (both circles + neither) — it should equal the whole group. Handy way to check your answer.',
   ],

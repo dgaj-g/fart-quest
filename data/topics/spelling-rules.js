@@ -1,6 +1,6 @@
 // FART QUEST topic: The Rule Pipes (The Spelling Sewers)
 // Authored content — implementation agents: read, never modify.
-// Bank-driven English topic (errorspot + wordentry). No generator.
+// Bank-driven English topic (errorspot only). No generator.
 
 const WEAPON_RULE = 'i before e except after c (when it rhymes with bee); drop the e when adding -ing; y turns to ies.';
 
@@ -91,18 +91,21 @@ export default {
     {
       type: 'try',
       q: {
-        id: 'spelling-rules-try-2', topicId: 'spelling-rules', tier: 1, format: 'wordentry',
-        stem: "Write the <b>-ing</b> form of the word <b>'hope'</b>.",
-        hint: 'one word — careful, this one drops a letter',
-        maxLen: 20,
-        accept: ['hoping'],
+        id: 'spelling-rules-try-2', topicId: 'spelling-rules', tier: 1, format: 'errorspot',
+        segments: [
+          { text: 'After tea, Jarlath kept' },
+          { text: 'closeing the curtains' },
+          { text: 'every time the wind' },
+          { text: 'rattled the window.' },
+        ],
+        faultyIndex: 1,
         explain: {
           rule: WEAPON_RULE,
-          worked: '"hope" ends in a silent e. Drop it before adding -ing: hop + ing = hoping.',
+          worked: '"close" ends in a silent e, so it must be dropped before -ing: clos + ing = closing, not closeing.',
         },
         hintSteps: [
-          'Does "hope" end in a silent e? What happens to that e when -ing arrives?',
-          'Drop the e, then bolt on -ing: h-o-p-…',
+          'Find the -ing word. What did the original word end in before -ing was added?',
+          'A silent e gets dropped before -ing. Which segment kept the e that should have gone?',
         ],
       },
     },
@@ -561,7 +564,7 @@ export default {
       ],
     },
 
-    // ---------------------------------------------------------------- TIER 3 (10: 6 errors + 2 all-clean + 2 wordentry)
+    // ---------------------------------------------------------------- TIER 3 (10: 8 errors + 2 all-clean)
     {
       id: 'spelling-rules-t3-01', topicId: 'spelling-rules', tier: 3, format: 'errorspot',
       segments: [
@@ -709,33 +712,39 @@ export default {
       ],
     },
     {
-      id: 'spelling-rules-t3-09', topicId: 'spelling-rules', tier: 3, format: 'wordentry',
-      stem: "Write the <b>-ing</b> form of the word <b>'smile'</b>.",
-      hint: 'one word',
-      maxLen: 20,
-      accept: ['smiling'],
+      id: 'spelling-rules-t3-09', topicId: 'spelling-rules', tier: 3, format: 'errorspot',
+      segments: [
+        { text: 'By the time the whistle blew' },
+        { text: 'the whole crowd was' },
+        { text: 'inviteing the referee' },
+        { text: 'to explain his decision.' },
+      ],
+      faultyIndex: 2,
       explain: {
         rule: WEAPON_RULE,
-        worked: '"smile" ends in a silent e. Drop it before adding -ing: smil + ing = smiling.',
+        worked: '"invite" ends in a silent e, so it must be dropped before -ing: invit + ing = inviting, not inviteing.',
       },
       hintSteps: [
-        'Does "smile" end in a silent e? What happens to that e when -ing is added?',
-        'Drop the e, then bolt on -ing: s-m-i-l-…',
+        'Find the -ing word. Has the silent e from the original word actually gone?',
+        'Drop that e before bolting on -ing.',
       ],
     },
     {
-      id: 'spelling-rules-t3-10', topicId: 'spelling-rules', tier: 3, format: 'wordentry',
-      stem: "Write the <b>-ing</b> form of the word <b>'run'</b>.",
-      hint: 'one word',
-      maxLen: 20,
-      accept: ['running'],
+      id: 'spelling-rules-t3-10', topicId: 'spelling-rules', tier: 3, format: 'errorspot',
+      segments: [
+        { text: 'Down at the leisure centre' },
+        { text: 'Jarlath spent the afternoon' },
+        { text: 'swiming length after length' },
+        { text: 'until his arms ached.' },
+      ],
+      faultyIndex: 2,
       explain: {
         rule: WEAPON_RULE,
-        worked: '"run" is a short word ending vowel-consonant (u-n). Double the n before adding -ing: ru + nn + ing = running.',
+        worked: '"swim" is short with one vowel before its last letter, so double the m before -ing: swi + mm + ing = swimming, not swiming.',
       },
       hintSteps: [
-        'Is "run" a short word with just one vowel before its last letter?',
-        'Double that final letter before adding -ing: r-u-n-n-…',
+        'Find the -ing word. Is it a short word with just one vowel before its last letter?',
+        'That last consonant needs doubling before -ing: s-w-i-m-m-…',
       ],
     },
   ],

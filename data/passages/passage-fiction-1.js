@@ -220,8 +220,8 @@ export default {
       options: [
         { text: 'Simile', misconception: null },
         { text: 'Metaphor', misconception: 'confused-technique' },
-        { text: 'Alliteration', misconception: 'confused-technique' },
-        { text: 'Onomatopoeia', misconception: 'confused-technique' },
+        { text: 'List', misconception: 'confused-technique' },
+        { text: 'It tells us exactly how many times the waves hit the rocks', misconception: 'clearly-wrong' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -233,8 +233,8 @@ export default {
         worked: 'The waves are compared to "impatient hands knocking on a door" using the word "like" — that comparison word makes it a simile, not a metaphor (which would say the waves WERE hands).',
         whyWrong: {
           Metaphor: 'A metaphor would say the waves WERE hands, with no "like" — but the line uses "like" to compare them.',
-          Alliteration: 'Alliteration repeats starting sounds (like "slapped" and "stone") — that is not the main technique here.',
-          Onomatopoeia: 'Onomatopoeia is a word that sounds like its meaning (like "slap") — but the whole comparison here is a simile.',
+          List: 'A list piles up three or more things in a row to overwhelm you — this line makes just one single comparison, not a pile of items.',
+          'It tells us exactly how many times the waves hit the rocks': 'No count of wave-strikes is given anywhere in this line — it\'s about how the waves sound and feel, not a number.',
         },
       },
     },

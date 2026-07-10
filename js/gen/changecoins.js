@@ -174,52 +174,52 @@ function t1ChangeFromFiver(rng) {
   };
 }
 
-// t1FirstHopSize: the FIRST hop of the count-up (to the next 10p), not the total change —
-// reinforces the METHOD itself rather than just the final answer.
-function t1FirstHopSize(rng) {
-  let price;
-  do {
-    price = rngInt(rng, 1, 98);
-  } while (price % 10 === 0);
-  const lastDigit = price % 10;
-  const firstHop = 10 - lastDigit;
-  const totalChange = 100 - price;
-
-  const stem = `Counting up from <b>${fmtMoney(price)}</b> to £1.00, what is the size of the FIRST hop — up to the next 10p?`;
-
-  let offByOne = firstHop + 1;
-  if (offByOne > 9) offByOne = firstHop - 1;
-  if (offByOne < 1) offByOne = firstHop + 2;
-
-  const distractors = [
-    { text: fmtMoney(lastDigit), misconception: 'used-digit-not-complement' },
-    { text: fmtMoney(totalChange), misconception: 'confused-total-change' },
-    { text: fmtMoney(offByOne), misconception: 'off-by-one' },
-  ];
-
-  const correct = { text: fmtMoney(firstHop), misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), rng, 3, { correctVal: firstHop, min: 4 });
-
-  const whyWrong = {};
-  for (const o of options) {
-    if (o.misconception === 'used-digit-not-complement') whyWrong[o.text] = 'That’s just the last digit of the price — you need the DISTANCE up to the next 10p, not the digit itself.';
-    else if (o.misconception === 'confused-total-change') whyWrong[o.text] = 'That’s the FINAL change for the whole amount — this question only asks about the first little hop.';
-    else if (o.misconception === 'off-by-one') whyWrong[o.text] = 'Close, but recount that hop carefully — check which 10p camp comes next.';
-    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = 'Recount the hop up to the next 10p.';
+// t1WhichChangeIsWrong: NOT-format change reasoning — four independent price/change
+// statements, spot the ONE that's wrong. Tests the actual change outcome (bullet 44),
+// per the "NOT-format change/coin reasoning" style (PP1 Q36), not an isolated sub-step.
+function t1WhichChangeIsWrong(rng) {
+  const usedPrices = new Set();
+  const scenarios = [];
+  while (scenarios.length < 4) {
+    const price = rngInt(rng, 1, 19) * 5; // multiples of 5p, 5..95
+    if (usedPrices.has(price)) continue;
+    usedPrices.add(price);
+    scenarios.push({ price, change: 100 - price });
   }
 
+  const wrongIdx = rngInt(rng, 0, 3);
+  const misconceptions = ['off-by-ten-up', 'off-by-ten-down', 'used-price-as-change'];
+  const chosenMis = pick(rng, misconceptions);
+
+  const options = scenarios.map((s, i) => {
+    if (i !== wrongIdx) {
+      return { text: `${fmtMoney(s.price)} → pay with a £1 coin → change ${fmtMoney(s.change)}`, misconception: null };
+    }
+    let statedChange;
+    if (chosenMis === 'off-by-ten-up') statedChange = s.change + 10;
+    else if (chosenMis === 'off-by-ten-down') statedChange = (s.change - 10 > 0) ? s.change - 10 : s.change + 20;
+    else statedChange = s.price;
+    if (statedChange === s.change) statedChange = s.change + 10; // safety net: never accidentally correct
+    return { text: `${fmtMoney(s.price)} → pay with a £1 coin → change ${fmtMoney(statedChange)}`, misconception: chosenMis };
+  });
+
+  const whyWrong = {};
+  options.forEach((o, i) => {
+    if (i !== wrongIdx) whyWrong[o.text] = 'That one’s correct — recount up from the price to £1.00 to find the one that ISN’T.';
+  });
+
   return {
-    templateId: 'cc-t1-first-hop',
-    stem,
+    templateId: 'cc-t1-which-change-wrong',
+    stem: 'Whiffbeard wrote down four change calculations. Which ONE is WRONG?',
     options,
-    correctIndex: 0,
+    correctIndex: wrongIdx,
     hintSteps: [
-      `${fmtMoney(price)} — what is the very next multiple of 10p above it?`,
-      `Find the gap between ${fmtMoney(price)} and that next 10p camp.`,
+      'Count up from each price to £1.00 (100p) and check the total hop against what’s written.',
+      'Only one of the four totals doesn’t match its price.',
     ],
     explain: {
       rule: RULE,
-      worked: `${fmtMoney(price)} → the next 10p camp is a hop of ${fmtMoney(firstHop)}.`,
+      worked: `Counting up from ${fmtMoney(scenarios[wrongIdx].price)} to £1.00 gives ${fmtMoney(scenarios[wrongIdx].change)} — not the amount written for it.`,
       whyWrong,
     },
   };
@@ -421,27 +421,45 @@ function t3ChangeSplitTwoItems(rng) {
   };
 }
 
-// t3ReverseFindPrice: reverse direction — given amount paid and change received, find the price.
-function t3ReverseFindPrice(rng) {
-  const paid = pick(rng, [100, 200, 500, 1000]);
-  const change = rngInt(rng, 1, paid - 1);
-  const price = paid - change;
+// join word-form list with a final "and" (Oxford-comma-free, UK house style)
+function joinWithAnd(parts) {
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+}
 
-  const stem = `Whiffbeard pays for something with a <b>${fmtCoinName(paid)} ${noteOrCoin(paid)}</b> and gets <b>${fmtMoney(change)}</b> change. How much did the item cost?`;
+const NUMBER_WORDS = ['one', 'two', 'three', 'four'];
+
+// t3CoinTotalWordForm: coin quantities given in word form ("three 50p coins, two 20p coins
+// and four 1p coins") — total the value. Operationalises bullet 44's "coin-total in word
+// form" style (PP2 Q37, P7).
+function t3CoinTotalWordForm(rng) {
+  const denomPool = [100, 50, 20, 10, 5, 2, 1];
+  const chosenDenoms = shuffle(rng, denomPool).slice(0, 3);
+  const counts = chosenDenoms.map(() => rngInt(rng, 1, 4));
+  const total = chosenDenoms.reduce((sum, d, i) => sum + d * counts[i], 0);
+
+  const parts = chosenDenoms.map((d, i) => {
+    const n = counts[i];
+    return `${NUMBER_WORDS[n - 1]} ${COIN_LABELS[d]} ${n === 1 ? 'coin' : 'coins'}`;
+  });
+
+  const stem = `Whiffbeard counts his coins: <b>${joinWithAnd(parts)}</b>. What is the total value, in pence?`;
+
+  const breakdown = chosenDenoms.map((d, i) => `${counts[i]} × ${COIN_LABELS[d]}`).join(' + ');
 
   return {
-    templateId: 'cc-t3-reverse-find-price',
+    templateId: 'cc-t3-coin-total-word-form',
     stem,
     format: 'num',
     unit: 'p',
-    accept: [String(price), fmt(price)],
+    accept: [String(total), fmt(total)],
     hintSteps: [
-      'The item’s price PLUS the change adds back up to the amount paid.',
-      `So price = ${fmtCoinName(paid)} − ${fmtMoney(change)}.`,
+      'Work out the value of each group of coins first, then add the groups together.',
+      `${breakdown} = ?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${fmtCoinName(paid)} − ${fmtMoney(change)} = ${fmtMoney(price)} (${price}p).`,
+      worked: `${breakdown} = ${fmtMoney(total)} (${total}p).`,
       whyWrong: {},
     },
   };
@@ -449,9 +467,9 @@ function t3ReverseFindPrice(rng) {
 
 // -------- dispatch --------
 
-const T1 = [t1ChangeFromPound, t1ChangeFromFiver, t1FirstHopSize];
+const T1 = [t1ChangeFromPound, t1ChangeFromFiver, t1WhichChangeIsWrong];
 const T2 = [t2ChangeFromTenOdd, t2FewestCoinsUpToPound, t2WhichCoinNotReal];
-const T3 = [t3FewestCoinsCount, t3ChangeSplitTwoItems, t3ReverseFindPrice];
+const T3 = [t3FewestCoinsCount, t3ChangeSplitTwoItems, t3CoinTotalWordForm];
 
 export function generate(tier, rng) {
   let pool;

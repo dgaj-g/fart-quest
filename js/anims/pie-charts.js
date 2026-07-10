@@ -6,7 +6,7 @@
 import { el, sfx, tween, makeDrag, toast, bubble, sparkleBurst, party, injectCss } from './_kit.js';
 
 const PIEFACE_IMG = 'assets/monsters/pie-face.png';
-const RULE = 'The whole pie = everything = 360°. Half the pie = half of everything.';
+const RULE = 'The whole pie = everything. Half the pie = half of everything.';
 
 /* ---------- pure slice-splitter engine (unit-tested in scratch script — do not "improve") ---------- */
 const FRACTIONS = [

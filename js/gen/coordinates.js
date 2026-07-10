@@ -6,8 +6,8 @@
 // js/screens/battle.js's dynamic `renderDiagram` import — never imported directly here.
 // `shape:true` draws the connecting outline through `points` in perimeter order (used for
 // the rectangle/parallelogram "read every corner" templates); omitted/false leaves the
-// points as bare dots (used for "read one point" / "which point is at…" / "find the
-// missing corner" templates, where a connecting line would either be meaningless or would
+// points as bare dots (used for "read one point" / "which point is at…" / reflection /
+// extrapolation templates, where a connecting line would either be meaningless or would
 // mislead by drawing a triangle through 3 of a 4-cornered shape).
 import { rngInt, pick, shuffle } from '../rng.js';
 
@@ -75,8 +75,10 @@ const WHY = {
   'zero-ignored': 'That point really does sit exactly on a line — the coordinate there is 0, not 1.',
   'zero-duplicated': 'One of these coordinates really is 0 — the point sits exactly on that line.',
   'wrong-corner': 'That’s a different corner of the shape — check you’re reading the right one.',
-  'reused-point': 'That’s actually one of the corners you were already given — the missing corner needs its own spot.',
   'wrong-point': 'Check that point’s coordinates on the grid again — they don’t match the target.',
+  'no-reflect': 'That’s the ORIGINAL point — you still need to reflect it to the other side of the line.',
+  'reflected-onto-line': 'That point lands exactly ON the mirror line — the reflection needs to go the SAME distance past it, not stop there.',
+  'wrong-step-count': 'Recount how many equal steps of the pattern you need to take from the starting point.',
 };
 
 function whyWrongFor(options) {
@@ -361,280 +363,258 @@ function t2ShapeVertexRead(rng) {
   };
 }
 
-// mcq preview of the "missing 4th corner of a rectangle" exam favourite (num write-in
-// version lives at T3).
-function t2MissingVertexMcq(rng) {
+// Reflect a point in a horizontal mirror line — operationalises bullet 41 (spec bullet's own
+// wording is "first-quadrant plotting, drawing shapes") per PP1 Q48, whose gist is exactly
+// "coordinates of point reflected in horizontal mirror line". The coordgrid visual spec has
+// no line-drawing primitive (only points/shape — see file-top comment), so the mirror line's
+// y-value is stated in the stem rather than drawn.
+function t2ReflectionMcq(rng) {
   const size = pick(rng, [8, 10, 12]);
-  let w, h, x0, y0, A, B, C, D;
-  let tries = 0;
-  do {
-    w = rngInt(rng, 2, 5);
-    h = rngInt(rng, 2, 5);
-    x0 = rngInt(rng, 0, size - w);
-    y0 = rngInt(rng, 0, size - h);
-    A = { x: x0, y: y0 };
-    B = { x: x0 + w, y: y0 };
-    C = { x: x0 + w, y: y0 + h };
-    D = { x: x0, y: y0 + h };
-    tries++;
-  } while (D.x === D.y && tries < 30);
+  const my = rngInt(rng, 2, size - 2);
+  const d = rngInt(rng, 1, Math.min(my, size - my));
+  const above = rng() < 0.5;
+  const ax = rngInt(rng, 0, size);
+  const ay = above ? my + d : my - d;
+  const ry = above ? my - d : my + d;
 
-  const points = [{ x: A.x, y: A.y, label: 'A' }, { x: B.x, y: B.y, label: 'B' }, { x: C.x, y: C.y, label: 'C' }];
-  const stem = 'A rectangle has corners <b>A</b>, <b>B</b> and <b>C</b> marked (see grid). What are the coordinates of the missing corner <b>D</b>?';
-  const correctText = fmtCoord(D.x, D.y);
+  const correctText = fmtCoord(ax, ry);
+  const stem = `Point <b>A</b> is at ${fmtCoord(ax, ay)}. It is reflected in the horizontal line <b>y = ${my}</b>. What are the coordinates of its reflection?`;
 
   const distractors = [
-    { text: fmtCoord(D.y, D.x), misconception: 'xy-swap' },
-    { text: fmtCoord(B.x, B.y), misconception: 'reused-point' },
-    { text: fmtCoord(A.x, A.y), misconception: 'reused-point' },
-    { text: fmtCoord(nudge(D.x, size), D.y), misconception: 'off-by-one' },
+    { text: fmtCoord(ry, ax), misconception: 'xy-swap' },
+    { text: fmtCoord(ax, ay), misconception: 'no-reflect' },
+    { text: fmtCoord(ax, my), misconception: 'reflected-onto-line' },
+    { text: fmtCoord(ax, nudge(ry, size)), misconception: 'off-by-one-y' },
   ];
   const correct = { text: correctText, misconception: null };
-  const extraPool = [{ text: fmtCoord(D.x, nudge(D.y, size)), misconception: 'off-by-one' }];
-  const options = makeMcq(correct, shuffle(rng, distractors), 4, { min: 5, extraPool });
+  const extraPool = [{ text: fmtCoord(nudge(ax, size), ry), misconception: 'off-by-one-x' }];
+  const options = makeMcq(correct, shuffle(rng, distractors), 3, { min: 4, extraPool });
 
   return {
-    templateId: 'coord-t2-missing-vertex',
+    templateId: 'coord-t2-reflection',
     stem,
-    visual: { kind: 'coordgrid', size, points },
+    visual: { kind: 'coordgrid', size, points: [{ x: ax, y: ay, label: 'A' }] },
     options,
     correctIndex: 0,
     hintSteps: [
-      'A rectangle’s corners share values in pairs: A and D share their ALONG (x) value; C and D share their UP (y) value.',
-      `Borrow the ALONG value from A (${A.x}) and the UP value from C (${C.y}): (${D.x}, ${D.y}).`,
+      `Work out how far A is from the mirror line: ${ay} is ${d} away from ${my}.`,
+      `The reflection lands the SAME distance on the OTHER side of the line: (${ax}, ${ry}).`,
     ],
     explain: {
       rule: RULE,
-      worked: `D borrows its ALONG value from A (${A.x}) and its UP value from C (${C.y}): (${D.x}, ${D.y}).`,
+      worked: `A is ${d} ${above ? 'above' : 'below'} the line, so its reflection is ${d} ${above ? 'below' : 'above'} the line: (${ax}, ${ry}).`,
       whyWrong: whyWrongFor(options),
     },
   };
 }
 
-// Read a corner described by POSITION language (top-right etc.) rather than a letter —
-// tests genuine spatial reading, not just letter-matching.
-function t2DescribedCorner(rng) {
-  const size = pick(rng, [8, 10, 12]);
-  const names = ['bottom-left', 'bottom-right', 'top-right', 'top-left'];
-
-  let w, h, x0, y0, corners, targetName, target;
+// Extrapolate a straight-line point pattern to a distant point — operationalises bullet 41
+// per PP2 Q33, whose gist is "coordinates of point K on equally spaced line graph" (note:
+// "extrapolating pattern from (2,3) and (4,4) to distant point K").
+function t2ExtrapolateMcq(rng) {
+  const size = pick(rng, [10, 12]);
+  const dx = rngInt(rng, 1, 2);
+  const x0 = 0;
+  const steps = Math.min(Math.floor((size - x0) / dx), rngInt(rng, 4, 7));
+  let dy, y0, ky;
   let tries = 0;
   do {
-    w = rngInt(rng, 2, 5);
-    h = rngInt(rng, 2, 5);
-    x0 = rngInt(rng, 0, size - w);
-    y0 = rngInt(rng, 0, size - h);
-    corners = {
-      'bottom-left': { x: x0, y: y0 },
-      'bottom-right': { x: x0 + w, y: y0 },
-      'top-right': { x: x0 + w, y: y0 + h },
-      'top-left': { x: x0, y: y0 + h },
-    };
-    const candidateNames = names.filter((nm) => corners[nm].x !== corners[nm].y);
-    targetName = candidateNames.length ? pick(rng, candidateNames) : pick(rng, names);
-    target = corners[targetName];
+    dy = rngInt(rng, -2, 2);
+    y0 = rngInt(rng, 2, size - 2);
+    ky = y0 + steps * dy;
     tries++;
-  } while (target.x === target.y && tries < 30);
+  } while ((ky < 0 || ky > size) && tries < 40);
+  if (ky < 0 || ky > size) { dy = 0; ky = y0; }
+  const kx = x0 + steps * dx;
 
-  const toggleVert = (nm) => (nm.startsWith('top') ? nm.replace('top', 'bottom') : nm.replace('bottom', 'top'));
-  const wrongCornerName = toggleVert(targetName);
-  const wrongCorner = corners[wrongCornerName];
-
-  const points = names.map((nm) => ({ x: corners[nm].x, y: corners[nm].y, label: '' }));
-  const stem = `What are the coordinates of the <b>${targetName.replace('-', ' ')}</b> corner of the rectangle?`;
-  const correctText = fmtCoord(target.x, target.y);
+  const p0 = fmtCoord(x0, y0);
+  const p1 = fmtCoord(x0 + dx, y0 + dy);
+  const correctText = fmtCoord(kx, ky);
+  const stem = `Points <b>${p0}</b> and <b>${p1}</b> lie on a straight-line pattern, evenly spaced. If the pattern carries on, what are the coordinates of point <b>K</b>, which is <b>${steps}</b> of these same steps ALONG from ${p0}?`;
 
   const distractors = [
-    { text: fmtCoord(target.y, target.x), misconception: 'xy-swap' },
-    { text: fmtCoord(wrongCorner.x, wrongCorner.y), misconception: 'wrong-corner' },
-    { text: fmtCoord(nudge(target.x, size), target.y), misconception: 'off-by-one-x' },
-    { text: fmtCoord(target.x, nudge(target.y, size)), misconception: 'off-by-one-y' },
+    { text: fmtCoord(ky, kx), misconception: 'xy-swap' },
+    { text: fmtCoord(x0 + (steps - 1) * dx, y0 + (steps - 1) * dy), misconception: 'wrong-step-count' },
+    { text: fmtCoord(x0 + (steps + 1) * dx, y0 + (steps + 1) * dy), misconception: 'wrong-step-count' },
+    { text: fmtCoord(kx, nudge(ky, size)), misconception: 'off-by-one-y' },
   ];
   const correct = { text: correctText, misconception: null };
-  const options = makeMcq(correct, shuffle(rng, distractors), 4, { min: 5 });
-
-  const whyWrong = whyWrongFor(options);
-  if (whyWrong[fmtCoord(wrongCorner.x, wrongCorner.y)]) {
-    whyWrong[fmtCoord(wrongCorner.x, wrongCorner.y)] = `That’s actually the ${wrongCornerName.replace('-', ' ')} corner — check top and bottom again.`;
-  }
+  const extraPool = [{ text: fmtCoord(nudge(kx, size), ky), misconception: 'off-by-one-x' }];
+  const options = makeMcq(correct, shuffle(rng, distractors), 3, { min: 4, extraPool });
 
   return {
-    templateId: 'coord-t2-described-corner',
+    templateId: 'coord-t2-extrapolate',
     stem,
-    visual: { kind: 'coordgrid', size, points, shape: true },
+    visual: { kind: 'coordgrid', size, points: [{ x: x0, y: y0, label: 'first' }, { x: x0 + dx, y: y0 + dy, label: 'second' }] },
     options,
     correctIndex: 0,
     hintSteps: [
-      `Picture the rectangle: find the ${targetName.replace('-', ' ')} corner.`,
-      `Count ALONG then UP to that corner: (${target.x}, ${target.y}).`,
+      `Each step ALONG the pattern moves ${dx >= 0 ? '+' : ''}${dx} across and ${dy >= 0 ? '+' : ''}${dy} up.`,
+      `Take ${steps} steps from ${p0}: ALONG ${x0} + ${steps}×${dx} = ${kx}; UP ${y0} + ${steps}×${dy} = ${ky}.`,
     ],
     explain: {
       rule: RULE,
-      worked: `The ${targetName.replace('-', ' ')} corner is ${target.x} along and ${target.y} up: (${target.x}, ${target.y}).`,
-      whyWrong,
+      worked: `Each step is (${dx >= 0 ? '+' : ''}${dx}, ${dy >= 0 ? '+' : ''}${dy}). After ${steps} steps from ${p0}: (${kx}, ${ky}).`,
+      whyWrong: whyWrongFor(options),
     },
   };
 }
 
 // -------- T3 templates (num format) --------
 
-function t3MissingVertexRectangle(rng) {
+// Write-in version of reflecting a point in a horizontal mirror line — same PP1 Q48
+// operationalisation of bullet 41 as t2ReflectionMcq, harder tier via write-in format.
+function t3ReflectionWriteIn(rng) {
   const size = pick(rng, [8, 10, 12]);
-  let w, h, x0, y0, A, B, C, D;
-  let tries = 0;
-  do {
-    w = rngInt(rng, 2, 6);
-    h = rngInt(rng, 2, 6);
-    x0 = rngInt(rng, 0, size - w);
-    y0 = rngInt(rng, 0, size - h);
-    A = { x: x0, y: y0 };
-    B = { x: x0 + w, y: y0 };
-    C = { x: x0 + w, y: y0 + h };
-    D = { x: x0, y: y0 + h };
-    tries++;
-  } while (D.x === D.y && tries < 30);
+  const my = rngInt(rng, 2, size - 2);
+  const d = rngInt(rng, 1, Math.min(my, size - my));
+  const above = rng() < 0.5;
+  const ax = rngInt(rng, 0, size);
+  const ay = above ? my + d : my - d;
+  const ry = above ? my - d : my + d;
 
-  const points = [{ x: A.x, y: A.y, label: 'A' }, { x: B.x, y: B.y, label: 'B' }, { x: C.x, y: C.y, label: 'C' }];
-  const stem = `A rectangle has corners at <b>A${fmtCoord(A.x, A.y)}</b>, <b>B${fmtCoord(B.x, B.y)}</b> and <b>C${fmtCoord(C.x, C.y)}</b>. Write the coordinates of the missing corner <b>D</b>.`;
+  const stem = `Point <b>A</b> is at ${fmtCoord(ax, ay)}. It is reflected in the horizontal line <b>y = ${my}</b>. Write the coordinates of its reflection.`;
 
   return {
-    templateId: 'coord-t3-missing-vertex-rect',
+    templateId: 'coord-t3-reflection',
     stem,
     format: 'num',
-    visual: { kind: 'coordgrid', size, points },
-    accept: acceptForms(D.x, D.y),
+    visual: { kind: 'coordgrid', size, points: [{ x: ax, y: ay, label: 'A' }] },
+    accept: acceptForms(ax, ry),
     hintSteps: [
-      'A rectangle’s corners share values in pairs: D shares its ALONG (x) value with A, and its UP (y) value with C.',
-      `ALONG from A: ${A.x}. UP from C: ${C.y}. Write them as a pair.`,
+      `Work out the distance from A to the mirror line: ${ay} is ${d} away from ${my}.`,
+      `The reflection is the SAME distance on the OTHER side: (${ax}, ${ry}).`,
     ],
     explain: {
       rule: RULE,
-      worked: `D borrows its ALONG value from A (${A.x}) and its UP value from C (${C.y}): (${D.x}, ${D.y}).`,
+      worked: `A is ${d} ${above ? 'above' : 'below'} the line, so its reflection is ${d} ${above ? 'below' : 'above'} the line: (${ax}, ${ry}).`,
       whyWrong: {},
     },
   };
 }
 
-function t3MissingVertexParallelogram(rng) {
-  const size = pick(rng, [8, 10, 12]);
-  let w, h, s, x0, y0, A, B, C, D, ok;
+// Write-in version of extrapolating a straight-line point pattern — same PP2 Q33
+// operationalisation of bullet 41 as t2ExtrapolateMcq, harder tier via a longer run of steps.
+function t3ExtrapolateWriteIn(rng) {
+  const size = pick(rng, [10, 12]);
+  const dx = rngInt(rng, 1, 2);
+  const x0 = 0;
+  const steps = Math.min(Math.floor((size - x0) / dx), rngInt(rng, 6, 10));
+  let dy, y0, ky;
   let tries = 0;
   do {
-    w = rngInt(rng, 2, 5);
-    h = rngInt(rng, 2, 4);
-    s = pick(rng, [-2, -1, 1, 2]);
-    x0 = rngInt(rng, Math.max(0, -s), size - w - Math.max(0, s));
-    y0 = rngInt(rng, 0, size - h);
-    A = { x: x0, y: y0 };
-    B = { x: x0 + w, y: y0 };
-    C = { x: x0 + w + s, y: y0 + h };
-    D = { x: x0 + s, y: y0 + h };
-    ok = D.x >= 0 && D.x <= size && D.y >= 0 && D.y <= size && A.x <= size && D.x !== D.y;
+    dy = rngInt(rng, -2, 2);
+    y0 = rngInt(rng, 2, size - 2);
+    ky = y0 + steps * dy;
     tries++;
-  } while (!ok && tries < 60);
+  } while ((ky < 0 || ky > size) && tries < 40);
+  if (ky < 0 || ky > size) { dy = 0; ky = y0; }
+  const kx = x0 + steps * dx;
 
-  const points = [{ x: A.x, y: A.y, label: 'A' }, { x: B.x, y: B.y, label: 'B' }, { x: C.x, y: C.y, label: 'C' }];
-  const stem = `A parallelogram has corners at <b>A${fmtCoord(A.x, A.y)}</b>, <b>B${fmtCoord(B.x, B.y)}</b> and <b>C${fmtCoord(C.x, C.y)}</b>. Opposite corners of a parallelogram always share the same middle point. Write the coordinates of the missing corner <b>D</b>.`;
+  const p0 = fmtCoord(x0, y0);
+  const p1 = fmtCoord(x0 + dx, y0 + dy);
+  const stem = `Points <b>${p0}</b> and <b>${p1}</b> lie on a straight-line pattern, evenly spaced. If the pattern carries on, write the coordinates of point <b>K</b>, which is <b>${steps}</b> of these same steps ALONG from ${p0}.`;
 
   return {
-    templateId: 'coord-t3-missing-vertex-parallelogram',
+    templateId: 'coord-t3-extrapolate',
     stem,
     format: 'num',
-    visual: { kind: 'coordgrid', size, points },
-    accept: acceptForms(D.x, D.y),
+    visual: { kind: 'coordgrid', size, points: [{ x: x0, y: y0, label: 'first' }, { x: x0 + dx, y: y0 + dy, label: 'second' }] },
+    accept: acceptForms(kx, ky),
     hintSteps: [
-      'The middle of diagonal A–C is the SAME point as the middle of diagonal B–D.',
-      `Work it one direction at a time: ALONG = ${A.x} + ${C.x} − ${B.x} = ${D.x}; UP = ${A.y} + ${C.y} − ${B.y} = ${D.y}.`,
+      `Each step ALONG the pattern moves ${dx >= 0 ? '+' : ''}${dx} across and ${dy >= 0 ? '+' : ''}${dy} up.`,
+      `Take ${steps} steps from ${p0}: ALONG ${x0} + ${steps}×${dx} = ${kx}; UP ${y0} + ${steps}×${dy} = ${ky}.`,
     ],
     explain: {
       rule: RULE,
-      worked: `D = A + C − B, direction by direction: ALONG ${A.x} + ${C.x} − ${B.x} = ${D.x}, UP ${A.y} + ${C.y} − ${B.y} = ${D.y}. So D = (${D.x}, ${D.y}).`,
+      worked: `Each step is (${dx >= 0 ? '+' : ''}${dx}, ${dy >= 0 ? '+' : ''}${dy}). After ${steps} steps from ${p0}: (${kx}, ${ky}).`,
       whyWrong: {},
     },
   };
 }
 
-function t3PointAfterMove(rng) {
+// Write-in version of reading one labelled corner of a fully-labelled rectangle or
+// parallelogram — the same "drawing shapes" skill as t1ShapeVertex/t2ShapeVertexRead, directly
+// named by bullet 41's own literal wording (route a — no citation needed), just harder tier
+// via write-in format.
+function t3ShapeVertexWriteIn(rng) {
   const size = pick(rng, [8, 10, 12]);
-  let sx, sy, dx, dy, ex, ey;
+  const kind = pick(rng, ['rectangle', 'parallelogram']);
+  const labels = ['A', 'B', 'C', 'D'];
+
+  let verts, idx, target;
   let tries = 0;
   do {
-    sx = rngInt(rng, 0, size);
-    sy = rngInt(rng, 0, size);
-    dx = rngInt(rng, -4, 4);
-    dy = rngInt(rng, -4, 4);
-    ex = sx + dx;
-    ey = sy + dy;
+    let w, h, s = 0, x0, y0;
+    if (kind === 'rectangle') {
+      w = rngInt(rng, 2, 5);
+      h = rngInt(rng, 2, 5);
+      x0 = rngInt(rng, 0, size - w);
+      y0 = rngInt(rng, 0, size - h);
+      verts = [{ x: x0, y: y0 }, { x: x0 + w, y: y0 }, { x: x0 + w, y: y0 + h }, { x: x0, y: y0 + h }];
+    } else {
+      w = rngInt(rng, 2, 5);
+      h = rngInt(rng, 2, 4);
+      s = pick(rng, [-2, -1, 1, 2]);
+      x0 = rngInt(rng, Math.max(0, -s), size - w - Math.max(0, s));
+      y0 = rngInt(rng, 0, size - h);
+      verts = [{ x: x0, y: y0 }, { x: x0 + w, y: y0 }, { x: x0 + w + s, y: y0 + h }, { x: x0 + s, y: y0 + h }];
+    }
+    idx = pick(rng, [0, 1, 2, 3]);
+    target = verts[idx];
     tries++;
-  } while ((ex < 0 || ex > size || ey < 0 || ey > size || (dx === 0 && dy === 0)) && tries < 60);
-  if (ex < 0 || ex > size || ey < 0 || ey > size || (dx === 0 && dy === 0)) {
-    // Deterministic fallback: a small guaranteed-valid move.
-    dx = sx + 2 <= size ? 2 : -2;
-    dy = sy + 1 <= size ? 1 : -1;
-    ex = sx + dx;
-    ey = sy + dy;
-  }
+  } while (
+    verts.some((v) => v.x < 0 || v.x > size || v.y < 0 || v.y > size) && tries < 40
+  );
 
-  const alongWord = dx >= 0 ? 'ALONG (right)' : 'BACK (left)';
-  const upWord = dy >= 0 ? 'UP' : 'DOWN';
-  const alongCount = Math.abs(dx);
-  const upCount = Math.abs(dy);
-  const alongText = `${alongCount} square${alongCount === 1 ? '' : 's'} ${alongWord}`;
-  const upText = `${upCount} square${upCount === 1 ? '' : 's'} ${upWord}`;
-  const stem = `Gridlock starts at <b>${fmtCoord(sx, sy)}</b>. He moves ${alongText} and ${upText}. What are his new coordinates?`;
+  const points = verts.map((v, i) => ({ x: v.x, y: v.y, label: labels[i] }));
+  const shapeName = kind === 'rectangle' ? 'rectangle' : 'parallelogram';
+  const stem = `The ${shapeName} has all 4 corners marked. Write the coordinates of corner <b>${labels[idx]}</b>.`;
 
   return {
-    templateId: 'coord-t3-point-after-move',
+    templateId: 'coord-t3-shape-vertex',
     stem,
     format: 'num',
-    visual: { kind: 'coordgrid', size, points: [{ x: sx, y: sy, label: 'Start' }, { x: ex, y: ey, label: 'End' }] },
-    accept: acceptForms(ex, ey),
+    visual: { kind: 'coordgrid', size, points, shape: true },
+    accept: acceptForms(target.x, target.y),
     hintSteps: [
-      `Start at (${sx}, ${sy}). Apply the ALONG move first: ${sx} ${dx >= 0 ? '+' : '−'} ${Math.abs(dx)} = ${ex}.`,
-      `Now apply the UP move: ${sy} ${dy >= 0 ? '+' : '−'} ${Math.abs(dy)} = ${ey}. New point: (${ex}, ${ey}).`,
+      `Find corner ${labels[idx]} on the ${shapeName}. Count ALONG the hall from (0, 0) first.`,
+      `Now count UP the staircase. Write ALONG then UP: (${target.x}, ${target.y}).`,
     ],
     explain: {
       rule: RULE,
-      worked: `ALONG: ${sx} ${dx >= 0 ? '+' : '−'} ${Math.abs(dx)} = ${ex}. UP: ${sy} ${dy >= 0 ? '+' : '−'} ${Math.abs(dy)} = ${ey}. New point: (${ex}, ${ey}).`,
+      worked: `Corner ${labels[idx]} is ${target.x} along and ${target.y} up: (${target.x}, ${target.y}).`,
       whyWrong: {},
     },
   };
 }
 
-function t3Midpoint(rng) {
-  const size = pick(rng, [8, 10, 12]);
-  let x1, y1, x2, y2, mx, my;
-  let tries = 0;
+// Write-in version of reading a single labelled point off a bare coordinate grid — the core
+// "first-quadrant plotting" skill named directly in bullet 41's own wording (route a — no
+// citation needed), write-in format giving the harder tier-3 difficulty.
+function t3ReadPointWriteIn(rng) {
+  const size = pick(rng, [10, 12]);
+  let x, y;
   do {
-    x1 = rngInt(rng, 0, size);
-    y1 = rngInt(rng, 0, size);
-    x2 = rngInt(rng, 0, size);
-    y2 = rngInt(rng, 0, size);
-    tries++;
-  } while (((x1 + x2) % 2 !== 0 || (y1 + y2) % 2 !== 0 || (x1 === x2 && y1 === y2)) && tries < 100);
-  if ((x1 + x2) % 2 !== 0 || (y1 + y2) % 2 !== 0 || (x1 === x2 && y1 === y2)) {
-    // Deterministic fallback: force matching parity a fixed +2 step away.
-    x2 = x1 + 2 <= size ? x1 + 2 : x1 - 2;
-    y2 = y1 + 2 <= size ? y1 + 2 : y1 - 2;
-  }
-  mx = (x1 + x2) / 2;
-  my = (y1 + y2) / 2;
+    x = rngInt(rng, 0, size);
+    y = rngInt(rng, 0, size);
+  } while (x === y);
 
-  const stem = `Point <b>P</b> is at ${fmtCoord(x1, y1)} and point <b>Q</b> is at ${fmtCoord(x2, y2)}. What are the coordinates of the point exactly HALFWAY between them?`;
+  const stem = 'Look at the grid. Write the coordinates of point <b>A</b>.';
 
   return {
-    templateId: 'coord-t3-midpoint',
+    templateId: 'coord-t3-read-point',
     stem,
     format: 'num',
-    visual: { kind: 'coordgrid', size, points: [{ x: x1, y: y1, label: 'P' }, { x: x2, y: y2, label: 'Q' }] },
-    accept: acceptForms(mx, my),
+    visual: { kind: 'coordgrid', size, points: [{ x, y, label: 'A' }] },
+    accept: acceptForms(x, y),
     hintSteps: [
-      'Halfway ALONG: add the two x-values and share equally between them (divide by 2).',
-      `ALONG: (${x1} + ${x2}) ÷ 2 = ${mx}. UP: (${y1} + ${y2}) ÷ 2 = ${my}.`,
+      'Start at the corner where the hall meets the staircase — that’s (0, 0). Count ALONG the hall to point A first.',
+      `Now count UP the staircase. ALONG = ${x}, UP = ${y} — write them in that order.`,
     ],
     explain: {
       rule: RULE,
-      worked: `Halfway point: ALONG (${x1}+${x2})÷2=${mx}, UP (${y1}+${y2})÷2=${my} → (${mx}, ${my}).`,
+      worked: `Point A is ${x} along and ${y} up: (${x}, ${y}).`,
       whyWrong: {},
     },
   };
@@ -643,8 +623,8 @@ function t3Midpoint(rng) {
 // -------- dispatch --------
 
 const T1 = [t1ReadPoint, t1ReadPointOnAxis, t1ShapeVertex];
-const T2 = [t2WhichPointAt, t2ShapeVertexRead, t2MissingVertexMcq, t2DescribedCorner];
-const T3 = [t3MissingVertexRectangle, t3MissingVertexParallelogram, t3PointAfterMove, t3Midpoint];
+const T2 = [t2WhichPointAt, t2ShapeVertexRead, t2ReflectionMcq, t2ExtrapolateMcq];
+const T3 = [t3ReflectionWriteIn, t3ExtrapolateWriteIn, t3ShapeVertexWriteIn, t3ReadPointWriteIn];
 
 export function generate(tier, rng) {
   let pool;

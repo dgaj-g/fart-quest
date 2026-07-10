@@ -65,7 +65,7 @@ export default {
       title: 'Watch Me Work the Rhyme',
       html: `<p>Look at Verse 1 again. Read only the LAST word of each line:</p>
 <div class="law-scroll">📜 Line 1 ends: "gleams" &nbsp;·&nbsp; Line 2 ends: "rhyme" &nbsp;·&nbsp; Line 3 ends: "streams" &nbsp;·&nbsp; Line 4 ends: "time"</div>
-<p>"Gleams" and "streams" chime together (lines 1 and 3). "Rhyme" and "time" chime together (lines 2 and 4). That criss-cross pattern — first-with-third, second-with-fourth — is one of the commonest rhyme schemes there is. But notice: I only found it by checking the END of each line, never a word from the middle.</p>`,
+<p>"Gleams" and "streams" chime together (lines 1 and 3). "Rhyme" and "time" chime together (lines 2 and 4) — two matching pairs, found simply by checking which line-end words actually rhyme. But notice: I only found them by checking the END of each line, never a word from the middle.</p>`,
     },
     {
       type: 'try',
@@ -85,7 +85,7 @@ export default {
         ],
         explain: {
           rule: RULE,
-          worked: 'Line 3 ends with "streams", which chimes exactly with "gleams" at the end of line 1 — that\'s the criss-cross A-rhyme pair (lines 1 and 3).',
+          worked: 'Line 3 ends with "streams", which chimes exactly with "gleams" at the end of line 1 — that\'s the matching rhyme pair (lines 1 and 3).',
           whyWrong: {
             'rhyme': 'That\'s the end of line 2 — it pairs with "time" in line 4, not with "gleams". Different rhyme pair entirely.',
             'time': 'That\'s the end of line 4, part of the OTHER rhyme pair (with "rhyme") — not the one matching "gleams".',
@@ -138,7 +138,7 @@ export default {
     'A verse is a paragraph of poetry — lines grouped together, just like sentences grouped into a paragraph.',
     'Rhymes almost always land on the LAST word of a line — check line-ends first, never a word from the middle.',
     'Read a poem like a song: for STORY first (what\'s happening, who feels what), rhyme second.',
-    'A criss-cross rhyme scheme (1-with-3, 2-with-4) is one of the commonest patterns in short poems — expect it.',
+    'Rhymes don\'t have to be next-door neighbours — line 1 might rhyme with line 3, not line 2. Check every line-end against every other line-end, not just the one right below it.',
     'Decoy answers often borrow a real line-ending word from a DIFFERENT verse — always check which verse the question is actually asking about.',
     'If a question asks WHERE or WHO, that answer is a fact stated in the story part of the poem — don\'t confuse it with a rhyme word that merely sounds similar.',
   ],

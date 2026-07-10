@@ -467,17 +467,18 @@ function t3SpendAndRemaining(rng) {
 
 function t3MultiBuyChange(rng) {
   const item = pick(rng, ITEMS);
-  let n, unitP, total, payWith;
+  let n, unitP, total;
   let tries = 0;
   do {
     n = rngInt(rng, 2, 6);
     unitP = rngInt(rng, 20, 195);
     total = n * unitP;
-    payWith = [500, 1000, 2000].find((c) => c > total);
     tries += 1;
-  } while (!payWith && tries < 30);
-  if (!payWith) payWith = total + 500; // safety net, should not trigger given the ranges above
+  } while (total >= 1000 && tries < 30);
+  if (total >= 1000) total = 990; // safety net, should not trigger given the ranges above
 
+  // Change up to £10, paid for with a £5 or £10 note only — mirrors t2ChangeFromRoundAmount.
+  const payWith = total < 500 ? 500 : 1000;
   const change = payWith - total;
   const stem = `<b>${n}</b> ${item.p} cost <b>${fmt(unitP)}</b> each. You pay with a <b>${fmt(payWith)} note</b>. How much change do you get?`;
 

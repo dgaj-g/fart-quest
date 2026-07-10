@@ -26,9 +26,9 @@ const TWINSETS = {
     { word: "they're", kind: 'squeeze', color: '#9B59D0', expand: 'they are' },
   ],
   b: [
-    { word: 'to', kind: 'join', color: '#3B6FD1', meaning: 'points towards something, or joins a verb' },
-    { word: 'too', kind: 'excess', color: '#D9A21B', meaning: '"as well" — or "too much"' },
-    { word: 'two', kind: 'number', color: '#9B59D0', meaning: 'the number 2' },
+    { word: 'where', kind: 'askplace', color: '#3B6FD1', meaning: 'asks "which place?"' },
+    { word: 'were', kind: 'pastform', color: '#D9A21B', meaning: 'the past of "are"' },
+    { word: 'wear', kind: 'clothing', color: '#9B59D0', meaning: 'putting clothes on a body' },
   ],
 };
 
@@ -73,31 +73,31 @@ const MISSIONS = [
     worked: 'they’re late again — the un-squeeze proof reads perfectly: they ARE late again.',
   },
   {
-    id: 'swim', chip: 'SWIM', setKey: 'b',
-    tokens: ["It's", { gap: 0 }, 'cold', { gap: 1 }, 'swim.'],
+    id: 'boots', chip: 'BOOTS', setKey: 'b',
+    tokens: ['Jarlath', 'forgot', { gap: 0 }, 'he’d', 'left', 'his', 'boots,', 'so', 'he', 'had', 'nothing', 'to', { gap: 1 }, 'for', 'training.'],
     gaps: [
       {
-        correct: 'too',
-        pass: { too: { text: 'The extra O means "too much" — it’s EXCESSIVELY cold. TOO fits perfectly.' } },
+        correct: 'where',
+        pass: { where: { text: 'This is asking WHICH PLACE the boots are — WHERE is the place-question twin.' } },
         fail: {
-          to: { text: 'TO joins a verb or points towards somewhere — "cold" isn’t a verb it can join.' },
-          two: { text: 'There’s nothing here to count — TWO is only ever the number 2.' },
+          were: { text: '"Were" is only ever the past of "are" — it can’t ask a place question. WHERE fits the "which place?" job.' },
+          wear: { text: '"Wear" only ever means putting clothes on a body — it can’t ask a place question either.' },
         },
       },
       {
-        correct: 'to',
-        pass: { to: { anchor: 'swim', text: 'TO joins straight onto the verb "swim" — that’s exactly its job.' } },
+        correct: 'wear',
+        pass: { wear: { text: 'Putting boots ON A BODY is exactly WEAR’s job — nothing else fits.' } },
         fail: {
-          too: { text: 'TOO already spent its "too much" job on "cold" — it can’t join a verb as well. Swim needs TO.' },
-          two: { text: 'There’s nothing here to count — TWO is only ever the number 2.' },
+          where: { text: '"Where" only ever asks a place question — there’s no place being asked about here.' },
+          were: { text: '"Were" is only ever the past of "are" — it can’t describe putting something on.' },
         },
       },
     ],
-    worked: "It's too cold to swim. — TOO piled on the extra O, then TO joined the verb.",
+    worked: 'Jarlath forgot where he’d left his boots, so he had nothing to wear for training. — WHERE asks the place, WEAR puts clothes on a body.',
   },
 ];
 const WIN_PHRASES = ['TWINS SEPARATED! 🔍', 'PROOF POSITIVE! ✅', 'CASE CLOSED, SCANNER STYLE!', 'NO SOUND-TWIN FOOLED YOU!'];
-const KIND_ICON = { place: '🧭', belonging: '🧵', squeeze: '🔁', excess: '➕', join: '🔗', number: '🔢' };
+const KIND_ICON = { place: '🧭', belonging: '🧵', squeeze: '🔁', askplace: '🧭', pastform: '⏪', clothing: '👕' };
 
 function candidateFor(gap, word) {
   const isPass = word === gap.correct;
@@ -109,9 +109,9 @@ function kindLabel(kind, pass) {
     place: pass ? '🧭 PLACE FOUND!' : '🧭 NO PLACE FOUND',
     belonging: pass ? '🧵 THREAD SNAPS TAUT!' : '🧵 NOTHING TO TIE',
     squeeze: pass ? '🔁 UN-SQUEEZE WORKS!' : '🔁 UN-SQUEEZE FAILS!',
-    excess: pass ? '➕ EXTRA-O FITS!' : '➕ EXTRA-O DOESN’T FIT',
-    join: pass ? '🔗 JOINS THE VERB!' : '🔗 NOTHING TO JOIN',
-    number: pass ? '🔢 SOMETHING TO COUNT!' : '🔢 NOTHING TO COUNT',
+    askplace: pass ? '🧭 PLACE QUESTION!' : '🧭 NOT A PLACE QUESTION',
+    pastform: pass ? '⏪ PAST-TENSE FIT!' : '⏪ NOT A PAST-TENSE SPOT',
+    clothing: pass ? '👕 CLOTHING FITS!' : '👕 NOTHING TO WEAR HERE',
   };
   return L[kind] || '';
 }

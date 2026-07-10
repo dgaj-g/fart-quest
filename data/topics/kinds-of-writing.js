@@ -46,8 +46,8 @@ export default {
     },
     {
       type: 'show',
-      title: 'The Front of the Book: Title Page and Contents',
-      html: `<p>Open the front cover and the first signpost you meet is the <b>title page</b> — it announces the book's title, the author who wrote it, and the publisher who printed it. Nothing more.</p>
+      title: 'The Front of the Book: Author and Contents',
+      html: `<p>Open the front cover and the very first thing every book tells you is its <b>author</b> — the person who wrote it — printed right there before the story even begins.</p>
 <p>A page or two further sits the <b>contents page</b> — a list of every chapter, IN THE ORDER it appears in the book, each one lined up with the page number it starts on.</p>
 <div class="law-scroll">📜 <b>THE CONTENTS LAW:</b> Contents lists chapters in STORY ORDER (Chapter 1, then 2, then 3…) — never alphabetical order.</div>
 <p>Want to know what page Chapter 5 begins on? Don't hunt through the whole book — flick straight to the contents page. That is exactly its job.</p>`,
@@ -62,7 +62,7 @@ export default {
 <li><b>Bibliography</b> — a list of every other book, website or source the author read while researching — proof their facts are real.</li>
 </ul>
 <div class="law-scroll">📜 <b>THE SIGNPOST LAW:</b> Index = where topics hide (back, A-Z). Glossary = word meanings. Bibliography = books used.</div>
-<p>Don't forget the <b>blurb</b> on the back cover, either — a short, exciting taste of the story written to tempt you in, without giving the ending away.</p>`,
+<p>One more thing to notice as you read: is the writing set out in ordinary sentences and paragraphs (<b>prose</b>), or arranged in short lines, often with rhymes (<b>poetry</b>)? Fiction and non-fiction can both be written either way.</p>`,
     },
     {
       type: 'try',
@@ -126,7 +126,7 @@ export default {
     'A glossary explains the tricky WORDS used in THIS book; a dictionary explains every word in the whole language — different jobs.',
     "A bibliography lists the books and websites an author read — it's proof their facts are real.",
     'Ask ONE question: invented = fiction, true = non-fiction. A true story can still be written excitingly!',
-    "The blurb on the back cover is written to tempt you to read — it's a taster, not a full list of chapters.",
+    'Prose is ordinary sentences and paragraphs; poetry is arranged in short lines, often with rhymes — either one can be fiction or non-fiction.',
     'In an index, alphabetical order looks at the SECOND letter when the first letters match: Shark comes before Shell.',
   ],
 
@@ -230,49 +230,49 @@ export default {
     },
     {
       id: 'kinds-of-writing-t1-05', tier: 1, format: 'mcq5',
-      stem: "Which part of the book is on the very BACK COVER, written to tempt you into reading it?",
+      stem: 'Which of these is written as POETRY, not prose?',
       options: [
-        { text: 'Blurb', misconception: null },
-        { text: 'Contents page', misconception: 'confused-contents' },
-        { text: 'Index', misconception: 'confused-index' },
-        { text: 'Glossary', misconception: 'confused-glossary' },
+        { text: 'Roses are red, violets are blue, sugar is sweet, and so are you.', misconception: null },
+        { text: 'The roses in the garden were a deep, fiery red all summer long.', misconception: 'confused-prose' },
+        { text: 'Contents page', misconception: 'wrong-category-bookpart' },
+        { text: 'Index', misconception: 'wrong-category-bookpart' },
       ],
       correctIndex: 0,
       hintSteps: [
-        'Which signpost is short, exciting, and sits on the back cover?',
-        'It gives you a taste of the story WITHOUT giving away the ending.',
+        'Which one is arranged in short rhyming lines, rather than ordinary sentences?',
+        'Poetry rhymes and breaks into short lines; prose just runs on in full sentences.',
       ],
       explain: {
         rule: RULE,
-        worked: "The blurb sits on the back cover and gives an exciting taste of the story to tempt a reader in.",
+        worked: 'That rhyming, short-lined writing is poetry — the others are either plain prose or book parts, not kinds of writing.',
         whyWrong: {
-          'Contents page': 'The contents page is a factual list of chapters at the front, not a tempting taster.',
-          Index: 'The index is an alphabetical list of topics, not a taster of the story.',
-          Glossary: 'The glossary explains hard words — it does not tempt a reader in.',
+          'The roses in the garden were a deep, fiery red all summer long.': 'That is one ordinary, full sentence — that makes it prose, not poetry.',
+          'Contents page': 'A contents page is a book part, not a kind of writing.',
+          Index: 'An index is a book part, not a kind of writing.',
         },
       },
     },
     {
       id: 'kinds-of-writing-t1-06', tier: 1, format: 'mcq5',
-      stem: 'Which page, right at the FRONT of a book, shows the title, the author and the publisher?',
+      stem: 'Which word names the person who actually WROTE a book?',
       options: [
-        { text: 'Title page', misconception: null },
-        { text: 'Index', misconception: 'confused-index' },
-        { text: 'Bibliography', misconception: 'confused-bibliography' },
-        { text: 'Blurb', misconception: 'confused-blurb' },
+        { text: 'Author', misconception: null },
+        { text: 'Illustrator', misconception: 'confused-role' },
+        { text: 'Editor', misconception: 'confused-role' },
+        { text: 'Narrator', misconception: 'confused-role' },
       ],
       correctIndex: 0,
       hintSteps: [
-        'Which signpost sits right at the very front, before the contents page?',
-        'It only shows the title, author and publisher — nothing else.',
+        'Which word matches the person who wrote the WORDS of the book, not the pictures?',
+        'It is printed right at the front, before the story begins.',
       ],
       explain: {
         rule: RULE,
-        worked: 'The title page is the very first signpost in a book, showing only the title, author and publisher.',
+        worked: 'The author is the person who wrote the book — their name is printed at the very front, before the story begins.',
         whyWrong: {
-          Index: 'The index is an alphabetical list at the BACK of the book.',
-          Bibliography: 'The bibliography lists research sources, not the title and author.',
-          Blurb: 'The blurb is on the back cover, not the front title page.',
+          Illustrator: 'An illustrator draws the pictures, not the words.',
+          Editor: 'An editor checks and improves the writing — they do not write it themselves.',
+          Narrator: 'A narrator tells or reads a story aloud — that is not the same as the person who wrote it.',
         },
       },
     },
@@ -594,19 +594,19 @@ export default {
       id: 'kinds-of-writing-t2-08', tier: 2, format: 'mcq5',
       stem: 'Which of these would you find CLOSEST TO THE FRONT of a non-fiction book?',
       options: [
-        { text: 'Title page', misconception: null },
+        { text: 'Contents page', misconception: null },
         { text: 'Index', misconception: 'confused-position' },
         { text: 'Bibliography', misconception: 'confused-position' },
         { text: 'Glossary', misconception: 'confused-position' },
       ],
       correctIndex: 0,
       hintSteps: [
-        'Which signpost is the very FIRST thing you meet after the front cover?',
+        'Which signpost is one of the first things you meet, before any chapters begin?',
         'The other three all sit at the BACK of the book.',
       ],
       explain: {
         rule: RULE,
-        worked: 'The title page is the very first signpost, right at the front, before even the contents page.',
+        worked: 'The contents page sits near the front of the book, listing every chapter before the story or information begins.',
         whyWrong: {
           Index: 'The index sits at the very back of the book.',
           Bibliography: 'The bibliography sits at the back of the book.',
@@ -640,49 +640,49 @@ export default {
     },
     {
       id: 'kinds-of-writing-t2-10', tier: 2, format: 'mcq5',
-      stem: 'Which of these is written to make you WANT to read the book, without giving the ending away?',
+      stem: 'Which word describes writing set out in short lines, often with a rhyme, rather than full sentences and paragraphs?',
       options: [
-        { text: 'Blurb', misconception: null },
-        { text: 'Index', misconception: 'confused-purpose' },
-        { text: 'Bibliography', misconception: 'confused-purpose' },
-        { text: 'Glossary', misconception: 'confused-purpose' },
+        { text: 'Poetry', misconception: null },
+        { text: 'Prose', misconception: 'confused-prose' },
+        { text: 'Fiction', misconception: 'confused-fact-invented' },
+        { text: 'Non-fiction', misconception: 'confused-fact-invented' },
       ],
       correctIndex: 0,
       hintSteps: [
-        'Which signpost is exciting and persuasive, rather than a plain list?',
-        'It sits on the back cover, giving just a taste of the story.',
+        'Which word is about HOW the writing is arranged on the page, not whether it is true or invented?',
+        'It is broken into short lines, and often rhymes.',
       ],
       explain: {
         rule: RULE,
-        worked: 'The blurb is written to hook a reader with a taste of the story, never revealing the ending.',
+        worked: 'Poetry is writing arranged in short lines, often with a rhyme — quite different from ordinary sentences and paragraphs.',
         whyWrong: {
-          Index: 'The index is a plain alphabetical list of topics, not a persuasive taster.',
-          Bibliography: 'The bibliography is a plain list of sources, not a persuasive taster.',
-          Glossary: 'The glossary explains words — it is not written to persuade anyone.',
+          Prose: 'Prose is the ordinary sentences-and-paragraphs style — the opposite of what this question describes.',
+          Fiction: 'Fiction just means invented — it says nothing about lines or rhymes.',
+          'Non-fiction': 'Non-fiction just means true — it says nothing about lines or rhymes.',
         },
       },
     },
     {
       id: 'kinds-of-writing-t2-11', tier: 2, format: 'mcq5',
-      stem: "Which of these lines sounds like it belongs on a BLURB, not a contents page?",
+      stem: 'Which of these lines is written as POETRY, not prose?',
       options: [
-        { text: 'Get ready for the smelliest adventure of the summer!', misconception: null },
+        { text: 'The moon hung silver, round and bright, / spilling its glow across the night.', misconception: null },
+        { text: 'The moon was a large, round shape that spread a silvery glow across the night sky.', misconception: 'confused-prose' },
         { text: 'Chapter 1: The Swamp Awakens ................. page 4', misconception: 'confused-contents-style' },
         { text: 'Chapter 2: Into the Bog ....................... page 19', misconception: 'confused-contents-style' },
-        { text: 'Chapter 3: The Final Stink .................... page 33', misconception: 'confused-contents-style' },
       ],
       correctIndex: 0,
       hintSteps: [
-        'Which line is exciting and persuasive, rather than a plain fact with a page number?',
-        'A blurb HOOKS you — a contents page just lists facts.',
+        'Which line is broken into short, rhyming lines, rather than one plain sentence or a chapter listing?',
+        'Poetry rhymes and breaks into lines; the others are either prose or a contents-page entry.',
       ],
       explain: {
         rule: RULE,
-        worked: 'That exciting, persuasive line is exactly the job of a blurb — the others are all plain contents-page entries with page numbers.',
+        worked: 'That rhyming line, broken into short lines, is poetry — the others are either an ordinary prose sentence or a contents-page entry.',
         whyWrong: {
-          'Chapter 1: The Swamp Awakens ................. page 4': 'That is a plain chapter listing with a page number — a contents-page style entry.',
-          'Chapter 2: Into the Bog ....................... page 19': 'That is a plain chapter listing with a page number — a contents-page style entry.',
-          'Chapter 3: The Final Stink .................... page 33': 'That is a plain chapter listing with a page number — a contents-page style entry.',
+          'The moon was a large, round shape that spread a silvery glow across the night sky.': 'That is one ordinary, full sentence — that makes it prose, not poetry.',
+          'Chapter 1: The Swamp Awakens ................. page 4': 'That is a plain chapter listing with a page number — a contents-page style entry, not poetry.',
+          'Chapter 2: Into the Bog ....................... page 19': 'That is a plain chapter listing with a page number — a contents-page style entry, not poetry.',
         },
       },
     },

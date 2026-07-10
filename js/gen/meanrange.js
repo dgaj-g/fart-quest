@@ -121,13 +121,14 @@ function rangeWhyWrong(tag) {
   }
 }
 
-function compareWhyWrong(tag) {
+function invarianceWhyWrong(tag) {
   switch (tag) {
-    case 'picked-smaller-range': return 'That’s the SMALLER range — the question asks how much bigger the LARGER one is.';
-    case 'picked-larger-range-alone': return 'That’s just the larger range by itself — you need the GAP between the two ranges.';
-    case 'added-instead': return 'The two ranges got added together — compare them by subtracting instead.';
-    case 'arithmetic-slip': return 'Close, but recheck the subtraction between the two ranges.';
-    default: return 'Work out each range first, then compare them.';
+    case 'thinks-unchanged': return 'The mean DOES move — every number shifted by the same amount, so the mean shifts by that same amount too.';
+    case 'shift-alone': return 'That’s just the shift by itself — add (or subtract) it from the OLD mean to get the new one.';
+    case 'arithmetic-slip': return 'Close, but recheck the addition (or subtraction) between the old mean and the shift.';
+    case 'wrong-direction': return 'Check whether the numbers went UP or DOWN — the mean moves the same way.';
+    case 'padded-near-miss': return 'Check your addition — new mean = old mean with the shift applied once.';
+    default: return 'If every number shifts by the same amount, the mean shifts by that same amount.';
   }
 }
 
@@ -315,49 +316,45 @@ function t2RangeSet(rng) {
   };
 }
 
-function t2CompareRanges(rng) {
-  let valuesA, valuesB, rangeA, rangeB;
-  let tries = 0;
-  do {
-    valuesA = randomDistinctInts(rng, pick(rng, [3, 4]), 1, 20);
-    valuesB = randomDistinctInts(rng, pick(rng, [3, 4]), 1, 20);
-    rangeA = Math.max(...valuesA) - Math.min(...valuesA);
-    rangeB = Math.max(...valuesB) - Math.min(...valuesB);
-    tries++;
-  } while (rangeA === rangeB && tries < 30);
-  if (rangeA === rangeB) valuesB = valuesB.map((v, i) => (i === 0 ? v + 3 : v));
-  rangeA = Math.max(...valuesA) - Math.min(...valuesA);
-  rangeB = Math.max(...valuesB) - Math.min(...valuesB);
-
-  const larger = Math.max(rangeA, rangeB);
-  const smaller = Math.min(rangeA, rangeB);
-  const diff = larger - smaller;
-  const stem = `Set A: ${listText(valuesA)}. Set B: ${listText(valuesB)}. How much BIGGER is the larger range than the smaller range?`;
+// Mean-invariance trap (PP1 Q47: "does the mean change if everyone ages +3?"). Every number in
+// the set shifts by the same amount, so the mean shifts by that exact same amount too.
+function t2MeanInvariance(rng) {
+  const meanVal = rngInt(rng, 6, 20);
+  const n = pick(rng, [3, 4, 5]);
+  // Cap the shift so every option below (correct, unchanged, wrong-direction, ±1 slip) stays a
+  // non-negative whole number — no template in this app ever expects a signed/negative answer.
+  const shift = rngInt(rng, 2, Math.min(8, meanVal - 2));
+  const direction = pick(rng, ['up', 'down']);
+  const signedShift = direction === 'up' ? shift : -shift;
+  const newMean = meanVal + signedShift;
+  const verb = direction === 'up' ? 'increases' : 'decreases';
+  const sign = direction === 'up' ? '+' : '−';
+  const stem = `The mean of ${n} numbers is <b>${meanVal}</b>. Every one of the numbers then ${verb} by ${shift}. What is the new mean?`;
 
   const distractors = [
-    { text: fmt(smaller), misconception: 'picked-smaller-range' },
-    { text: fmt(larger), misconception: 'picked-larger-range-alone' },
-    { text: fmt(rangeA + rangeB), misconception: 'added-instead' },
-    { text: fmt(diff + 1), misconception: 'arithmetic-slip' },
+    { text: fmt(meanVal), misconception: 'thinks-unchanged' },
+    { text: fmt(shift), misconception: 'shift-alone' },
+    { text: fmt(newMean + pick(rng, [1, -1])), misconception: 'arithmetic-slip' },
+    { text: fmt(meanVal - signedShift), misconception: 'wrong-direction' },
   ];
-  const correct = { text: fmt(diff), misconception: null };
+  const correct = { text: fmt(newMean), misconception: null };
   const options = makeMcq(correct, shuffle(rng, distractors), rng, 4, 5);
 
   const whyWrong = {};
-  for (const o of options) if (o.misconception) whyWrong[o.text] = compareWhyWrong(o.misconception);
+  for (const o of options) if (o.misconception) whyWrong[o.text] = invarianceWhyWrong(o.misconception);
 
   return {
-    templateId: 'mr-t2-compare-ranges',
+    templateId: 'mr-t2-mean-invariance',
     stem,
     options,
     correctIndex: 0,
     hintSteps: [
-      `Work out the range of Set A (biggest − smallest), then the range of Set B.`,
-      `Range A = ${rangeA}, Range B = ${rangeB}. Subtract the smaller range from the larger one.`,
+      `If every number in the set shifts by the same amount, the mean shifts by that exact same amount.`,
+      `Old mean = ${meanVal}. New mean = ${meanVal} ${sign} ${shift} = ?`,
     ],
     explain: {
       rule: RULE,
-      worked: `Range A = ${rangeA}. Range B = ${rangeB}. The larger range (${larger}) beats the smaller (${smaller}) by ${larger} − ${smaller} = ${diff}.`,
+      worked: `Every number ${verb} by ${shift}, so the mean shifts by that same amount: ${meanVal} ${sign} ${shift} = ${newMean}. No need to re-add the whole set — a constant shift moves the mean by the same constant.`,
       whyWrong,
     },
   };
@@ -414,30 +411,31 @@ function t3RangeWriteIn(rng) {
   };
 }
 
-function t3MissingValue(rng) {
-  const n = pick(rng, [4, 5]);
-  const meanVal = rngInt(rng, 4, 15);
-  const values = buildSetWithMean(rng, n, meanVal, 6);
-  const missingIdx = rngInt(rng, 0, n - 1);
-  const missingVal = values[missingIdx];
-  const knownValues = shuffle(rng, values.filter((_, i) => i !== missingIdx));
-  const total = meanVal * n;
-  const knownSum = knownValues.reduce((a, b) => a + b, 0);
-
-  const stem = `The mean of ${n} numbers is <b>${meanVal}</b>. ${n - 1} of them are ${listText(knownValues)}. What is the missing number?`;
+// Mean-invariance trap, write-in format (PP1 Q47: "does the mean change if everyone ages +3?").
+function t3MeanInvarianceWriteIn(rng) {
+  const n = pick(rng, [4, 5, 6]);
+  const meanVal = rngInt(rng, 6, 20);
+  // The write-in keypad has no minus key, so the new mean must never go negative.
+  const shift = rngInt(rng, 2, Math.min(10, meanVal - 1));
+  const direction = pick(rng, ['up', 'down']);
+  const signedShift = direction === 'up' ? shift : -shift;
+  const newMean = meanVal + signedShift;
+  const verb = direction === 'up' ? 'increases' : 'decreases';
+  const sign = direction === 'up' ? '+' : '−';
+  const stem = `The mean of ${n} numbers is <b>${meanVal}</b>. Every one of the numbers then ${verb} by ${shift}. What is the new mean?`;
 
   return {
-    templateId: 'mr-t3-missing-value',
+    templateId: 'mr-t3-mean-invariance-writein',
     stem,
     format: 'num',
-    accept: [String(missingVal)],
+    accept: [String(newMean)],
     hintSteps: [
-      `Work out what the total SHOULD be: mean × how many numbers = ${meanVal} × ${n} = ${total}.`,
-      `Now subtract the numbers you already know: ${total} − (${knownValues.join(' + ')}) = ?`,
+      `If every number in the set shifts by the same amount, the mean shifts by that exact same amount.`,
+      `Old mean = ${meanVal}. New mean = ${meanVal} ${sign} ${shift} = ?`,
     ],
     explain: {
       rule: RULE,
-      worked: `Total should be ${meanVal} × ${n} = ${total}. ${knownValues.join(' + ')} = ${knownSum}. Missing number = ${total} − ${knownSum} = ${missingVal}.`,
+      worked: `Every number ${verb} by ${shift}, so the mean shifts by that same amount: ${meanVal} ${sign} ${shift} = ${newMean}.`,
       whyWrong: {},
     },
   };
@@ -446,8 +444,8 @@ function t3MissingValue(rng) {
 // -------- dispatch --------
 
 const T1 = [t1MeanTriple, t1RangeTriple, t1RangeQuad];
-const T2 = [t2MeanSet, t2RangeSet, t2CompareRanges];
-const T3 = [t3MeanWriteIn, t3RangeWriteIn, t3MissingValue];
+const T2 = [t2MeanSet, t2RangeSet, t2MeanInvariance];
+const T3 = [t3MeanWriteIn, t3RangeWriteIn, t3MeanInvarianceWriteIn];
 
 export function generate(tier, rng) {
   let pool;

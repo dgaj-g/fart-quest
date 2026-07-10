@@ -189,7 +189,7 @@ export default {
     'A square has 4: vertical, horizontal AND both diagonals, because all 4 of its sides are exactly equal.',
     'The Fold Test never changes: fold on the line, and EVERY point must land exactly on its twin — no gaps, no overlap.',
     'On a grid, a reflected cell sits the SAME distance from the mirror line, but on the OPPOSITE side. Always measure from the MIRROR LINE, not the edge of the grid.',
-    'Letters have symmetry too: H, I, O and X have BOTH a vertical and a horizontal line. Letters like F, G, N and S have none at all.',
+    'Watch for TRAP lines: a line can look like it runs straight through the middle and still not be a genuine line of symmetry (a rectangle’s diagonal is the classic trap). Always use the Fold Test to check — never just eyeball it.',
     'A circle has infinite lines of symmetry — any straight line through its centre works.',
     '0 is a perfectly good answer! Shapes like a scalene triangle or a parallelogram have NO lines of symmetry at all.',
   ],

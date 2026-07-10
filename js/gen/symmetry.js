@@ -43,16 +43,20 @@ function shapeVisual(shape) {
   return { kind: 'shape', shapeKind: shape.key, labels: Array(shape.sides).fill('') };
 }
 
-// -------- letter ground truth (standard block-capital classification; hardcoded here as the
-// content fact, exactly the way primes/squares etc. are hardcoded in other GEN topics) --------
-const VERT_ONLY = ['A', 'M', 'T', 'U', 'V', 'W', 'Y'];
-const HORIZ_ONLY = ['B', 'C', 'D', 'E', 'K'];
-const BOTH = ['H', 'I', 'O', 'X'];
-const NONE_LETTERS = ['F', 'G', 'J', 'L', 'N', 'P', 'Q', 'R', 'S', 'Z'];
-const VERT_ALL = [...VERT_ONLY, ...BOTH];
-const HORIZ_ALL = [...HORIZ_ONLY, ...BOTH];
-const NOT_VERT = [...HORIZ_ONLY, ...NONE_LETTERS];
-const NOT_HORIZ = [...VERT_ONLY, ...NONE_LETTERS];
+// -------- named-line ground truth (is a SPECIFIC described fold line genuine or a trap? —
+// the "distractor lines that are not true symmetry" device, spec bullet 42, PP1 Q31/PP2 Q30) --------
+const FAKE_LINE_ITEMS = [
+  { shape: 'rectangle', line: 'the diagonal from one corner to the opposite corner', truth: false },
+  { shape: 'rectangle', line: 'a vertical line straight down the middle', truth: true },
+  { shape: 'rectangle', line: 'a horizontal line straight across the middle', truth: true },
+  { shape: 'square', line: 'the diagonal from one corner to the opposite corner', truth: true },
+  { shape: 'rhombus', line: 'a vertical line straight down the middle', truth: false },
+  { shape: 'rhombus', line: 'the diagonal joining two opposite corners', truth: true },
+  { shape: 'parallelogram', line: 'the diagonal joining two opposite corners', truth: false },
+  { shape: 'kite', line: 'the diagonal joining its two pointed corners', truth: true },
+  { shape: 'isosceles trapezium', line: 'a vertical line straight down the middle', truth: true },
+  { shape: 'isosceles trapezium', line: 'the diagonal from one corner to the opposite corner', truth: false },
+];
 
 function uniqueOptions(correctText, candidates) {
   const seen = new Set([correctText]);
@@ -409,40 +413,73 @@ function t3ReflectColumn(rng) {
   };
 }
 
-// (b) letters of the alphabet — vertical or horizontal line of symmetry.
-function t3LetterSymmetry(rng) {
-  const orientation = pick(rng, ['vertical', 'horizontal']);
-  const qualifying = orientation === 'vertical' ? VERT_ALL : HORIZ_ALL;
-  const disqualifying = orientation === 'vertical' ? NOT_VERT : NOT_HORIZ;
-  const correctLetter = pick(rng, qualifying);
-  const distractors = shuffle(rng, disqualifying).slice(0, 4);
+// (b) spot the fake line — given a SPECIFIC named fold line on a named shape, decide whether
+// it is a genuine line of symmetry or a trap line (bullet 42's cited "distractor lines that
+// are not true symmetry" device, PP1 Q31 / PP2 Q30 — same fact table as t2DiagonalReflection).
+function t3SpotFakeLine(rng) {
+  const item = pick(rng, FAKE_LINE_ITEMS);
+  const stem = `${article(item.shape)} ${item.shape} is folded along ${item.line}. Is that a genuine line of symmetry?`;
 
-  const foldDesc = orientation === 'vertical' ? 'top to bottom, straight down the middle' : 'side to side, straight across the middle';
-  const stem = `Which of these letters has a <b>${orientation.toUpperCase()}</b> line of symmetry (fold ${foldDesc})?`;
-
-  const options = [
-    { text: correctLetter, misconception: null },
-    ...distractors.map((l) => ({ text: l, misconception: `no-${orientation}-symmetry` })),
+  const yesOptions = [
+    'YES — fold along it and every point lands exactly on its twin.',
+    'YES — both halves match perfectly along that fold.',
   ];
+  const noOptions = [
+    'NO — fold along it and some points don’t match up.',
+    'NO — the two halves don’t land on each other along that fold.',
+  ];
+
+  let correct;
+  const distractorPool = [];
+  if (item.truth) {
+    correct = { text: pick(rng, yesOptions), misconception: null };
+    distractorPool.push(
+      { text: pick(rng, noOptions), misconception: 'assumed-no-symmetry' },
+      { text: 'NO — only squares ever have a line of symmetry.', misconception: 'square-only-myth' },
+      { text: 'YES, but only because both halves look ROUGHLY the same size, not an exact fold.', misconception: 'approx-reasoning' },
+    );
+  } else {
+    correct = { text: pick(rng, noOptions), misconception: null };
+    distractorPool.push(
+      { text: pick(rng, yesOptions), misconception: 'assumed-symmetry' },
+      { text: 'YES — every diagonal on every 4-sided shape is a line of symmetry.', misconception: 'diagonal-always-symmetric' },
+      { text: 'NO, but only because the shape is drawn slightly wonky.', misconception: 'blames-drawing' },
+    );
+  }
+
+  const options = [correct, ...uniqueOptions(correct.text, distractorPool)];
+
   const whyWrong = {};
-  for (const l of distractors) {
-    whyWrong[l] = orientation === 'vertical'
-      ? `Folding ${l} top-to-bottom (left half onto right half) does NOT make the two halves match.`
-      : `Folding ${l} side-to-side (top half onto bottom half) does NOT make the two halves match.`;
+  for (const o of options) {
+    if (o.misconception === 'assumed-no-symmetry' || o.misconception === 'assumed-symmetry') {
+      whyWrong[o.text] = item.truth
+        ? `Try it — fold ${article(item.shape).toLowerCase()} ${item.shape} along ${item.line} and check every point against its twin. It DOES land exactly right here.`
+        : `Try it — fold ${article(item.shape).toLowerCase()} ${item.shape} along ${item.line} and check every point against its twin. At least one point is left over, so this fold does NOT work.`;
+    } else if (o.misconception === 'square-only-myth') {
+      whyWrong[o.text] = 'Plenty of shapes besides squares have lines of symmetry — a rectangle, a rhombus, a kite and more all have at least one.';
+    } else if (o.misconception === 'approx-reasoning') {
+      whyWrong[o.text] = 'The Fold Test needs an EXACT match, not just "roughly the same size" — and this fold really does land exactly.';
+    } else if (o.misconception === 'diagonal-always-symmetric') {
+      whyWrong[o.text] = 'Not every diagonal works — a rectangle’s and a parallelogram’s diagonals do NOT fold onto themselves, only some shapes’ do.';
+    } else if (o.misconception === 'blames-drawing') {
+      whyWrong[o.text] = 'It isn’t the drawing — this exact line genuinely does not fold this shape onto itself.';
+    }
   }
 
   return {
-    templateId: 'sym-t3-letters',
+    templateId: 'sym-t3-fake-line',
     stem,
     options,
     correctIndex: 0,
     hintSteps: [
-      `Imagine drawing a ${orientation} line through the middle of each letter.`,
-      'Which letter folds PERFECTLY onto itself along that line, with no bits left over?',
+      `Picture folding ${article(item.shape).toLowerCase()} ${item.shape} exactly along ${item.line}.`,
+      'Does EVERY point on one side land exactly on a twin on the other side — no gaps, no overlap?',
     ],
     explain: {
       rule: RULE,
-      worked: `${correctLetter} has a ${orientation} line of symmetry — fold it that way and both halves match exactly.`,
+      worked: item.truth
+        ? `Folding ${article(item.shape).toLowerCase()} ${item.shape} along ${item.line} DOES make every point land on its twin — that line is genuine.`
+        : `Folding ${article(item.shape).toLowerCase()} ${item.shape} along ${item.line} does NOT make every point land on its twin — that line is a trap line, not a real line of symmetry.`,
       whyWrong,
     },
   };
@@ -475,7 +512,7 @@ function t3CountLinesNumEntry(rng) {
 
 const T1 = [t1CountLines, t1HasSymmetryMcq, t1FoldSingleCell];
 const T2 = [t2SquareRectangleContrast, t2DiagonalReflection, t2WhichShapeMatchesCount];
-const T3 = [t3ReflectColumn, t3LetterSymmetry, t3CountLinesNumEntry];
+const T3 = [t3ReflectColumn, t3SpotFakeLine, t3CountLinesNumEntry];
 
 export function generate(tier, rng) {
   let pool;

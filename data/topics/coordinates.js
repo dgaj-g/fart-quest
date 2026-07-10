@@ -138,35 +138,35 @@ ${miniGrid(6, 4, [{ x: 0, y: 3, label: 'B' }])}
     },
     {
       type: 'show',
-      title: 'Shapes live on the grid too — and hide a trick corner',
-      html: `<p>Shapes are just a few points joined up! Here is a rectangle with three corners marked. Its fourth corner, <b>D</b>, is missing — can Gridlock find it without measuring?</p>
-${miniGrid(8, 5, [{ x: 1, y: 1, label: 'A' }, { x: 6, y: 1, label: 'B' }, { x: 6, y: 4, label: 'C' }])}
-<p>Easy! Opposite corners of a rectangle SHARE a value. D must share its ALONG number with A (same wall), and its UP number with C (same floor). A is <b>1</b> along, C is <b>4</b> up — so D is <b>(1, 4)</b>. No ruler required!</p>`,
+      title: 'Gridlock’s hall of mirrors — reflecting a point',
+      html: `<p>The Grotto has a mirror line, too — a perfectly straight, perfectly flat line running ALONG the grid. Flip a point over it and you get its <b>reflection</b>. Look at point <b>A</b> below, sitting 1 square above the mirror line at <b>y = 3</b>.</p>
+${miniGrid(6, 6, [{ x: 2, y: 4, label: 'A' }, { x: 2, y: 2, label: 'A′' }])}
+<p>Reflecting keeps the ALONG number exactly the same — only the UP number flips. A is <b>1</b> square above the line, so its reflection <b>A′</b> lands <b>1</b> square below it: A is (2, 4), A′ is <b>(2, 2)</b>. Same distance, opposite side!</p>`,
     },
     {
       type: 'try',
       q: {
         id: 'coord-try-3', topicId: 'coordinates', tier: 2, format: 'mcq5',
-        stem: 'A rectangle has corners <b>A</b>, <b>B</b> and <b>C</b> marked. What are the coordinates of the missing corner <b>D</b>?',
-        visual: { kind: 'grid', html: miniGrid(8, 5, [{ x: 2, y: 2, label: 'A' }, { x: 7, y: 2, label: 'B' }, { x: 7, y: 5, label: 'C' }]) },
+        stem: 'Point <b>A</b> is at <b>(2, 1)</b>. It is reflected in the horizontal line <b>y = 4</b>. What are the coordinates of its reflection, A′?',
+        visual: { kind: 'grid', html: miniGrid(6, 8, [{ x: 2, y: 1, label: 'A' }]) },
         options: [
-          { text: '(2, 5)', misconception: null },
-          { text: '(5, 2)', misconception: 'xy-swap' },
-          { text: '(7, 2)', misconception: 'reused-point' },
-          { text: '(3, 5)', misconception: 'off-by-one' },
+          { text: '(2, 7)', misconception: null },
+          { text: '(7, 2)', misconception: 'xy-swap' },
+          { text: '(2, 1)', misconception: 'no-reflect' },
+          { text: '(2, 4)', misconception: 'reflected-onto-line' },
         ],
         correctIndex: 0,
         hintSteps: [
-          'D shares its ALONG value with A, and its UP value with C.',
-          'A is 2 along, C is 5 up: (2, 5).',
+          'Work out how far A is from the mirror line: (2, 1) is 3 away from y = 4.',
+          'The reflection lands the SAME distance on the OTHER side of the line: (2, 7).',
         ],
         explain: {
           rule: 'ALONG the hall first, THEN up the stairs. (x, y) — always in that order.',
-          worked: 'D borrows its ALONG value from A (2) and its UP value from C (5): (2, 5).',
+          worked: 'A is 3 below the line, so its reflection is 3 above the line: (2, 7).',
           whyWrong: {
-            '(5, 2)': 'ALONG comes first, then UP — the missing corner’s coordinates are swapped round here.',
-            '(7, 2)': 'That’s actually corner B’s own spot — the missing corner needs its own ALONG and UP values.',
-            '(3, 5)': 'Very close — recheck the ALONG value borrowed from corner A.',
+            '(7, 2)': 'ALONG comes first, then UP — you have swapped this point’s coordinates round.',
+            '(2, 1)': 'That’s the ORIGINAL point — you still need to reflect it to the other side of the line.',
+            '(2, 4)': 'That point lands exactly ON the mirror line — the reflection needs to go the SAME distance past it, not stop there.',
           },
         },
       },
@@ -179,8 +179,8 @@ ${miniGrid(8, 5, [{ x: 1, y: 1, label: 'A' }, { x: 6, y: 1, label: 'B' }, { x: 6
     'The eternal trap is swapping x and y. Say “along… up…” out loud as you write each number.',
     'Count from the ORIGIN (0, 0) — the corner where the hall and staircase meet — never from 1.',
     'A point sitting exactly on the hall (or the staircase) still has a coordinate there: it’s 0, not missing.',
-    'Missing corner of a rectangle? Borrow the ALONG (x) value from one corner and the UP (y) value from the opposite corner.',
-    'Missing corner of a parallelogram? Opposite corners always share the same middle point.',
+    'Reflecting in a horizontal mirror line? The ALONG number never changes — only the UP number flips to the same distance on the other side.',
+    'Work out the distance from the point to the mirror line FIRST — the reflection lands that same distance past it, not on it.',
     'Always count grid LINES (the crossing points), not the squares between them.',
   ],
 };

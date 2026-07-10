@@ -37,8 +37,7 @@ export default {
       type: 'show',
       title: 'The Normal Rules (Learn These First)',
       html: `<p>Most plurals are easy — just add <b>-s</b>. One <b>dog</b>, two <b>dogs</b>. One <b>fart</b>, two <b>farts</b> (there are ALWAYS more than one, let’s be honest).</p>
-<p>Some words need <b>-es</b> instead, because -s alone is too hard to say: words ending in <b>s, x, ch, sh</b> get the extra syllable. One <b>bus</b>, two <b>buses</b>. One <b>fox</b>, two <b>foxes</b>. One <b>brush</b>, two <b>brushes</b>.</p>
-<p>Words ending in a <b>consonant + y</b> swap the y for <b>ies</b>: one <b>puppy</b>, two <b>puppies</b>. But a <b>vowel + y</b> just adds -s: one <b>monkey</b>, two <b>monkeys</b>.</p>`,
+<p>Some words need <b>-es</b> instead, because -s alone is too hard to say: words ending in <b>s, x, ch, sh</b> get the extra syllable. One <b>bus</b>, two <b>buses</b>. One <b>fox</b>, two <b>foxes</b>. One <b>brush</b>, two <b>brushes</b>.</p>`,
     },
     {
       type: 'show',

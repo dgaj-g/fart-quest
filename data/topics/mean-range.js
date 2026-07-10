@@ -173,12 +173,11 @@ export default {
       title: 'Two ways heroes lose easy marks',
       html: `<p>The Meanie has watched a thousand heroes trip over the exact same two puddles. Watch out for both.</p>
 <div class="law-scroll">📜 <b>TRAP ONE:</b> forgetting to divide, and writing the TOTAL as your answer to a mean question.<br>📜 <b>TRAP TWO:</b> dividing by the WRONG count — always COUNT how many numbers are in the set before you divide.</div>
-<p>There’s a third trick worth knowing: sometimes a question gives you the <b>mean</b> and asks for a MISSING number. Run the ritual BACKWARDS: work out what the total <i>should</i> be (mean × how many numbers), then subtract the ones you already know.</p>
+<p>There’s a sneaky trick worth knowing too: if <b>every</b> number in a set shifts by the same amount, the mean shifts by that <i>exact</i> same amount — no need to re-add the whole set from scratch.</p>
 <div class="estimate-demo">
-  <div class="est-line">The mean of 4 numbers is 7. Three of them are 5, 6 and 9.</div>
-  <div class="est-line">Total should be: 7 × 4 = <b>28</b></div>
-  <div class="est-line">5 + 6 + 9 = <b>20</b></div>
-  <div class="est-line">Missing number = 28 − 20 = <b>8</b></div>
+  <div class="est-line">The mean age of 3 friends is 7. In 3 years’ time, everyone is 3 years older.</div>
+  <div class="est-line">Every number went up by the same amount: <b>+3</b></div>
+  <div class="est-line">So the new mean is 7 + 3 = <b>10</b></div>
 </div>`,
     },
     {
@@ -217,7 +216,7 @@ export default {
     'Range = biggest minus smallest. Not the biggest alone, not the total, not the middle numbers.',
     'The classic trap: forgetting to divide and writing the TOTAL as your answer. Always ask “did I share it out?”',
     'Before you divide, COUNT how many numbers are in the set — dividing by the wrong count is an easy slip.',
-    'Missing-value tricks: the total SHOULD be mean × how many numbers. Subtract the ones you know to find the missing one.',
+    'If every number in a set shifts by the same amount (like everyone getting 3 years older), the mean shifts by that exact same amount — no need to add everything up again.',
     'Two sets can share the same mean but have very different ranges — the mean tells you the “middle”, the range tells you the “spread”.',
   ],
 };

@@ -52,7 +52,7 @@ export default {
     },
     {
       type: 'talk',
-      text: 'The word right in the MIDDLE is the important one: <b>Evens</b>. It means fifty-fifty — EXACTLY half the time, no more, no less. A fair coin landing on heads? Evens. And here’s the bit that wins you marks: for a dice or a spinner, the chance is always however many outcomes you WANT, out of however many there are ALTOGETHER. My Chance Compass calls it "wanted out of total".',
+      text: 'The word right in the MIDDLE is the important one: <b>Evens</b>. It means fifty-fifty — EXACTLY half the time, no more, no less. A fair coin landing on heads? Evens. And here’s the bit that wins you marks: for a dice or a bag of counters, the chance is always however many outcomes you WANT, out of however many there are ALTOGETHER. My Chance Compass calls it "wanted out of total".',
     },
     {
       type: 'try',
@@ -128,7 +128,7 @@ export default {
     {
       type: 'show',
       title: 'The Chance Compass: wanted out of total',
-      html: `<p>Ready for the actual weapon? For a dice, spinner, or bag of counters, the chance of something is always:</p>
+      html: `<p>Ready for the actual weapon? For a dice or a bag of counters, the chance of something is always:</p>
 <div class="law-scroll">\u{1F9ED} <b>WANTED OUT OF TOTAL:</b> count how many outcomes you WANT, then write it as "that many out of the total".</div>
 <p>Example: a fair dice numbered 1–6. What’s the chance of rolling an EVEN number? The evens are 2, 4, 6 — that’s <b>3 out of 6</b>. Simple as that.</p>
 <div class="estimate-demo">
@@ -173,7 +173,7 @@ export default {
   tips: [
     'The Likelihood Line always runs in this order: Impossible → Unlikely → Evens → Likely → Certain. Papers use all five words — learn them by heart.',
     'Evens means fifty-fifty — EXACTLY half the time, no more, no less. A fair coin lands on heads on Evens.',
-    'For dice and spinners: count the outcomes you WANT, then write it as "wanted out of total". A normal dice always has 6 total outcomes.',
+    'For dice and bags of counters: count the outcomes you WANT, then write it as "wanted out of total". A normal dice always has 6 total outcomes.',
     'Fair does NOT mean "nice" or "colourful" — it means every outcome has an EQUAL-sized chance. Check the slice sizes, not the colours.',
     'Unlikely is NOT the same as impossible. Unlikely can still happen — impossible means it can NEVER happen, no matter what.',
     'Dice and coins have no memory. Rolled five 3s in a row? The next roll is STILL 1 out of 6 for every number — it is NOT "due" a 6.',

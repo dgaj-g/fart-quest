@@ -65,12 +65,12 @@ const MISSIONS = [
   },
   {
     id: 'm3',
-    worked: '3 whole ⚽ (3 × 4 = 12) plus a half ⚽ (half of 4 = 2). 12 + 2 = 14.',
+    worked: '4 whole ⚽ (4 × 4 = 16).',
     options: [
-      { v: 14, correct: true },
-      { v: 12, why: 'That’s just the whole balls — you forgot the half symbol is still worth something (half of 4 = 2).' },
-      { v: 16, why: 'That treats the half symbol as if it were a WHOLE one — a half symbol is only worth HALF the value.' },
+      { v: 16, correct: true },
       { v: 4, why: 'That’s how many ball PICTURES are drawn, not the total — each picture is worth 4, not 1.' },
+      { v: 20, why: 'That’s one whole symbol too many — check you counted exactly 4 pictures, not 5.' },
+      { v: 12, why: 'That’s one whole symbol too few — check you counted exactly 4 pictures, not 3.' },
     ],
   },
 ];
@@ -136,8 +136,7 @@ export default {
     const pictoCard = el('button', 'bss-pictocard');
     pictoCard.append(el('div', 'bss-pictotitle', 'Ball Club selfies this week'));
     const pictoRow = el('div', 'bss-pictorow');
-    for (let k = 0; k < 3; k += 1) pictoRow.append(el('span', 'bss-pictoball', '⚽'));
-    pictoRow.append(el('span', 'bss-pictohalf', '⚽'));
+    for (let k = 0; k < 4; k += 1) pictoRow.append(el('span', 'bss-pictoball', '⚽'));
     pictoCard.append(pictoRow, el('div', 'bss-pictokey', '⚽ = 4 balls'));
     pictoWrap.append(pictoCard);
     let pictoRead = false;
@@ -513,8 +512,7 @@ const CSS = `
 }
 .bss-pictotitle { font-weight: 700; font-size: 13.5px; color: var(--ink); }
 .bss-pictorow { display: flex; gap: 4px; justify-content: center; margin: 12px 0; }
-.bss-pictoball, .bss-pictohalf { font-size: 30px; }
-.bss-pictohalf { display: inline-block; clip-path: inset(0 50% 0 0); }
+.bss-pictoball { font-size: 30px; }
 .bss-pictokey { font-size: 12px; font-style: italic; color: #6b5744; }
 .bss-pictocard.read { border-color: var(--gold-deep); }
 .bss-quizrow .anim-mchip.wrongchip { opacity: .4; border-color: #c0392b; }

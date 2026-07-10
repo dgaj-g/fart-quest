@@ -53,9 +53,7 @@ function buildWhyWrong(options) {
     else if (o.misconception === 'used-row-total') whyWrong[o.text] = 'That’s just the ROW TOTAL repeated back — you still need to subtract the other known group from it.';
     else if (o.misconception === 'added-not-subtracted') whyWrong[o.text] = 'That ADDS the known group onto the row total instead of subtracting it — the row total already includes that group.';
     else if (o.misconception === 'used-grand-total') whyWrong[o.text] = 'That uses the GRAND TOTAL for the whole table, not the total for just this one row.';
-    else if (o.misconception === 'reversed-difference') whyWrong[o.text] = 'That’s the difference the wrong way round — check which category actually has MORE.';
-    else if (o.misconception === 'added-not-differenced') whyWrong[o.text] = 'That ADDS the two counts together — "how many more" means SUBTRACT, not add.';
-    else if (o.misconception === 'bare-value') whyWrong[o.text] = 'That’s just one category’s own total on its own — the question wants the DIFFERENCE (or TOTAL) between categories.';
+    else if (o.misconception === 'bare-value') whyWrong[o.text] = 'That’s just one category’s own total on its own — read the question again to see what it’s actually asking for.';
     else if (o.misconception === 'missed-one-category') whyWrong[o.text] = 'One whole category got left out when adding up the grand total — check every row was included.';
     else if (o.misconception === 'double-counted-row') whyWrong[o.text] = 'One category got added in TWICE — each row should only be counted once in the grand total.';
     else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = 'Recount carefully, gate by gate, then add the strays.';
@@ -281,49 +279,53 @@ function t2GrandTotal(rng) {
   };
 }
 
-function t2Difference(rng) {
+// Ranking / cross-reference across every category — bullet 47 ("frequency tables, tallying"),
+// operationalised via the catch-all route with citation PP1 Q50 / PP2 Q35 (ranking by points
+// across categories in a table). Distinct from t1WhichCategoryHasCount (single exact-count
+// lookup): this needs every row sorted and cross-referenced to find a relative position.
+const RANK_LABELS = ['MOST popular', '2nd MOST popular', '3rd MOST popular', '4th MOST popular', '5th MOST popular'];
+
+function t2Ranking(rng) {
   const survey = buildTallySurvey(rng, pick(rng, [4, 5]));
   const rows = survey.rows;
-  const sorted = [...rows].sort((a, b) => b[1] - a[1]);
-  // pick two distinct-count rows so the difference is never zero (a zero-more/fewer question
-  // is ambiguous about which is "more").
   // buildTallySurvey draws counts without replacement, so every row's count is guaranteed
-  // distinct — sorted[0] is strictly greater than every other row, and the difference below can
-  // never be ambiguous (zero).
-  const [moreCat, moreCount] = sorted[0];
-  const [lessCat, lessCount] = sorted[1];
-  const diff = moreCount - lessCount;
-  const stem = `Using the tally chart, how many MORE ${survey.theme.noun} chose <b>${moreCat}</b> than <b>${lessCat}</b>?`;
+  // distinct — the sort below always gives an unambiguous rank order.
+  const sorted = [...rows].sort((a, b) => b[1] - a[1]);
+  const rankIdx = rngInt(rng, 0, sorted.length - 1);
+  const [targetCat] = sorted[rankIdx];
+  const rankLabel = rankIdx === sorted.length - 1 ? 'LEAST popular' : RANK_LABELS[rankIdx];
+  const stem = `Using the tally chart, which of these was <b>${rankLabel}</b> with ${survey.theme.noun}?`;
 
-  // Near-miss: an off-by-a-bit misread of the correct difference (never negative — a miscounted
-  // gate/stray still yields a plausible small positive difference).
-  let nearMiss = diff + (rng() < 0.5 ? 1 : -1);
-  if (nearMiss < 0 || nearMiss === diff) nearMiss = diff + 2;
-  const distractors = [
-    { text: fmt(nearMiss), misconception: 'near-miss-count' },
-    { text: fmt(moreCount + lessCount), misconception: 'added-not-differenced' },
-    { text: fmt(moreCount), misconception: 'bare-value' },
-    { text: fmt(lessCount), misconception: 'bare-value' },
-  ];
+  const distractors = sorted
+    .filter((_, i) => i !== rankIdx)
+    .map(([cat]) => ({ text: cat, misconception: 'wrong-rank' }));
 
-  const correct = { text: fmt(diff), misconception: null };
-  let options = [correct, ...dedupe(correct.text, distractors)].slice(0, 5);
-  options = padWithNearMiss(rng, options, 5, diff, 3);
+  const correct = { text: targetCat, misconception: null };
+  const options = [correct, ...dedupe(targetCat, distractors)];
 
   return {
-    templateId: 'tt2-t2-difference',
+    templateId: 'tt2-t2-ranking',
     stem,
     visual: tallyVisual(rows),
     options,
     correctIndex: 0,
     hintSteps: [
-      `Read both rows off the chart first: ${moreCat} = ?, ${lessCat} = ?`,
-      `${moreCat} is ${fmt(moreCount)} and ${lessCat} is ${fmt(lessCount)}. Now subtract: ${fmt(moreCount)} − ${fmt(lessCount)} = …?`,
+      'Read every row’s count first — gates then strays.',
+      `Now put all the counts in order from highest to lowest, and find which one is ${rankLabel.toLowerCase()}.`,
     ],
     explain: {
       rule: RULE,
-      worked: `${moreCat} = ${fmt(moreCount)}, ${lessCat} = ${fmt(lessCount)}. ${fmt(moreCount)} − ${fmt(lessCount)} = ${fmt(diff)}.`,
-      whyWrong: buildWhyWrong(options),
+      worked: `In order, highest to lowest: ${sorted.map(([c, n]) => `${c} (${fmt(n)})`).join(' > ')}. So ${targetCat} is ${rankLabel.toLowerCase()}.`,
+      whyWrong: (() => {
+        const whyWrong = {};
+        for (const o of options) {
+          if (o.misconception === 'wrong-rank') {
+            const oCount = rows.find((r) => r[0] === o.text)[1];
+            whyWrong[o.text] = `${o.text} was chosen by ${fmt(oCount)} — sort every row’s count from highest to lowest and recount the positions.`;
+          }
+        }
+        return whyWrong;
+      })(),
     },
   };
 }
@@ -489,7 +491,7 @@ function t3MissingCellFromRowTotalNum(rng) {
 // -------- dispatch --------
 
 const T1 = [t1ReadTallyRow, t1WhichCategoryHasCount, t1SingleCellLookup];
-const T2 = [t2GrandTotal, t2Difference, t2MissingCellFromRowTotal];
+const T2 = [t2GrandTotal, t2Ranking, t2MissingCellFromRowTotal];
 const T3 = [t3MultiConditionLookup, t3GrandTotalNum, t3MissingCellFromRowTotalNum];
 
 export function generate(tier, rng) {

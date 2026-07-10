@@ -5,17 +5,16 @@
 // - `cuboid{w,h,d}` isometric box with dimension labels — used to tell a CUBE (all three
 //   dimensions equal) from a CUBOID (not all equal) apart, since the engine only ships one
 //   rectangular-box renderer for both.
-// - `polygrid{rows,cols,shaded:[[r,c],...]}` fraction/area grid — repurposed here to draw a
-//   cube NET as a grid of shaded unit squares (any hexomino layout is renderable, valid net
-//   or not), because the engine's dedicated `net{cubeNetId:1-11}` kind can ONLY render the
-//   11 nets that already fold into a cube (no way to render an invalid one through it) — a
-//   DEVIATION from using `net{...}` directly, needed so "does this fold into a cube?"
-//   questions can show a genuinely invalid layout, not just a guaranteed-valid one.
 // - cone/cylinder/sphere/triangular-prism/square-based-pyramid have NO dedicated 3D solid
 //   diagram kind in the engine at all (only `cuboid` draws a solid). Those five are taught
 //   and tested via plain-English property clues and real-world object matches instead of a
 //   picture — a deliberate, spec-consistent workaround for the same reason shapes2d.js
 //   falls back on side-length labels where the outline renderer can't disambiguate shapes.
+//
+// SPEC_CANON.md audit note: cube-net folding ("does this fold into a cube?") was removed
+// entirely — no Section A spec bullet names nets, and Section C has zero PP1/PP2 citation
+// for a net-folding question anywhere in the canon. Do not re-add net content without a
+// spec bullet or official-paper citation to back it (see docs/SPEC_CANON.md Section D).
 import { rngInt, pick, shuffle } from '../rng.js';
 
 const RULE = 'Faces are flat, edges are where faces meet, vertices are the corners. Count in that order.';
@@ -124,6 +123,14 @@ const PRISM_WHY = {
 };
 
 const PROP_LABEL = { f: 'faces', e: 'edges', v: 'vertices' };
+
+// The only two genuine FEV ties among the 7 named solids (cube/cuboid tie on ALL three
+// counts and are disambiguated by appearance/diagram instead — see
+// t1NameSolidCuboidDiagram — not by a numeric FEV clue, so that pair is excluded here).
+const TIE_PAIRS = [
+  { a: 'square-pyramid', b: 'triangular-prism', tieProp: 'f' }, // both 5 faces
+  { a: 'cylinder', b: 'sphere', tieProp: 'v' }, // both 0 vertices
+];
 
 // -------- T1 templates --------
 
@@ -349,39 +356,45 @@ function t2PrismOrNot(rng) {
   };
 }
 
-const FACE_SHAPE_ITEMS = [
-  { stem: 'What shape are ALL 6 faces of a cube?', correct: 'Square' },
-  { stem: 'What shape are the two identical end faces of a triangular prism?', correct: 'Triangle' },
-  { stem: 'What shape is the base of a square-based pyramid?', correct: 'Square' },
-  { stem: 'What shape are the four sloping (slanted) faces of a square-based pyramid?', correct: 'Triangle' },
-  { stem: 'What shape are the flat faces of a cuboid that is NOT a cube?', correct: 'Rectangle' },
-];
-const SHAPE_NAME_POOL = ['Square', 'Triangle', 'Rectangle', 'Pentagon', 'Circle', 'Hexagon'];
-
-function t2FaceShapeIdentify(rng) {
-  const item = pick(rng, FACE_SHAPE_ITEMS);
-  const others = shuffle(rng, SHAPE_NAME_POOL.filter((s) => s !== item.correct)).slice(0, 4);
-  const distractors = others.map((s) => ({ text: s, misconception: 'wrong-face-shape' }));
-  const correct = { text: item.correct, misconception: null };
+function t2TwoClueTieBreak(rng) {
+  const pair = pick(rng, TIE_PAIRS);
+  const answerKey = pick(rng, [pair.a, pair.b]);
+  const otherKey = answerKey === pair.a ? pair.b : pair.a;
+  const tieProp = pair.tieProp;
+  const distProp = shuffle(rng, ['f', 'e', 'v'].filter((p) => p !== tieProp))[0];
+  const tieLabel = PROP_LABEL[tieProp];
+  const distLabel = PROP_LABEL[distProp];
+  const tieVal = FEV[answerKey][tieProp];
+  const distVal = FEV[answerKey][distProp];
+  const stem = `A solid has exactly ${tieVal} ${tieLabel.toUpperCase()} and ${distVal} ${distLabel.toUpperCase()}. Which solid is it?`;
+  const correct = { text: DISPLAY[answerKey], misconception: null };
+  const tieDistractor = { text: DISPLAY[otherKey], misconception: 'tie-prop-only' };
+  const others = shuffle(rng, SOLIDS.filter((s) => s !== answerKey && s !== otherKey)).slice(0, 3);
+  const distractors = [tieDistractor, ...others.map((k) => ({ text: DISPLAY[k], misconception: `wrong-solid-${k}` }))];
   const options = makeMcq(correct, distractors, 4, { min: 5 });
 
   const whyWrong = {};
   for (const o of options) {
-    if (o.misconception === 'wrong-face-shape') whyWrong[o.text] = `That's not right — re-check the faces described; they are ${item.correct.toLowerCase()}s, not ${o.text.toLowerCase()}s.`;
+    if (o.misconception === 'tie-prop-only') {
+      whyWrong[o.text] = `A ${DISPLAY[otherKey].toLowerCase()} does have ${tieVal} ${tieLabel} too — but it has ${FEV[otherKey][distProp]} ${distLabel}, not ${distVal}, so the second clue rules it out.`;
+    } else if (o.misconception && o.misconception.startsWith('wrong-solid-')) {
+      const wrongKey = o.misconception.slice('wrong-solid-'.length);
+      whyWrong[o.text] = `A ${DISPLAY[wrongKey].toLowerCase()} has ${FEV[wrongKey][tieProp]} ${tieLabel} and ${FEV[wrongKey][distProp]} ${distLabel} — neither number matches.`;
+    }
   }
 
   return {
-    templateId: 'shapes3d-t2-face-shape',
-    stem: item.stem,
+    templateId: 'shapes3d-t2-two-clue-tiebreak',
+    stem,
     options,
     correctIndex: 0,
     hintSteps: [
-      'Picture the solid named in the question, and focus only on the faces described.',
-      `Is that face flat with 3 straight sides, 4 straight sides, or something else?`,
+      `A ${DISPLAY[answerKey].toLowerCase()} AND a ${DISPLAY[otherKey].toLowerCase()} share the same ${tieLabel} count — that clue alone can't tell them apart.`,
+      `Check the second clue: ${distVal} ${distLabel}. Which of the two matches?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${item.stem.replace(/\?$/, '')} → ${item.correct}.`,
+      worked: `Both solids have ${tieVal} ${tieLabel}, but only the ${DISPLAY[answerKey].toLowerCase()} also has ${distVal} ${distLabel} — that second clue proves it.`,
       whyWrong,
     },
   };
@@ -464,103 +477,32 @@ function t3NumFEV(rng) {
   };
 }
 
-function t3TotalFEVTwoSolids(rng) {
-  const keyA = pick(rng, SOLIDS);
-  let keyB = pick(rng, SOLIDS);
-  if (keyB === keyA) keyB = SOLIDS[(SOLIDS.indexOf(keyA) + 1) % SOLIDS.length];
-  const prop = pick(rng, ['f', 'e', 'v']);
-  const propLabel = PROP_LABEL[prop];
-  const valA = FEV[keyA][prop];
-  const valB = FEV[keyB][prop];
-  const total = valA + valB;
-  const stem = `A ${DISPLAY[keyA].toLowerCase()} has ${valA} ${propLabel}. A ${DISPLAY[keyB].toLowerCase()} has ${valB} ${propLabel}. What is the TOTAL number of ${propLabel} if you had one of each?`;
+function t3TwoClueThirdProperty(rng) {
+  const pair = pick(rng, TIE_PAIRS);
+  const answerKey = pick(rng, [pair.a, pair.b]);
+  const otherKey = answerKey === pair.a ? pair.b : pair.a;
+  const clue1 = pair.tieProp;
+  const remaining = ['f', 'e', 'v'].filter((p) => p !== clue1);
+  const clue2 = pick(rng, remaining);
+  const askProp = remaining.find((p) => p !== clue2);
+  const clue1Val = FEV[answerKey][clue1];
+  const clue2Val = FEV[answerKey][clue2];
+  const askVal = FEV[answerKey][askProp];
+  const stem = `A solid has ${clue1Val} ${PROP_LABEL[clue1]} and ${clue2Val} ${PROP_LABEL[clue2]}. How many ${PROP_LABEL[askProp]} does it have?`;
 
   return {
-    templateId: 'shapes3d-t3-total-fev',
+    templateId: 'shapes3d-t3-two-clue-third',
     stem,
     format: 'num',
-    accept: [String(total), fmt(total)],
+    accept: [String(askVal), fmt(askVal)],
     hintSteps: [
-      `You already have both counts — ${valA} and ${valB}. This is just one add-up step.`,
-      `${valA} + ${valB} = ?`,
+      `Only one solid in the Solid Family has ${clue1Val} ${PROP_LABEL[clue1]} AND ${clue2Val} ${PROP_LABEL[clue2]} — which one?`,
+      `Once you know it's a ${DISPLAY[answerKey].toLowerCase()}, how many ${PROP_LABEL[askProp]} does it have?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${valA} + ${valB} = ${total}.`,
+      worked: `${clue1Val} ${PROP_LABEL[clue1]} and ${clue2Val} ${PROP_LABEL[clue2]} together can only be a ${DISPLAY[answerKey].toLowerCase()} — a ${DISPLAY[otherKey].toLowerCase()} would have ${FEV[otherKey][askProp]} ${PROP_LABEL[askProp]} instead — so the answer is ${askVal}.`,
       whyWrong: {},
-    },
-  };
-}
-
-// Trusted valid cube-net layouts (a "T" shape, an "L"-ish shape, and the classic "+" cross
-// shape — all genuinely fold into a closed cube) plus two well-established INVALID hexomino
-// layouts (a straight line of 6, and a solid 2×3 block) that provably do NOT fold into a
-// cube (both are long-standing, uncontested facts about the 11 cube nets — a straight strip
-// wraps around and two squares land on the same face; a solid block isn't one of the 11 at
-// all). Coordinates are [row, col] pairs, rendered via the documented `polygrid` kind.
-const VALID_NETS = [
-  { rows: 4, cols: 3, shaded: [[0, 0], [0, 1], [0, 2], [1, 1], [2, 1], [3, 1]] }, // "T"
-  { rows: 4, cols: 3, shaded: [[0, 1], [0, 2], [1, 0], [1, 1], [2, 1], [3, 1]] }, // "L"-ish
-  { rows: 4, cols: 3, shaded: [[0, 1], [1, 0], [1, 1], [1, 2], [2, 1], [3, 1]] }, // "+" cross
-];
-const INVALID_NETS = [
-  { rows: 1, cols: 6, shaded: [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5]] }, // straight line
-  { rows: 2, cols: 3, shaded: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]] }, // solid block
-];
-const BOTH_SAFE_NET_WRONG = [
-  { text: 'No — it only has 5 squares, not 6.', misconception: 'miscounted-squares-low' },
-  { text: 'No — this shape has more than 6 squares.', misconception: 'miscounted-squares-high' },
-];
-const VALID_ONLY_NET_WRONG = [
-  { text: 'No — squares must be joined in a single straight line to fold into a cube.', misconception: 'over-rigid-line-myth' },
-  { text: 'No — every valid cube net has to be shaped exactly like a plus sign (+).', misconception: 'over-rigid-plus-myth' },
-];
-const INVALID_ONLY_NET_WRONG = [
-  { text: 'Yes — any shape made of exactly 6 squares will fold into a cube.', misconception: 'any-six-squares-myth' },
-  { text: 'Yes — as long as the squares all touch edge-to-edge, it will fold into a cube.', misconception: 'edge-touch-myth' },
-];
-
-function t3NetValidity(rng) {
-  const isValid = rng() < 0.5;
-  const net = isValid ? pick(rng, VALID_NETS) : pick(rng, INVALID_NETS);
-  const stem = 'Here is a net made of 6 squares joined edge-to-edge. If you cut it out and folded along every line, would it make a closed cube?';
-  const visual = { kind: 'polygrid', rows: net.rows, cols: net.cols, shaded: net.shaded };
-
-  const correctText = isValid
-    ? 'Yes — it folds into a closed cube with no gaps or overlaps.'
-    : 'No — two of the squares overlap when folded, leaving a face bare.';
-  const correct = { text: correctText, misconception: null };
-  const branchWrong = isValid ? VALID_ONLY_NET_WRONG : INVALID_ONLY_NET_WRONG;
-  const options = [correct, ...BOTH_SAFE_NET_WRONG, ...branchWrong];
-
-  const whyWrong = {
-    'No — it only has 5 squares, not 6.': 'Count again — there are exactly 6 squares shown here.',
-    'No — this shape has more than 6 squares.': 'Count again — there are exactly 6 squares shown, not more.',
-  };
-  if (isValid) {
-    whyWrong['No — squares must be joined in a single straight line to fold into a cube.'] = 'Not true — this exact arrangement isn\'t a straight line, and it still folds into a perfect cube.';
-    whyWrong['No — every valid cube net has to be shaped exactly like a plus sign (+).'] = 'Not true — there are 11 different net shapes that fold into a cube, not just one.';
-  } else {
-    whyWrong['Yes — any shape made of exactly 6 squares will fold into a cube.'] = 'Not true — this exact arrangement proves it: 6 squares, edge-to-edge, and it still fails to fold into a cube.';
-    whyWrong['Yes — as long as the squares all touch edge-to-edge, it will fold into a cube.'] = 'Edge-to-edge joining isn\'t enough on its own — the exact arrangement matters, and this one fails.';
-  }
-
-  return {
-    templateId: 'shapes3d-t3-net-validity',
-    stem,
-    visual,
-    options,
-    correctIndex: 0,
-    hintSteps: [
-      'Count the squares — a cube net always uses exactly 6, one for each face.',
-      'Now trace the fold in your head: does every square land on its own face, or do two of them crash into each other?',
-    ],
-    explain: {
-      rule: RULE,
-      worked: isValid
-        ? 'This exact arrangement is one of the 11 nets that always fold into a closed cube — every square becomes one face, with no overlaps and no gaps.'
-        : 'This exact arrangement is NOT one of the 11 nets that fold into a cube — when folded, two of the squares land on the same face, leaving another face bare.',
-      whyWrong,
     },
   };
 }
@@ -568,11 +510,14 @@ function t3NetValidity(rng) {
 // -------- dispatch --------
 
 const T1 = [t1NameSolidCuboidDiagram, t1NameSolidFromDescription, t1RealWorldObjectMatch];
-const T2 = [t2FEVCountForSolid, t2PrismOrNot, t2FaceShapeIdentify];
-// Fix (IMPORTANT, duplicate template): t3NumFEV was listed twice, doubling its selection
-// probability and cutting T3 variety from 5 intended templates down to 4 real ones. Rather than
-// weight it 2x, draw uniformly from the 4 genuinely distinct templates that exist today.
-const T3 = [t3NumFEV, t3TotalFEVTwoSolids, t3WhichSolidHasProperty, t3NetValidity];
+const T2 = [t2FEVCountForSolid, t2PrismOrNot, t2TwoClueTieBreak];
+// SPEC_CANON.md audit (see docs/SPEC_CANON.md bullet 38 + PP2 Q55): two prior T3 templates
+// were removed as unsupported — t3TotalFEVTwoSolids (summed FEV across two DIFFERENT
+// solids, an arithmetic-combination format PP2 Q55 never evidences — it shows only a
+// single solid's count) and t3NetValidity (cube-net folding, a concept absent from every
+// spec bullet). t3TwoClueThirdProperty replaces them: still single-solid FEV recall, just
+// reached via two given clues instead of one, matching the same PP2 Q55-evidenced style.
+const T3 = [t3NumFEV, t3WhichSolidHasProperty, t3TwoClueThirdProperty];
 
 export function generate(tier, rng) {
   let pool;

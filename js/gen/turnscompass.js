@@ -27,17 +27,11 @@ const TURN_SIZES = [
   { name: 'three-quarter turn', steps: 6, deg: 270 },
 ];
 
-function fmt(n) {
-  return Math.round(n).toLocaleString('en-GB');
-}
 function mod8(n) {
   return ((n % 8) + 8) % 8;
 }
 function pointAt(idx) {
   return POINTS[mod8(idx)];
-}
-function capSize(sizeName) {
-  return `A ${sizeName}`;
 }
 function signedSteps(turn) {
   return turn.direction === 'clockwise' ? turn.size.steps : -turn.size.steps;
@@ -80,11 +74,6 @@ const WHY_POINT = {
   'plausible-other-point': 'Walk round the compass one point at a time from the start — that’s not where this turn lands.',
   'skipped-one': 'That’s TWO points along, not one — check you moved by only a single point.',
   opposite: 'That’s the point directly OPPOSITE — not simply the next one round.',
-  'forgot-invert': 'That applies the SAME direction again — but to find the START you must undo the turn by going the OPPOSITE way.',
-  'stopped-early': 'That’s only after the FIRST turn — the second turn still has to happen.',
-  'ignored-direction-change': 'That uses the wrong direction for the second turn — each turn keeps its OWN clockwise or anticlockwise direction.',
-  'near-miss': 'Check each turn’s size carefully — that’s one compass point out from the real answer.',
-  'both-flipped': 'That reverses BOTH turns’ directions — only reverse a turn when working backwards from the end.',
 };
 
 function attachWhyWrong(options) {
@@ -97,7 +86,7 @@ function attachWhyWrong(options) {
   return whyWrong;
 }
 
-// -------- T1 templates (quarter-turns from N/E/S/W only, clockwise only) --------
+// -------- T1 templates (quarter-turns and cardinal-point order, N/E/S/W only, clockwise only) --------
 
 function t1QuarterForward(rng) {
   const startIdx = pick(rng, CARDINAL_IDX);
@@ -130,32 +119,35 @@ function t1QuarterForward(rng) {
   };
 }
 
-function t1TurnSizeFromCardinalPair(rng) {
-  const startIdx = pick(rng, CARDINAL_IDX);
-  const startName = pointAt(startIdx);
-  const endName = pointAt(startIdx + 2);
-
-  const correct = { text: 'A quarter turn clockwise', misconception: null };
+function t1CardinalOrderRecall(rng) {
+  const correct = { text: 'North, East, South, West', misconception: null };
   const candidates = [
-    { text: 'A half turn clockwise', misconception: 'wrong-size-larger' },
-    { text: 'A three-quarter turn clockwise', misconception: 'wrong-size-larger' },
-    { text: 'A quarter turn anticlockwise', misconception: 'wrong-direction' },
+    { text: 'North, West, South, East', misconception: 'wrong-direction' },
+    { text: 'North, South, East, West', misconception: 'plausible-other-point' },
+    { text: 'East, South, West, North', misconception: 'plausible-other-point' },
   ];
-  const options = fillToMin(correct, candidates, 4, rng);
+  const options = shuffle(rng, [...candidates]);
+  options.unshift(correct);
+
+  const whyWrong = {
+    'North, West, South, East': 'That’s the ANTICLOCKWISE order — clockwise goes the other way round.',
+    'North, South, East, West': 'That jumps out of order — clockwise from North goes to East next, not South.',
+    'East, South, West, North': 'That starts from the wrong point — the clockwise cycle is always said starting from North: N-E-S-W.',
+  };
 
   return {
-    templateId: 'turnscompass-t1-turn-size-from-pair',
-    stem: `Wanda turns from facing <b>${startName}</b> to facing <b>${endName}</b> (the short way round, clockwise). What size of turn did she make?`,
+    templateId: 'turnscompass-t1-cardinal-order-recall',
+    stem: 'Which of these lists the four main compass points in the correct CLOCKWISE order, starting from North?',
     options,
     correctIndex: 0,
     hintSteps: [
-      `${startName} and ${endName} are next to each other on the N-E-S-W clockwise cycle.`,
-      'One letter along the cycle is always a quarter turn.',
+      'Remember the mnemonic: "Naughty Elephants Squirt Water".',
+      'N-E-S-W, in that order, going clockwise.',
     ],
     explain: {
       rule: RULE,
-      worked: `${startName} to ${endName} is one letter along, clockwise — that’s always a quarter turn.`,
-      whyWrong: attachWhyWrong(options),
+      worked: 'Clockwise from North: North, East, South, West — "Naughty Elephants Squirt Water".',
+      whyWrong,
     },
   };
 }
@@ -234,49 +226,44 @@ function t2EightPointForward(rng) {
   };
 }
 
-const SIZE_PHRASES = ['A quarter turn', 'A half turn', 'A three-quarter turn'];
-const WHY_SIZE = {
-  'A quarter turn': 'A quarter turn is only 2 points round the compass — count the points between the two directions again.',
-  'A half turn': 'A half turn is 4 points round the compass — check the count again.',
-  'A three-quarter turn': 'A three-quarter turn is 6 points round the compass — check the count again.',
-  'A full turn': 'A full turn brings her back to face the SAME direction she started in — but she ended up facing somewhere new.',
-  'No turn at all': 'She DID end up facing a different direction, so a turn must have happened — count how many points apart the two directions are.',
-};
-
-function t2TurnSizeEightPoint(rng) {
+function t2DegreesForward(rng) {
   const startIdx = rngInt(rng, 0, 7);
   const startName = pointAt(startIdx);
   const turn = randomTurn(rng);
   const endIdx = mod8(startIdx + signedSteps(turn));
   const endName = pointAt(endIdx);
 
-  const correctPhrase = capSize(turn.size.name);
-  const otherSizes = SIZE_PHRASES.filter((p) => p !== correctPhrase);
-  const options = [
-    { text: correctPhrase, misconception: null },
-    ...otherSizes.map((p) => ({ text: p, misconception: 'wrong-size' })),
-    { text: 'A full turn', misconception: 'wrong-size' },
-    { text: 'No turn at all', misconception: 'no-turn-recognised' },
-  ];
-
-  const whyWrong = {};
-  for (const o of options) {
-    if (o.misconception) whyWrong[o.text] = WHY_SIZE[o.text];
+  const wrongDirIdx = mod8(startIdx - signedSteps(turn));
+  const sizeIdx = TURN_SIZES.indexOf(turn.size);
+  const smallerSize = TURN_SIZES[sizeIdx - 1];
+  const largerSize = TURN_SIZES[sizeIdx + 1];
+  const candidates = [{ text: pointAt(wrongDirIdx), misconception: 'wrong-direction' }];
+  if (smallerSize) {
+    const steps = turn.direction === 'clockwise' ? smallerSize.steps : -smallerSize.steps;
+    candidates.push({ text: pointAt(startIdx + steps), misconception: 'wrong-size-smaller' });
   }
+  if (largerSize) {
+    const steps = turn.direction === 'clockwise' ? largerSize.steps : -largerSize.steps;
+    candidates.push({ text: pointAt(startIdx + steps), misconception: 'wrong-size-larger' });
+  }
+  candidates.push({ text: startName, misconception: 'no-turn' });
+
+  const correct = { text: endName, misconception: null };
+  const options = fillToMin(correct, candidates, 5, rng);
 
   return {
-    templateId: 'turnscompass-t2-turn-size-eight-point',
-    stem: `Facing <b>${startName}</b>, Wanda turns <b>${turn.direction}</b> until she is facing <b>${endName}</b>. What size of turn was that?`,
+    templateId: 'turnscompass-t2-degrees-forward',
+    stem: `Wanda is facing <b>${startName}</b>. She turns <b>${turn.size.deg}°</b> ${turn.direction}. Which direction is she facing now?`,
     options,
     correctIndex: 0,
     hintSteps: [
-      `Count how many compass points there are between ${startName} and ${endName}, going ${turn.direction}.`,
-      '2 points = quarter turn, 4 points = half turn, 6 points = three-quarter turn.',
+      '90° = a quarter turn (2 points), 180° = a half turn (4 points), 270° = a three-quarter turn (6 points).',
+      `${turn.size.deg}° ${turn.direction} from ${startName} is ${turn.size.steps} points that way round the compass.`,
     ],
     explain: {
       rule: RULE,
-      worked: `${startName} to ${endName} going ${turn.direction} is ${turn.size.steps} points — a ${turn.size.name}.`,
-      whyWrong,
+      worked: `${turn.size.deg}° is a ${turn.size.name} (${turn.size.steps} points). ${startName} + a ${turn.size.name} ${turn.direction} = ${endName}.`,
+      whyWrong: attachWhyWrong(options),
     },
   };
 }
@@ -314,113 +301,138 @@ function t2NextPointEitherDirection(rng) {
   };
 }
 
-// -------- T3 templates (reverse turns, multi-instruction chains) --------
+// -------- T3 templates (8-point compass, all four turn sizes incl. whole turn) --------
 
-function t3ReverseTurn(rng) {
-  const endIdx = rngInt(rng, 0, 7);
-  const endName = pointAt(endIdx);
-  const turn = randomTurn(rng);
-  // Inverse: undo the stated turn by going the OPPOSITE way from the end.
-  const inverseSteps = turn.direction === 'clockwise' ? -turn.size.steps : turn.size.steps;
-  const startIdx = mod8(endIdx + inverseSteps);
-  const startName = pointAt(startIdx);
+// Bullet 40 names "whole turns" alongside quarter/half/three-quarter, but no template above
+// ever uses one as the CORRECT size — T3 is where the full ¼/½/¾/whole set (and its 90/180/
+// 270/360° equivalents) finally gets exercised together, on the harder 8-point/either-direction
+// board.
+const TURN_SIZES_ALL = [...TURN_SIZES, { name: 'whole turn', steps: 8, deg: 360 }];
 
-  const forgotInvertIdx = mod8(endIdx - inverseSteps); // applied the SAME direction again
-  const sizeIdx = TURN_SIZES.indexOf(turn.size);
-  const altSize = TURN_SIZES[sizeIdx === 0 ? 1 : sizeIdx - 1];
-  const altSteps = turn.direction === 'clockwise' ? -altSize.steps : altSize.steps;
-  const candidates = [
-    { text: pointAt(forgotInvertIdx), misconception: 'forgot-invert' },
-    { text: endName, misconception: 'no-turn' },
-    { text: pointAt(endIdx + altSteps), misconception: 'wrong-size-smaller' },
-  ];
-  const correct = { text: startName, misconception: null };
-  const options = fillToMin(correct, candidates, 5, rng);
-
-  return {
-    templateId: 'turnscompass-t3-reverse-turn',
-    stem: `Wanda ends up facing <b>${endName}</b> after making a <b>${turn.size.name}</b> ${turn.direction}. Which direction was she facing at the START?`,
-    options,
-    correctIndex: 0,
-    hintSteps: [
-      'To find the START, undo the turn: same size, but the OPPOSITE direction.',
-      `Undo a ${turn.size.name} ${turn.direction} by turning ${turn.direction === 'clockwise' ? 'anticlockwise' : 'clockwise'} from ${endName}.`,
-    ],
-    explain: {
-      rule: RULE,
-      worked: `To reverse a ${turn.size.name} ${turn.direction}, turn the SAME size the OPPOSITE way from ${endName}: that gives ${startName}.`,
-      whyWrong: attachWhyWrong(options),
-    },
-  };
-}
-
-function t3ChainTwoTurns(rng) {
+function t3EightPointForwardAllSizes(rng) {
   const startIdx = rngInt(rng, 0, 7);
   const startName = pointAt(startIdx);
-  const turn1 = randomTurn(rng);
-  const turn2 = randomTurn(rng);
-  const idxAfter1 = mod8(startIdx + signedSteps(turn1));
-  const idxAfter2 = mod8(idxAfter1 + signedSteps(turn2));
-  const endName = pointAt(idxAfter2);
+  const size = pick(rng, TURN_SIZES_ALL);
+  const direction = pick(rng, ['clockwise', 'anticlockwise']);
+  const steps = direction === 'clockwise' ? size.steps : -size.steps;
+  const endIdx = mod8(startIdx + steps);
+  const endName = pointAt(endIdx);
 
-  const ignoredDirIdx = mod8(idxAfter1 + (turn1.direction === 'clockwise' ? turn2.size.steps : -turn2.size.steps));
-  const totalSigned = signedSteps(turn1) + signedSteps(turn2);
-  const mirrorIdx = mod8(startIdx - totalSigned);
-
-  const candidates = [
-    { text: pointAt(idxAfter1), misconception: 'stopped-early' },
-    { text: pointAt(ignoredDirIdx), misconception: 'ignored-direction-change' },
-    { text: pointAt(mirrorIdx), misconception: 'both-flipped' },
-    { text: pointAt(idxAfter2 + 1), misconception: 'near-miss' },
-  ];
+  const wrongDirIdx = mod8(startIdx - steps);
+  const sizeIdx = TURN_SIZES_ALL.indexOf(size);
+  const smallerSize = TURN_SIZES_ALL[sizeIdx - 1];
+  const largerSize = TURN_SIZES_ALL[sizeIdx + 1];
+  const candidates = [{ text: pointAt(wrongDirIdx), misconception: 'wrong-direction' }];
+  if (smallerSize) {
+    const s = direction === 'clockwise' ? smallerSize.steps : -smallerSize.steps;
+    candidates.push({ text: pointAt(startIdx + s), misconception: 'wrong-size-smaller' });
+  }
+  if (largerSize) {
+    const s = direction === 'clockwise' ? largerSize.steps : -largerSize.steps;
+    candidates.push({ text: pointAt(startIdx + s), misconception: 'wrong-size-larger' });
+  }
+  candidates.push({ text: startName, misconception: 'no-turn' });
   const correct = { text: endName, misconception: null };
   const options = fillToMin(correct, candidates, 5, rng);
 
   return {
-    templateId: 'turnscompass-t3-chain-two-turns',
-    stem: `Wanda starts facing <b>${startName}</b>. She turns a <b>${turn1.size.name}</b> ${turn1.direction}, then a <b>${turn2.size.name}</b> ${turn2.direction}. Which direction is she facing now?`,
+    templateId: 'turnscompass-t3-eight-point-forward-all-sizes',
+    stem: `Wanda is facing <b>${startName}</b>. She turns a <b>${size.name}</b> ${direction}. Which direction is she facing now?`,
     options,
     correctIndex: 0,
     hintSteps: [
-      `Do ONE turn at a time. First: ${startName} + a ${turn1.size.name} ${turn1.direction} = ?`,
-      `Now take THAT direction and apply the second turn: + a ${turn2.size.name} ${turn2.direction} = ?`,
+      `A quarter turn = 2 points, a half turn = 4 points, a three-quarter turn = 6 points, a whole turn = 8 points (back to start), always ${direction}.`,
+      `From ${startName}, count ${size.steps} points ${direction} round the compass.`,
     ],
     explain: {
       rule: RULE,
-      worked: `${startName} → (${turn1.size.name} ${turn1.direction}) → ${pointAt(idxAfter1)} → (${turn2.size.name} ${turn2.direction}) → ${endName}.`,
+      worked:
+        size.steps === 8
+          ? `A whole turn is 8 points — right the way round the compass — so she ends up facing exactly where she started: ${startName}.`
+          : `${startName} + a ${size.name} ${direction} (${size.steps} points) = ${endName}.`,
       whyWrong: attachWhyWrong(options),
     },
   };
 }
 
-function t3TotalDegreesNumWriteIn(rng) {
-  const turn1 = randomTurn(rng);
-  const turn2 = randomTurn(rng);
-  const total = turn1.size.deg + turn2.size.deg;
+function t3DegreesForward(rng) {
+  const startIdx = rngInt(rng, 0, 7);
+  const startName = pointAt(startIdx);
+  const size = pick(rng, TURN_SIZES_ALL);
+  const direction = pick(rng, ['clockwise', 'anticlockwise']);
+  const steps = direction === 'clockwise' ? size.steps : -size.steps;
+  const endIdx = mod8(startIdx + steps);
+  const endName = pointAt(endIdx);
+
+  const wrongDirIdx = mod8(startIdx - steps);
+  const sizeIdx = TURN_SIZES_ALL.indexOf(size);
+  const smallerSize = TURN_SIZES_ALL[sizeIdx - 1];
+  const largerSize = TURN_SIZES_ALL[sizeIdx + 1];
+  const candidates = [{ text: pointAt(wrongDirIdx), misconception: 'wrong-direction' }];
+  if (smallerSize) {
+    const s = direction === 'clockwise' ? smallerSize.steps : -smallerSize.steps;
+    candidates.push({ text: pointAt(startIdx + s), misconception: 'wrong-size-smaller' });
+  }
+  if (largerSize) {
+    const s = direction === 'clockwise' ? largerSize.steps : -largerSize.steps;
+    candidates.push({ text: pointAt(startIdx + s), misconception: 'wrong-size-larger' });
+  }
+  candidates.push({ text: startName, misconception: 'no-turn' });
+  const correct = { text: endName, misconception: null };
+  const options = fillToMin(correct, candidates, 5, rng);
 
   return {
-    templateId: 'turnscompass-t3-total-degrees-numwritein',
-    stem: `Wanda makes a <b>${turn1.size.name}</b> ${turn1.direction}, then a <b>${turn2.size.name}</b> ${turn2.direction}. What is the TOTAL number of degrees in her two turns, added together?`,
-    format: 'num',
-    accept: [String(total), fmt(total)],
-    unit: '°',
+    templateId: 'turnscompass-t3-degrees-forward',
+    stem: `Wanda is facing <b>${startName}</b>. She turns <b>${size.deg}°</b> ${direction}. Which direction is she facing now?`,
+    options,
+    correctIndex: 0,
     hintSteps: [
-      'Every turn has a fixed number of degrees: quarter = 90°, half = 180°, three-quarter = 270°.',
-      `${turn1.size.name} = ${turn1.size.deg}°. ${turn2.size.name} = ${turn2.size.deg}°. Add them.`,
+      '90° = a quarter turn (2 points), 180° = a half turn (4 points), 270° = a three-quarter turn (6 points), 360° = a whole turn (8 points).',
+      `${size.deg}° ${direction} from ${startName} is ${size.steps} points that way round the compass.`,
     ],
     explain: {
       rule: RULE,
-      worked: `${turn1.size.name} = ${turn1.size.deg}°. ${turn2.size.name} = ${turn2.size.deg}°. ${turn1.size.deg} + ${turn2.size.deg} = ${total}°.`,
-      whyWrong: {},
+      worked: `${size.deg}° is a ${size.name} (${size.steps} points). ${startName} + a ${size.name} ${direction} = ${endName}.`,
+      whyWrong: attachWhyWrong(options),
+    },
+  };
+}
+
+function t3WholeTurnEitherDirection(rng) {
+  const startIdx = rngInt(rng, 0, 7);
+  const startName = pointAt(startIdx);
+  const direction = pick(rng, ['clockwise', 'anticlockwise']);
+
+  const correct = { text: startName, misconception: null };
+  const candidates = [
+    { text: pointAt(startIdx + 4), misconception: 'opposite' },
+    { text: pointAt(startIdx + 2), misconception: 'wrong-size-smaller' },
+    { text: pointAt(startIdx - 2), misconception: 'wrong-size-smaller' },
+  ];
+  const options = fillToMin(correct, candidates, 5, rng);
+
+  return {
+    templateId: 'turnscompass-t3-whole-turn-either-direction',
+    stem: `Wanda is facing <b>${startName}</b>. She makes a <b>whole turn</b> ${direction}. Which direction is she facing now?`,
+    options,
+    correctIndex: 0,
+    hintSteps: [
+      'A whole turn is all 8 points of the compass — right the way round.',
+      `That always brings you back to face exactly where you started: ${startName}.`,
+    ],
+    explain: {
+      rule: RULE,
+      worked: `A whole turn (360°, 8 points) always ends facing the SAME direction you started in — ${startName} — whichever way you turn.`,
+      whyWrong: attachWhyWrong(options),
     },
   };
 }
 
 // -------- dispatch --------
 
-const T1 = [t1QuarterForward, t1TurnSizeFromCardinalPair, t1NextClockwiseCardinal];
-const T2 = [t2EightPointForward, t2TurnSizeEightPoint, t2NextPointEitherDirection];
-const T3 = [t3ReverseTurn, t3ChainTwoTurns, t3TotalDegreesNumWriteIn];
+const T1 = [t1QuarterForward, t1CardinalOrderRecall, t1NextClockwiseCardinal];
+const T2 = [t2EightPointForward, t2DegreesForward, t2NextPointEitherDirection];
+const T3 = [t3EightPointForwardAllSizes, t3DegreesForward, t3WholeTurnEitherDirection];
 
 export function generate(tier, rng) {
   let pool;

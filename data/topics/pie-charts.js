@@ -14,15 +14,15 @@ export default {
     rarity: 'rare',
     image: 'assets/monsters/pie-face.png',
     bio: 'Pie-Face bakes exactly one pie a day and guards every last slice of it with his life — which is only fair, since his pie is precisely everyone who visited the bakery that day, not a crumb more. Ask him for “half the pie” and he will cut you exactly half of everyone. No arguments.',
-    factSneak: 'The whole pie = everyone = 360°. Half the pie = half of everyone.',
+    factSneak: 'The whole pie = everyone. Half the pie = half of everyone.',
   },
 
   weapon: {
     id: 'slice-splitter',
     name: 'The Slice Splitter',
     tagline: 'Read any pie chart like a seasoned baker — slice size tells the whole story.',
-    rule: 'The whole pie = everything = 360°. Half the pie = half of everything.',
-    example: '36 pupils were asked their favourite pet. The whole pie is all 36 of them. Half the pie (180°) = half of 36 = <b>18</b> pupils.',
+    rule: 'The whole pie = everything. Half the pie = half of everything.',
+    example: '36 pupils were asked their favourite pet. The whole pie is all 36 of them. Half the pie = half of 36 = <b>18</b> pupils.',
   },
 
   lesson: [
@@ -64,7 +64,7 @@ export default {
           'The biggest slice belongs to Dog. Biggest slice = most popular answer.',
         ],
         explain: {
-          rule: 'The whole pie = everything = 360°. Half the pie = half of everything.',
+          rule: 'The whole pie = everything. Half the pie = half of everything.',
           worked: 'Dog’s slice is the biggest one on the pie — bigger slice always means more pupils chose it. Dog is the most popular pet.',
           whyWrong: {
             'Cat': 'Cat’s slice is the second-biggest — bigger than Fish and Rabbit, but smaller than Dog.',
@@ -89,7 +89,7 @@ export default {
 </div>
 <p>The question says HALF the pie chose Football. Half of the pie means <b>half of the 40 pupils</b> — not half of 100, not half of some other number Pie-Face never mentioned. Half of 40 = <b>20</b> pupils chose Football.</p>
 <p>Swimming is a QUARTER of the pie — a quarter of 40 = <b>10</b> pupils. That leaves 10 pupils split between Athletics (6) and Rugby (4), and 20 + 10 + 6 + 4 = 40. Every slice comes from the SAME whole.</p>
-<div class="law-scroll">📜 The whole pie = everything = 360°. Half the pie = half of everything.</div>`,
+<div class="law-scroll">📜 The whole pie = everything. Half the pie = half of everything.</div>`,
     },
     {
       type: 'try',
@@ -109,7 +109,7 @@ export default {
           '40 ÷ 4 = …?',
         ],
         explain: {
-          rule: 'The whole pie = everything = 360°. Half the pie = half of everything.',
+          rule: 'The whole pie = everything. Half the pie = half of everything.',
           worked: 'A quarter of the pie = a quarter of 40. 40 ÷ 4 = 10 pupils chose Swimming.',
           whyWrong: {
             '20': 'That’s HALF of 40 — but the question says a QUARTER, which is a smaller slice than half.',
@@ -122,45 +122,42 @@ export default {
     },
     {
       type: 'show',
-      title: 'The Angle Trap: 360, Not 100',
-      html: `<p>Here is the trap that catches heroes who’ve just learned percentages: a pie chart’s slices always add up to <b>360°</b> (the degrees in a full circle), NOT 100. Mixing those two up is the single most common pie-chart mistake in the whole exam.</p>
-<p>Pie-Face asked <b>36 pupils</b> their favourite eco-activity. Watch how each slice’s ANGLE is worked out from the frequency table:</p>
+      title: 'Percentages On The Pie',
+      html: `<p>Here is another way Pie-Face labels his pies: instead of writing the headcount on each slice, sometimes he writes a <b>percentage</b>. Mixing up the percentage with the actual number of pupils is the single most common pie-chart mistake in the whole exam.</p>
+<p>Pie-Face asked <b>200 pupils</b> their favourite school subject. Watch how each slice’s PERCENTAGE turns into a real headcount:</p>
 <table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:17px;text-align:center;">
   <thead>
     <tr style="background:var(--swamp-deep);color:var(--gold);">
-      <th style="padding:8px;border-radius:10px 0 0 0;">Activity</th><th style="padding:8px;">Pupils</th><th style="padding:8px;border-radius:0 10px 0 0;">Angle</th>
+      <th style="padding:8px;border-radius:10px 0 0 0;">Subject</th><th style="padding:8px;">Percentage</th><th style="padding:8px;border-radius:0 10px 0 0;">Pupils</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="background:rgba(0,0,0,.04);"><td style="padding:7px;">Recycling</td><td style="padding:7px;">18</td><td style="padding:7px;">18 ÷ 36 × 360 = <b>180°</b></td></tr>
-    <tr><td style="padding:7px;">Litter-picking</td><td style="padding:7px;">9</td><td style="padding:7px;">9 ÷ 36 × 360 = <b>90°</b></td></tr>
-    <tr style="background:rgba(0,0,0,.04);"><td style="padding:7px;">Composting</td><td style="padding:7px;">6</td><td style="padding:7px;">6 ÷ 36 × 360 = <b>60°</b></td></tr>
-    <tr><td style="padding:7px;">Cycling</td><td style="padding:7px;">3</td><td style="padding:7px;">3 ÷ 36 × 360 = <b>30°</b></td></tr>
+    <tr style="background:rgba(0,0,0,.04);"><td style="padding:7px;">Maths</td><td style="padding:7px;">50%</td><td style="padding:7px;">0.5 × 200 = <b>100</b></td></tr>
+    <tr><td style="padding:7px;">English</td><td style="padding:7px;">25%</td><td style="padding:7px;">0.25 × 200 = <b>50</b></td></tr>
+    <tr style="background:rgba(0,0,0,.04);"><td style="padding:7px;">Art</td><td style="padding:7px;">15%</td><td style="padding:7px;">0.15 × 200 = <b>30</b></td></tr>
+    <tr><td style="padding:7px;">PE</td><td style="padding:7px;">10%</td><td style="padding:7px;">0.10 × 200 = <b>20</b></td></tr>
   </tbody>
 </table>
-<p>Check it: 180 + 90 + 60 + 30 = <b>360</b>. Every time. If your angles don’t add up to 360, something slipped.</p>
-<div class="law-scroll">📜 Divide the slice’s count by the total, then multiply by 360° — that’s the angle.</div>
-<p>One more warning from Pie-Face himself: NEVER compare slices from <b>two different pies</b> just by looking at their size or percentage. Ten schoolmates walking to school might be a tiny sliver of a survey of 200 pupils, but a HUGE slice of a survey of just 20. Same 10 people, wildly different-looking slice — because the totals are different. Always check the totals first.</p>
-<div class="law-scroll">📜 Never compare pie slices from different surveys by size alone — always check the TOTAL each pie represents first.</div>`,
+<p>Check it: 50 + 25 + 15 + 10 = <b>100</b>. Every time. A pie chart’s percentages always add up to 100%, not the headcount. If your slice percentages don’t add up to 100, something slipped.</p>
+<div class="law-scroll">📜 To turn a percentage into a headcount: change the percentage to a decimal (÷100), then multiply by the total.</div>`,
     },
     {
       type: 'talk',
-      text: 'This is the trick that wins you marks under exam pressure, o mighty stinker: whatever the question shows you — a pie picture, a table of numbers, a labelled angle — it is ALWAYS the same whole pie underneath. Find the total, find the fraction, and the Slice Splitter does the rest. 360 is the pie’s only true size. Never 100. Never “about a lot”. Always 360.',
+      text: 'This is the trick that wins you marks under exam pressure, o mighty stinker: whatever the question shows you — a pie picture, a table of numbers, or a labelled percentage — it is ALWAYS the same whole pie underneath. Find the total, find the fraction (or the percentage), and the Slice Splitter does the rest.',
     },
     {
       type: 'try',
       q: {
         id: 'pie-try-3', topicId: 'pie-charts', tier: 3, format: 'num',
-        stem: '36 pupils were asked their favourite eco-activity. <b>18</b> of them chose Recycling. What is the angle for Recycling on the pie chart?',
-        unit: '°',
-        accept: ['180'],
+        stem: '200 pupils were asked their favourite school subject. Maths is shown as <b>50%</b> of the pie chart. How many pupils chose Maths?',
+        accept: ['100'],
         hintSteps: [
-          'Divide the Recycling count by the total number of pupils: 18 ÷ 36.',
-          'Now multiply that answer by 360.',
+          'Turn 50% into a decimal: 50 ÷ 100 = 0.5.',
+          'Now multiply that decimal by the total: 0.5 × 200.',
         ],
         explain: {
-          rule: 'Divide the slice’s count by the total, then multiply by 360° — that’s the angle.',
-          worked: '18 ÷ 36 = 0.5. 0.5 × 360 = 180°.',
+          rule: 'To turn a percentage into a headcount: change the percentage to a decimal (÷100), then multiply by the total.',
+          worked: '50 ÷ 100 = 0.5. 0.5 × 200 = 100.',
           whyWrong: {},
         },
       },
@@ -172,9 +169,9 @@ export default {
     'For “most popular” or “least popular”, just LOOK at the slices — the biggest slice is the most popular answer, the smallest is the least. No calculation needed.',
     'The whole pie is EVERYONE who was actually asked — whatever total the question gives you. Never assume it means 100 people.',
     '“Half the pie” = half of the TOTAL. “A quarter of the pie” = a quarter of the TOTAL. Turn the fraction word into a division: half → ÷2, quarter → ÷4.',
-    'A full pie chart is always 360° in total, never 100. If your slice angles don’t add up to 360, a slip crept in somewhere.',
-    'To find one slice’s angle: divide that item’s count by the total, then multiply by 360°. 18 out of 36 → 18 ÷ 36 × 360 = 180°.',
-    'To go backwards from an angle to a count: divide the angle by 360, then multiply by the total.',
-    'Never compare slices from TWO DIFFERENT pie charts by size or percentage alone — a small percentage of a huge survey can be more actual people than a big percentage of a tiny one. Always check the totals first.',
+    'A pie chart’s percentages always add up to 100%, not the headcount. If your slice percentages don’t add up to 100, a slip crept in somewhere.',
+    'To turn a percentage into a headcount: change the percentage to a decimal (÷100), then multiply by the total. 50% of 200 → 0.5 × 200 = 100.',
+    'To go backwards from a headcount to a percentage: divide the count by the total, then multiply by 100.',
+    'A pie chart, a table and a list of percentages can all describe the exact SAME pupils — whichever one the question shows you, find the total first, then work out the fraction or percentage from there.',
   ],
 };

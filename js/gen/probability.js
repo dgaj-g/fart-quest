@@ -276,10 +276,10 @@ function t2DiceChanceOutOfSix(rng) {
   };
 }
 
-function buildSpinnerDistribution(rng) {
+function buildBagDistribution(rng) {
   const k = rngInt(rng, 2, 4);
   const colors = shuffle(rng, COLOR_POOL).slice(0, k);
-  // Keep total sectors comfortably >= 6 so the "X out of N" distractor pool (0..N minus the
+  // Keep total counters comfortably >= 6 so the "X out of N" distractor pool (0..N minus the
   // correct value) always has >= 4 distinct wrong values available, even after complement/
   // miscount collisions are deduped.
   const n = k + rngInt(rng, 4, 6);
@@ -291,13 +291,13 @@ function buildSpinnerDistribution(rng) {
     counts[c] += 1;
     remaining -= 1;
   }
-  let sectors = [];
-  colors.forEach((c) => { sectors = sectors.concat(Array(counts[c]).fill(c)); });
-  sectors = shuffle(rng, sectors);
-  return { sectors, counts, colors, n };
+  let counters = [];
+  colors.forEach((c) => { counters = counters.concat(Array(counts[c]).fill(c)); });
+  counters = shuffle(rng, counters);
+  return { counters, counts, colors, n };
 }
 
-function spinnerChanceOptions(rng, correctVal, n, wrongColourCount) {
+function bagChanceOptions(rng, correctVal, n, wrongColourCount) {
   const seen = new Set([`${correctVal} out of ${n}`]);
   const distractors = [];
   function addD(val, misconception) {
@@ -319,73 +319,71 @@ function spinnerChanceOptions(rng, correctVal, n, wrongColourCount) {
   return distractors.slice(0, 4);
 }
 
-function t2SpinnerColourChance(rng) {
-  const dist = buildSpinnerDistribution(rng);
+function t2BagColourChance(rng) {
+  const dist = buildBagDistribution(rng);
   const target = pick(rng, dist.colors);
   const r = dist.counts[target];
   const { n } = dist;
   const otherColor = dist.colors.find((c) => c !== target && dist.counts[c] !== r);
-  const distractors = spinnerChanceOptions(rng, r, n, otherColor ? dist.counts[otherColor] : undefined);
+  const distractors = bagChanceOptions(rng, r, n, otherColor ? dist.counts[otherColor] : undefined);
   const raw = [{ text: `${r} out of ${n}`, misconception: null }, ...distractors];
   const { options, correctIndex } = shuffleFindCorrect(rng, raw);
 
   const whyWrong = {};
   for (const o of options) {
-    if (o.misconception === 'complement-swap') whyWrong[o.text] = `That’s the chance of NOT landing on ${target} — you’ve swapped wanted and not-wanted.`;
-    else if (o.misconception === 'wrong-colour-count') whyWrong[o.text] = `That’s the count for a DIFFERENT colour — recount just the ${target} sectors.`;
-    else if (o.misconception === 'miscount') whyWrong[o.text] = `Recount the ${target} sectors on the spinner — that number is off.`;
-    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = `Recount the ${target} sectors out of the ${n} total — that count is off.`;
+    if (o.misconception === 'complement-swap') whyWrong[o.text] = `That’s the chance of NOT picking ${target} — you’ve swapped wanted and not-wanted.`;
+    else if (o.misconception === 'wrong-colour-count') whyWrong[o.text] = `That’s the count for a DIFFERENT colour — recount just the ${target} counters.`;
+    else if (o.misconception === 'miscount') whyWrong[o.text] = `Recount the ${target} counters in the bag — that number is off.`;
+    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = `Recount the ${target} counters out of the ${n} total — that count is off.`;
   }
 
   return {
-    templateId: 'prob-t2-spinner-colour',
-    stem: `This spinner has ${n} equal sectors. What is the chance of landing on <b>${target}</b>?`,
-    visual: { kind: 'spinner', sectors: dist.sectors },
+    templateId: 'prob-t2-bag-colour',
+    stem: `A bag has ${n} counters. What is the chance of picking a <b>${target}</b> counter?`,
     options,
     correctIndex,
     hintSteps: [
-      `Count how many of the ${n} sectors are ${target}.`,
+      `Count how many of the ${n} counters are ${target}.`,
       `Write it as "wanted out of total" — that many out of ${n}.`,
     ],
     explain: {
       rule: RULE,
-      worked: `${r} of the ${n} sectors are ${target} — that’s ${r} out of ${n}.`,
+      worked: `${r} of the ${n} counters are ${target} — that’s ${r} out of ${n}.`,
       whyWrong,
     },
   };
 }
 
-function t2SpinnerNotColourChance(rng) {
-  const dist = buildSpinnerDistribution(rng);
+function t2BagNotColourChance(rng) {
+  const dist = buildBagDistribution(rng);
   const target = pick(rng, dist.colors);
   const r = dist.counts[target];
   const { n } = dist;
   const notR = n - r;
-  const distractors = spinnerChanceOptions(rng, notR, n, r);
+  const distractors = bagChanceOptions(rng, notR, n, r);
   const raw = [{ text: `${notR} out of ${n}`, misconception: null }, ...distractors];
   const { options, correctIndex } = shuffleFindCorrect(rng, raw);
 
   const whyWrong = {};
   for (const o of options) {
-    if (o.misconception === 'complement-swap') whyWrong[o.text] = `That’s the chance OF landing on ${target}, not the chance of missing it — swap it round.`;
-    else if (o.misconception === 'wrong-colour-count') whyWrong[o.text] = `That’s just the count of ${target} sectors — take it AWAY from the total instead.`;
-    else if (o.misconception === 'miscount') whyWrong[o.text] = `Recount the sectors that are NOT ${target} — that number is off.`;
-    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = `Recount the sectors that are NOT ${target}, out of ${n} total — that count is off.`;
+    if (o.misconception === 'complement-swap') whyWrong[o.text] = `That’s the chance OF picking ${target}, not the chance of missing it — swap it round.`;
+    else if (o.misconception === 'wrong-colour-count') whyWrong[o.text] = `That’s just the count of ${target} counters — take it AWAY from the total instead.`;
+    else if (o.misconception === 'miscount') whyWrong[o.text] = `Recount the counters that are NOT ${target} — that number is off.`;
+    else if (o.misconception === 'padded-near-miss') whyWrong[o.text] = `Recount the counters that are NOT ${target}, out of ${n} total — that count is off.`;
   }
 
   return {
-    templateId: 'prob-t2-spinner-not-colour',
-    stem: `This spinner has ${n} equal sectors. What is the chance of <b>NOT</b> landing on <b>${target}</b>?`,
-    visual: { kind: 'spinner', sectors: dist.sectors },
+    templateId: 'prob-t2-bag-not-colour',
+    stem: `A bag has ${n} counters. What is the chance of <b>NOT</b> picking a <b>${target}</b> counter?`,
     options,
     correctIndex,
     hintSteps: [
-      `${r} of the ${n} sectors are ${target}. How many sectors are there that AREN'T ${target}?`,
+      `${r} of the ${n} counters are ${target}. How many counters are there that AREN'T ${target}?`,
       `Take the ${target} count away from the total: ${n} − ${r} = ?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${r} of the ${n} sectors are ${target}, so ${n} − ${r} = ${notR} sectors are NOT ${target} — that’s ${notR} out of ${n}.`,
+      worked: `${r} of the ${n} counters are ${target}, so ${n} − ${r} = ${notR} counters are NOT ${target} — that’s ${notR} out of ${n}.`,
       whyWrong,
     },
   };
@@ -441,7 +439,7 @@ function t3BridgeEquivalenceNumWriteIn(rng) {
 
   return {
     templateId: 'prob-t3-bridge-equivalence',
-    stem: `A spinner has <b>${t}</b> equal sectors and <b>${w}</b> of them are blue. If the spinner only had <b>${t2}</b> sectors, how many would need to be blue for the SAME chance?`,
+    stem: `A bag has <b>${t}</b> counters and <b>${w}</b> of them are blue. If a second bag only had <b>${t2}</b> counters, how many would need to be blue for the SAME chance of picking blue?`,
     format: 'num',
     accept: [String(w2), fmt(w2)],
     hintSteps: [
@@ -457,7 +455,7 @@ function t3BridgeEquivalenceNumWriteIn(rng) {
 }
 
 function t3CountFavourableNumWriteIn(rng) {
-  const n = pick(rng, [8, 10, 12, 15, 20]);
+  const n = 6;
   const propType = pick(rng, ['multiples', 'odd', 'even', 'greaterThan']);
   let count;
   let desc;
@@ -477,13 +475,10 @@ function t3CountFavourableNumWriteIn(rng) {
     desc = `numbers greater than ${x}`;
   }
 
-  const sectors = Array.from({ length: n }, (_, i) => String(i + 1));
-
   return {
     templateId: 'prob-t3-count-favourable',
-    stem: `A fair spinner is numbered 1 to <b>${n}</b>. How many of the numbers are <b>${desc}</b>?`,
+    stem: `A fair dice is numbered 1 to <b>${n}</b>. How many of the numbers are <b>${desc}</b>?`,
     format: 'num',
-    visual: { kind: 'spinner', sectors },
     accept: [String(count), fmt(count)],
     hintSteps: [
       `List the numbers from 1 to ${n} and mark the ones that are ${desc}.`,
@@ -612,7 +607,7 @@ function t3SelectTwoLeastMost(rng) {
 // -------- dispatch --------
 
 const T1 = [t1LikelihoodScenario, t1WhichEventMatchesWord, t1FairSpinnerCheck];
-const T2 = [t2DiceChanceOutOfSix, t2SpinnerColourChance, t2SpinnerNotColourChance, t2RecencyFallacyTrueFalse];
+const T2 = [t2DiceChanceOutOfSix, t2BagColourChance, t2BagNotColourChance, t2RecencyFallacyTrueFalse];
 const T3 = [t3BridgeEquivalenceNumWriteIn, t3CountFavourableNumWriteIn, t3ComplementCountNumWriteIn, t3WhichStatementTrueMcq, t3SelectTwoLeastMost];
 
 export function generate(tier, rng) {

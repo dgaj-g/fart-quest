@@ -65,9 +65,9 @@ export default {
     },
     {
       type: 'show',
-      title: 'The Ear Test (and a peek at Will/Would)',
+      title: 'The Ear Test (and Would’ve, not Would Of)',
       html: `<p>Not sure which past form is correct? Say the sentence out loud with <b>yesterday</b> stuck on the front. Your ear will reject the fake one instantly: “Yesterday, Whiffbeard finded a sock” sounds silly — but “Yesterday, Whiffbeard found a sock” sounds right.</p>
-<p>One more time zone to notice: <b>will</b> points to the future (“Jarlath will score”), while <b>would</b> often points BACK to something that used to happen, or to what someone said would happen (“He said he would score”). Just be aware of the difference for now — you’ll meet it properly later.</p>`,
+<p>One more thing to notice: <b>will</b> points to the future (“Jarlath will score”). You’ll also spot <b>would</b> from time to time — just remember <b>would’ve</b> is short for “would have”, and it is never spelled “would of”. Same goes for <b>could’ve</b> — never “could of”.</p>`,
     },
     {
       type: 'try',
@@ -107,7 +107,6 @@ export default {
           { text: 'past', misconception: null },
           { text: 'present', misconception: 'confused-with-present' },
           { text: 'future', misconception: 'confused-with-future' },
-          { text: 'present continuous', misconception: 'confused-with-continuous' },
         ],
         correctIndex: 0,
         hintSteps: [
@@ -120,7 +119,6 @@ export default {
           whyWrong: {
             present: 'The present form would be “goes” — today, not already-happened.',
             future: 'The future would need “will go” — there is no “will” here.',
-            'present continuous': 'That would need “is going” — a different shape entirely.',
           },
         },
       },
@@ -250,7 +248,7 @@ export default {
         { text: 'went', misconception: null },
         { text: 'goed', misconception: 'overregularised' },
         { text: 'goes', misconception: 'present-tense-not-past' },
-        { text: 'gone', misconception: 'participle-not-simple-past' },
+        { text: 'gone', misconception: 'wrong-irregular-shape' },
         { text: 'was going', misconception: 'wrong-form-continuous' },
       ],
       correctIndex: 0,
@@ -263,7 +261,7 @@ export default {
         worked: 'Go rebels into WENT instead of adding -ed — “the family went to the seaside” is correct.',
         whyWrong: {
           goes: 'That is the present tense — happening today, not last summer.',
-          gone: 'That needs a helper word first (“had gone”) — on its own it cannot finish this sentence.',
+          gone: 'Say it with “yesterday” — “yesterday, the family gone to the seaside” doesn’t sound right; go’s rebel shape here is went, not gone.',
           'was going': 'That describes an ongoing action, not the simple one-off trip described here.',
           goed: 'That tries to bolt -ed onto go, but go refuses that treatment.',
         },
@@ -354,7 +352,6 @@ export default {
         { text: 'present', misconception: null },
         { text: 'past', misconception: 'confused-with-past' },
         { text: 'future', misconception: 'confused-with-future' },
-        { text: 'present continuous', misconception: 'confused-with-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -367,7 +364,6 @@ export default {
         whyWrong: {
           past: 'The past form would be “brushed” — something already finished.',
           future: 'The future would need “will brush” — there is no “will” here.',
-          'present continuous': 'That would need “is brushing” — a different shape entirely.',
         },
       },
     },
@@ -378,7 +374,6 @@ export default {
         { text: 'past', misconception: null },
         { text: 'present', misconception: 'confused-with-present' },
         { text: 'future', misconception: 'confused-with-future' },
-        { text: 'present continuous', misconception: 'confused-with-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -391,7 +386,6 @@ export default {
         whyWrong: {
           present: 'The present form would be “chews” — happening regularly, not a one-off last night.',
           future: 'The future would need “will chew” — there is no “will” here.',
-          'present continuous': 'That would need “was chewing” — a different, ongoing shape.',
         },
       },
     },
@@ -402,7 +396,6 @@ export default {
         { text: 'future', misconception: null },
         { text: 'present', misconception: 'confused-with-present' },
         { text: 'past', misconception: 'confused-with-past' },
-        { text: 'present continuous', misconception: 'confused-with-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -415,30 +408,27 @@ export default {
         whyWrong: {
           present: 'The present form would just be “trains” — no “will” needed.',
           past: 'The past form would be “trained” — something already finished.',
-          'present continuous': 'That would need “is training” — happening right now, not tomorrow.',
         },
       },
     },
     {
       id: 'tenses-t1-12', topicId: 'tenses', tier: 1, format: 'mcq5',
-      stem: 'In “Right now, Whiffbeard <b>is sniffing</b> the air for the source of the pong,” what tense is the bolded phrase?',
+      stem: 'In “Every single morning, Whiffbeard <b>sniffs</b> the air for the source of the pong,” what tense is the bolded verb?',
       options: [
-        { text: 'present continuous', misconception: null },
-        { text: 'present', misconception: 'confused-with-present' },
+        { text: 'present', misconception: null },
         { text: 'past', misconception: 'confused-with-past' },
         { text: 'future', misconception: 'confused-with-future' },
       ],
       correctIndex: 0,
       hintSteps: [
-        'Is this happening in one moment, right this second?',
-        '“Is sniffing” describes an action happening RIGHT NOW, not a regular habit.',
+        'Is this happening just once, or every single morning?',
+        '“Sniffs” ends in -s, the present-tense form — it happens every morning, not just once in the past.',
       ],
       explain: {
         rule: WEAPON_RULE,
-        worked: '“Is sniffing” describes an action happening at this very moment — the present continuous.',
+        worked: '“Sniffs” is the present-tense form — it describes something Whiffbeard does regularly, every morning.',
         whyWrong: {
-          present: 'The simple present would be “sniffs” — a regular habit, not this exact moment.',
-          past: 'The past form would be “sniffed” — something already finished.',
+          past: 'The past form would be “sniffed” — something already finished, not a regular habit.',
           future: 'The future would need “will sniff” — there is no “will” here.',
         },
       },
@@ -452,7 +442,7 @@ export default {
         { text: 'ate', misconception: null },
         { text: 'eated', misconception: 'overregularised' },
         { text: 'eats', misconception: 'present-tense-not-past' },
-        { text: 'eaten', misconception: 'participle-not-simple-past' },
+        { text: 'eaten', misconception: 'wrong-irregular-shape' },
         { text: 'et', misconception: 'sound-alike' },
       ],
       correctIndex: 0,
@@ -465,7 +455,7 @@ export default {
         worked: 'Eat rebels into ATE instead of adding -ed — “Jarlath ate four slices” is correct.',
         whyWrong: {
           eats: 'That is the present tense — happening today, not at that party.',
-          eaten: 'That needs a helper word first (“had eaten”) — alone it cannot finish this sentence.',
+          eaten: 'Say it with “yesterday” — “yesterday, Jarlath eaten four slices” doesn’t sound right; eat’s rebel shape here is ate, not eaten.',
           et: 'That is not a standard spelling of any English past tense.',
           eated: 'That tries to bolt -ed onto eat, but eat refuses that treatment.',
         },
@@ -583,7 +573,7 @@ export default {
         { text: 'throwed', misconception: 'overregularised' },
         { text: 'throws', misconception: 'present-tense-not-past' },
         { text: 'through', misconception: 'homophone-confusion' },
-        { text: 'thrown', misconception: 'participle-not-simple-past' },
+        { text: 'thrown', misconception: 'wrong-irregular-shape' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -596,7 +586,7 @@ export default {
         whyWrong: {
           throws: 'That is the present tense — happening today, not that one dramatic moment.',
           through: 'That is a completely different word about passing inside something — it just sounds identical.',
-          thrown: 'That needs a helper word first (“had thrown”) — alone it cannot finish this sentence.',
+          thrown: 'Say it with “yesterday” — “yesterday, the striker thrown himself at the ball” doesn’t sound right; throw’s rebel shape here is threw, not thrown.',
           throwed: 'That tries to bolt -ed onto throw, but throw refuses that treatment.',
         },
       },
@@ -608,7 +598,7 @@ export default {
         { text: 'gave', misconception: null },
         { text: 'gived', misconception: 'overregularised' },
         { text: 'gives', misconception: 'present-tense-not-past' },
-        { text: 'given', misconception: 'participle-not-simple-past' },
+        { text: 'given', misconception: 'wrong-irregular-shape' },
         { text: 'gaved', misconception: 'double-marked' },
       ],
       correctIndex: 0,
@@ -621,7 +611,7 @@ export default {
         worked: 'Give rebels into GAVE instead of adding -ed — “the teacher gave every pupil a sticker” is correct.',
         whyWrong: {
           gives: 'That is the present tense — happening today, not at the end of that trip.',
-          given: 'That needs a helper word first (“had given”) — alone it cannot finish this sentence.',
+          given: 'Say it with “yesterday” — “yesterday, the teacher given every pupil a sticker” doesn’t sound right; give’s rebel shape here is gave, not given.',
           gaved: 'That adds -ed AND changes the shape — only the shape-change is needed, not both.',
           gived: 'That tries to bolt -ed onto give, but give refuses that treatment.',
         },
@@ -634,7 +624,6 @@ export default {
         { text: 'past', misconception: null },
         { text: 'present', misconception: 'confused-with-present' },
         { text: 'future', misconception: 'confused-with-future' },
-        { text: 'present continuous', misconception: 'confused-with-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -647,7 +636,6 @@ export default {
         whyWrong: {
           present: 'The present form would be “catches” — not this rebel past shape.',
           future: 'The future would need “will catch” — there is no “will” here.',
-          'present continuous': 'That would need “is catching” — a different, ongoing shape.',
         },
       },
     },
@@ -658,7 +646,6 @@ export default {
         { text: 'past', misconception: null },
         { text: 'present', misconception: 'confused-with-present' },
         { text: 'future', misconception: 'confused-with-future' },
-        { text: 'present continuous', misconception: 'confused-with-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -671,7 +658,6 @@ export default {
         whyWrong: {
           present: 'The present form would be “flies” — not this rebel past shape.',
           future: 'The future would need “will fly” — there is no “will” here.',
-          'present continuous': 'That would need “is flying” — a different, ongoing shape.',
         },
       },
     },
@@ -682,7 +668,6 @@ export default {
         { text: 'present', misconception: null },
         { text: 'past', misconception: 'confused-with-past' },
         { text: 'future', misconception: 'confused-with-future' },
-        { text: 'present continuous', misconception: 'confused-with-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -695,7 +680,6 @@ export default {
         whyWrong: {
           past: 'The past form would be “sang” — something already finished, not a regular habit.',
           future: 'The future would need “will sing” — there is no “will” here.',
-          'present continuous': 'That would need “is singing” — happening this exact moment, not every week.',
         },
       },
     },
@@ -706,7 +690,6 @@ export default {
         { text: '“Jarlath will score in the next match.”', misconception: null },
         { text: '“Jarlath scored in the last match.”', misconception: 'confused-with-past' },
         { text: '“Jarlath scores in every match.”', misconception: 'confused-with-present' },
-        { text: '“Jarlath is scoring right now.”', misconception: 'confused-with-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -719,7 +702,6 @@ export default {
         whyWrong: {
           '“Jarlath scored in the last match.”': 'That uses the past tense — it already happened.',
           '“Jarlath scores in every match.”': 'That is the present tense, describing a regular habit.',
-          '“Jarlath is scoring right now.”': 'That is present continuous — happening at this exact moment.',
         },
       },
     },
@@ -730,7 +712,6 @@ export default {
         { text: 'present', misconception: null },
         { text: 'past', misconception: 'confused-with-past' },
         { text: 'future', misconception: 'confused-with-future' },
-        { text: 'present continuous', misconception: 'confused-with-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -743,7 +724,6 @@ export default {
         whyWrong: {
           past: 'The past form would be “brushed” — a finished one-off event, not a habit.',
           future: 'The future would need “will brush” — there is no “will” here.',
-          'present continuous': 'That would need “is brushing” — happening this exact moment, not every evening.',
         },
       },
     },
@@ -842,7 +822,7 @@ export default {
         { text: 'wore', misconception: null },
         { text: 'were', misconception: 'homophone-confusion' },
         { text: 'weared', misconception: 'overregularised' },
-        { text: 'worn', misconception: 'participle-not-simple-past' },
+        { text: 'worn', misconception: 'wrong-irregular-shape' },
         { text: 'wearing', misconception: 'wrong-form-continuous' },
       ],
       correctIndex: 0,
@@ -856,7 +836,7 @@ export default {
         whyWrong: {
           were: 'That sounds almost identical but is a form of the verb “to be”, not “to wear” at all.',
           weared: 'That tries to bolt -ed onto wear, but wear refuses that treatment.',
-          worn: 'That needs a helper word first (“had worn”) — alone it cannot finish this sentence.',
+          worn: 'Say it with “yesterday” — “yesterday, the goalkeeper worn odd socks” doesn’t sound right; wear’s rebel shape here is wore, not worn.',
           wearing: 'That describes an ongoing action rather than the simple fact stated here.',
         },
       },
@@ -868,7 +848,7 @@ export default {
         { text: 'threw', misconception: null },
         { text: 'through', misconception: 'homophone-confusion' },
         { text: 'throwed', misconception: 'overregularised' },
-        { text: 'thrown', misconception: 'participle-not-simple-past' },
+        { text: 'thrown', misconception: 'wrong-irregular-shape' },
         { text: 'throws', misconception: 'present-tense-not-past' },
       ],
       correctIndex: 0,
@@ -882,7 +862,7 @@ export default {
         whyWrong: {
           through: 'That sounds identical but means passing inside or across something — not the action of throwing at all.',
           throwed: 'That tries to bolt -ed onto throw, but throw refuses that treatment.',
-          thrown: 'That needs a helper word first (“had thrown”) — alone it cannot finish this sentence.',
+          thrown: 'Say it with “yesterday” — “yesterday, the striker thrown the ball into the corner” doesn’t sound right; throw’s rebel shape here is threw, not thrown.',
           throws: 'That is the present tense — happening today, not that one dramatic kick.',
         },
       },
@@ -892,21 +872,21 @@ export default {
       stemParts: ['At exactly three o’clock, the old school bell ', ' loudly across the whole playground.'],
       options: [
         { text: 'rang', misconception: null },
-        { text: 'rung', misconception: 'participle-not-simple-past' },
+        { text: 'rung', misconception: 'wrong-irregular-shape' },
         { text: 'ringed', misconception: 'overregularised' },
         { text: 'rings', misconception: 'present-tense-not-past' },
         { text: 'was ringing', misconception: 'wrong-form-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
-        'Ring rebels into rang for the plain past — “rung” needs a helper word first.',
-        'Say it with “yesterday” — “yesterday, the bell rang” sounds right; “yesterday, the bell rung” does not.',
+        'Say it with “yesterday” — which one actually sounds right: “the bell rang” or “the bell rung”?',
+        'Ring is a rebel verb: for this sentence, its plain past shape is rang, not rung.',
       ],
       explain: {
         rule: WEAPON_RULE,
-        worked: 'Ring rebels into RANG for the simple past — “rung” only works with a helper word, like “had rung”.',
+        worked: 'Ring rebels into RANG for this sentence — say it with “yesterday”: “yesterday, the bell rang” sounds right, but “yesterday, the bell rung” does not.',
         whyWrong: {
-          rung: 'That needs a helper word first (“had rung”) — alone it cannot finish this sentence.',
+          rung: 'Say it with “yesterday” — “yesterday, the bell rung loudly” doesn’t sound right; ring’s rebel shape here is rang, not rung.',
           ringed: 'That tries to bolt -ed onto ring, but ring refuses that treatment.',
           rings: 'That is the present tense — happening today, not at exactly three o’clock that day.',
           'was ringing': 'That describes an ongoing sound, not the single sharp ring described here.',
@@ -920,7 +900,6 @@ export default {
         { text: 'past', misconception: null },
         { text: 'future', misconception: 'time-word-not-tense-marker' },
         { text: 'present', misconception: 'confused-with-present' },
-        { text: 'present continuous', misconception: 'confused-with-continuous' },
       ],
       correctIndex: 0,
       hintSteps: [
@@ -933,31 +912,30 @@ export default {
         whyWrong: {
           future: '“Eventually” is not the same as “will” — it just describes how long something took, not that it is still to come.',
           present: 'The present form would be “forgives” — not this rebel past shape.',
-          'present continuous': 'That would need “is forgiving” — a different, ongoing shape.',
         },
       },
     },
     {
       id: 'tenses-t3-10', topicId: 'tenses', tier: 3, format: 'mcq5',
-      stem: 'Which sentence uses ‘will’ to point to something that has NOT happened yet?',
+      stem: 'Which sentence is spelled correctly?',
       options: [
-        { text: '“Jarlath will score in the next match, just you wait.”', misconception: null },
-        { text: '“Jarlath said he would score in the next match.”', misconception: 'would-not-will' },
-        { text: '“Jarlath would always score in every match, back then.”', misconception: 'would-not-will' },
-        { text: '“Jarlath scored in the very next match.”', misconception: 'confused-with-past' },
+        { text: '“Whiffbeard would’ve helped, but his hands were covered in mud.”', misconception: null },
+        { text: '“Whiffbeard would of helped, but his hands were covered in mud.”', misconception: 'would-of-error' },
+        { text: '“Whiffbeard could of helped, but his hands were covered in mud.”', misconception: 'could-of-error' },
+        { text: '“Whiffbeard wouldve helped, but his hands were covered in mud.”', misconception: 'missing-apostrophe' },
       ],
       correctIndex: 0,
       hintSteps: [
-        'Look for the exact word “will”, not “would”.',
-        '“Would” often points BACK to something reported or a past habit, even though it sounds future-ish.',
+        '“’ve” is short for “have” — so it needs an apostrophe, and it is never spelled “of”.',
+        'Would’ve, could’ve and should’ve are the only correct spellings — “would of”, “could of” and “wouldve” are never correct.',
       ],
       explain: {
         rule: WEAPON_RULE,
-        worked: 'Only “Jarlath will score” uses “will” directly — a plain statement about something still to come.',
+        worked: '“Would’ve” is short for “would have” — it needs the apostrophe, and it is never spelled “would of”.',
         whyWrong: {
-          '“Jarlath said he would score in the next match.”': 'That reports what Jarlath SAID he would do — the saying already happened, in the past.',
-          '“Jarlath would always score in every match, back then.”': 'That uses “would” for a PAST habit (“back then”) — not the future at all.',
-          '“Jarlath scored in the very next match.”': 'That is simple past tense — it already happened.',
+          '“Whiffbeard would of helped, but his hands were covered in mud.”': '“Would of” is never correct — “’ve” is short for “have”, so it must be “would’ve”.',
+          '“Whiffbeard could of helped, but his hands were covered in mud.”': 'That swaps in a different helper word AND misspells it — this sentence needs “would’ve”, not “could of”.',
+          '“Whiffbeard wouldve helped, but his hands were covered in mud.”': 'That is missing its apostrophe — “’ve” always needs one, to show letters have been left out of “have”.',
         },
       },
     },

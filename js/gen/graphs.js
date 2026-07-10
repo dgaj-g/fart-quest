@@ -104,19 +104,18 @@ function buildLineSet(rng, n) {
   return { xLabels, points, ks, yStep, yLabel: bank.yLabel };
 }
 
-// Pictogram rows: `withHalf` forces exactly one row to land on a half-symbol remainder
-// (count = full*per + per/2); otherwise every row is a clean whole-symbol multiple of `per`.
-function buildPictogramSet(rng, n, { withHalf }) {
+// Pictogram rows: every row is a clean whole-symbol multiple of `per` — this app's pictogram
+// content only tests whole-symbol values (SPEC_CANON.md §C bullet 46 citations PP1 P7/Q30 both
+// test deriving/reading a WHOLE symbol's value; neither paper item ever uses a half symbol).
+function buildPictogramSet(rng, n) {
   const bank = pick(rng, PICTOGRAM_BANKS);
   const labels = shuffle(rng, bank.items).slice(0, n);
-  const per = withHalf ? pick(rng, [2, 4]) : pick(rng, [2, 3, 5]);
-  const halfRowIdx = withHalf ? rngInt(rng, 0, n - 1) : -1;
-  const rows = labels.map((label, i) => {
+  const per = pick(rng, [2, 3, 4, 5]);
+  const rows = labels.map((label) => {
     const full = rngInt(rng, 1, 4);
-    const count = i === halfRowIdx ? full * per + per / 2 : full * per;
-    return [label, count];
+    return [label, full * per];
   });
-  return { rows, symbol: bank.symbol, per, halfRowIdx };
+  return { rows, symbol: bank.symbol, per };
 }
 
 function buildVennSet(rng) {
@@ -250,7 +249,7 @@ function t1ReadLinePoint(rng) {
 
 function t1PictogramWhole(rng) {
   const n = pick(rng, [3, 4]);
-  const { rows, symbol, per } = buildPictogramSet(rng, n, { withHalf: false });
+  const { rows, symbol, per } = buildPictogramSet(rng, n);
   const targetIdx = rngInt(rng, 0, n - 1);
   const [targetLabel, correctVal] = rows[targetIdx];
   const stem = `Each ${symbol} = ${per}. How many did <b>${targetLabel}</b> have?`;
@@ -339,48 +338,55 @@ function t2DifferenceBars(rng) {
   };
 }
 
-function t2PictogramHalf(rng) {
+// Pictogram difference-between-rows — the pictogram analogue of t2DifferenceBars: convert
+// both rows to their real whole-symbol values first, THEN subtract. Same misconception keys
+// as t2DifferenceBars for consistency (added-not-subtracted, bare-value, scale-misread here
+// meaning "subtracted the PICTURE counts instead of the real values").
+function t2PictogramDifference(rng) {
   const n = pick(rng, [3, 4]);
-  const { rows, symbol, per, halfRowIdx } = buildPictogramSet(rng, n, { withHalf: true });
-  const targetIdx = halfRowIdx;
-  const [targetLabel, correctVal] = rows[targetIdx];
-  const full = Math.floor(correctVal / per);
-  const half = per / 2;
-  const stem = `Each ${symbol} = ${per}. How many did <b>${targetLabel}</b> have?`;
+  const { rows, symbol, per } = buildPictogramSet(rng, n);
+  let iA = rngInt(rng, 0, n - 1);
+  let iB = rngInt(rng, 0, n - 1);
+  while (iB === iA) iB = rngInt(rng, 0, n - 1);
+  if (rows[iA][1] < rows[iB][1]) [iA, iB] = [iB, iA];
+  const [labelA, valA] = rows[iA];
+  const [labelB, valB] = rows[iB];
+  const correctVal = valA - valB;
+  const stem = `Each ${symbol} = ${per}. How many <b>MORE</b> did <b>${labelA}</b> have than <b>${labelB}</b>?`;
 
   const distractors = [
-    { text: fmt(full * per), misconception: 'ignored-half' },
-    { text: fmt((full + 1) * per), misconception: 'half-as-full' },
-    { text: fmt(full + 1), misconception: 'counted-symbols-not-value' },
+    { text: fmt(valA + valB), misconception: 'added-not-subtracted' },
+    { text: fmt(correctVal / per), misconception: 'scale-misread' },
+    { text: fmt(valA), misconception: 'bare-value' },
+    { text: fmt(valB), misconception: 'bare-value' },
   ];
-  rows.forEach(([, v], i) => { if (i !== targetIdx) distractors.push({ text: fmt(v), misconception: 'wrong-row' }); });
+  rows.forEach(([, v], i) => { if (i !== iA && i !== iB) distractors.push({ text: fmt(v), misconception: 'wrong-row' }); });
 
   const correct = { text: fmt(correctVal), misconception: null };
   let options = [correct, ...uniqueOptions(correct.text, shuffle(rng, distractors)).slice(0, 4)];
-  options = padNumericOptions(options, correctVal, half, 5);
+  options = padNumericOptions(options, correctVal, per, 5);
 
   const whyWrong = {};
   for (const o of options) {
-    if (o.misconception === 'ignored-half') whyWrong[o.text] = `That's just the WHOLE symbols — you forgot the half symbol is still worth something (half of ${per} is ${half}).`;
-    else if (o.misconception === 'half-as-full') whyWrong[o.text] = `That treats the half symbol as if it were a WHOLE one — a half symbol is only worth half the value.`;
-    else if (o.misconception === 'counted-symbols-not-value') whyWrong[o.text] = `That's the number of PICTURES, not the number of things — each picture is worth ${per}, not 1.`;
-    else if (o.misconception === 'wrong-row') whyWrong[o.text] = `That's a different row — check the label on the left.`;
-    else if (o.misconception === 'padded-decoy') whyWrong[o.text] = `Check the half symbol again — it's worth half of ${per}, which is ${half}.`;
+    if (o.misconception === 'added-not-subtracted') whyWrong[o.text] = `That's ${labelA} + ${labelB} added together — "how many MORE" means subtract, not add.`;
+    else if (o.misconception === 'scale-misread' || o.misconception === 'padded-decoy') whyWrong[o.text] = `That's the difference in PICTURES, not in the real values — convert to the real values first (each picture is worth ${per}).`;
+    else if (o.misconception === 'bare-value') whyWrong[o.text] = `That's just one row's total on its own — the question wants the DIFFERENCE between the two.`;
+    else if (o.misconception === 'wrong-row') whyWrong[o.text] = `That's a different row — check the label on the left again.`;
   }
 
   return {
-    templateId: 'gc-t2-pictogram-half',
+    templateId: 'gc-t2-pictogram-diff',
     stem,
     visual: { kind: 'pictogram', rows, symbol, per },
     options,
     correctIndex: 0,
     hintSteps: [
-      `Count ${targetLabel}'s WHOLE ${symbol} symbols first: ${full} whole symbols, each worth ${per}.`,
-      `Now add the half symbol: half of ${per} is ${half}. ${full * per} + ${half} = …?`,
+      `Read both rows off the real values first: ${labelA} = ?, ${labelB} = ?`,
+      `${labelA} is ${valA} and ${labelB} is ${valB}. Now subtract: ${valA} − ${valB} = …?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${targetLabel} has ${full} whole ${symbol} (${full} × ${per} = ${full * per}) plus a half ${symbol} (half of ${per} = ${half}). ${full * per} + ${half} = ${fmt(correctVal)}.`,
+      worked: `${labelA} = ${valA}, ${labelB} = ${valB}. ${valA} − ${valB} = ${fmt(correctVal)}.`,
       whyWrong,
     },
   };
@@ -568,8 +574,7 @@ function t3VennANotB(rng) {
 
 function t3PictogramTotal(rng) {
   const n = pick(rng, [3, 4]);
-  const withHalf = rng() < 0.5;
-  const { rows, symbol, per } = buildPictogramSet(rng, n, { withHalf });
+  const { rows, symbol, per } = buildPictogramSet(rng, n);
   const total = rows.reduce((a, [, v]) => a + v, 0);
   const stem = `Each ${symbol} = ${per}. What is the <b>TOTAL</b> across ALL the rows?`;
 
@@ -580,7 +585,7 @@ function t3PictogramTotal(rng) {
     visual: { kind: 'pictogram', rows, symbol, per },
     accept: [String(total), fmt(total)],
     hintSteps: [
-      `Work out each row's real value first — remember each ${symbol} is worth ${per} (and a half symbol is worth half that).`,
+      `Work out each row's real value first — remember each ${symbol} is worth ${per}.`,
       `Add every row's value together: ${rows.map(([, v]) => v).join(' + ')} = …?`,
     ],
     explain: {
@@ -594,7 +599,7 @@ function t3PictogramTotal(rng) {
 // -------- dispatch --------
 
 const T1 = [t1ReadBar, t1TallestShortest, t1ReadLinePoint, t1PictogramWhole];
-const T2 = [t2DifferenceBars, t2PictogramHalf, t2VennRegionCount, t2LineRiseOrFall];
+const T2 = [t2DifferenceBars, t2PictogramDifference, t2VennRegionCount, t2LineRiseOrFall];
 const T3 = [t3TotalAllBars, t3TwoStepMoreThanSum, t3VennANotB, t3PictogramTotal];
 
 export function generate(tier, rng) {

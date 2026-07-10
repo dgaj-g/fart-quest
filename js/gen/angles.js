@@ -37,17 +37,13 @@ function buildDegreeOptions(rng, correctVal, distractorSpecs, minOptions) {
 }
 
 const NUMERIC_WHY = {
-  'copied-given': 'That’s just the angle you were already given — the question wants the OTHER one.',
-  'wrong-total-360': 'That uses 360° as the total — that’s for angles all the way round a point, not a straight line.',
-  'wrong-total-90': 'That treats the line like a right angle (90°) instead of a full straight line (180°).',
   'arithmetic-slip': 'Close — but check the subtraction again, it’s a few degrees out.',
   'padded-near-miss': 'Check the subtraction again — that’s not quite the right number.',
   'used-360-total': 'That’s the QUADRILATERAL total (360°) — this is a triangle, which totals 180°.',
   'forgot-second-angle': 'That only takes away ONE of the two known angles — both need to come off 180°.',
   'added-instead': 'That’s the two given angles added together — you still need to take that away from 180°.',
-  'remainder-not-halved': 'That’s the leftover after the apex angle — but it needs to be SHARED between the two equal base angles.',
-  'halved-wrong-number': 'That halves the WRONG angle — it’s the remainder (180° minus the apex) that gets shared, not the apex itself.',
-  'assumed-right': 'That assumes a right angle (90°) — nothing in the question tells you that.',
+  'forgot-one-angle': 'That only takes away TWO of the three known angles — all three need to come off 360°.',
+  'added-given-only': 'That’s just the three given angles added together — you still need to take that away from 360°.',
 };
 
 function whyWrongFor(options) {
@@ -62,33 +58,25 @@ function whyWrongFor(options) {
 
 const CATS = [
   { key: 'acute', label: 'Acute', min: 1, max: 89 },
-  { key: 'right', label: 'Right', min: 90, max: 90 },
   { key: 'obtuse', label: 'Obtuse', min: 91, max: 179 },
-  { key: 'straight', label: 'Straight', min: 180, max: 180 },
   { key: 'reflex', label: 'Reflex', min: 181, max: 359 },
 ];
 
 function catWorked(cat, deg) {
   if (cat.key === 'acute') return `${deg}° is less than 90°, so it’s acute.`;
-  if (cat.key === 'right') return `${deg}° is exactly 90°, so it’s a right angle.`;
   if (cat.key === 'obtuse') return `${deg}° is more than 90° but less than 180°, so it’s obtuse.`;
-  if (cat.key === 'straight') return `${deg}° is exactly 180°, so it’s a straight angle.`;
   return `${deg}° is more than 180°, so it’s reflex.`;
 }
 
 function catHint2(cat, deg) {
   if (cat.key === 'acute') return `${deg}° is smaller than 90° — that makes it…?`;
-  if (cat.key === 'right') return `${deg}° lands exactly on 90° — that makes it…?`;
   if (cat.key === 'obtuse') return `${deg}° is bigger than 90° but smaller than 180° — that makes it…?`;
-  if (cat.key === 'straight') return `${deg}° lands exactly on 180° — that makes it…?`;
   return `${deg}° is bigger than 180° — that makes it…?`;
 }
 
 function wrongCatReason(guessKey, deg) {
   if (guessKey === 'acute') return `${deg}° is 90° or more — too big for acute (acute means UNDER 90°).`;
-  if (guessKey === 'right') return `${deg}° isn’t exactly 90°, so it can’t be a right angle.`;
   if (guessKey === 'obtuse') return `${deg}° doesn’t sit between 90° and 180°, so it isn’t obtuse.`;
-  if (guessKey === 'straight') return `${deg}° isn’t exactly 180°, so it isn’t a straight angle.`;
   return `${deg}° isn’t over 180°, so it isn’t reflex.`;
 }
 
@@ -114,7 +102,7 @@ function t1ClassifyAngle(rng) {
     options,
     correctIndex: 0,
     hintSteps: [
-      `Compare ${deg}° to 90° and 180°. Is it smaller than 90°, exactly 90°, in between, exactly 180°, or bigger than 180°?`,
+      `Compare ${deg}° to 90° and 180°. Is it smaller than 90°, in between the two, or bigger than 180°?`,
       catHint2(cat, deg),
     ],
     explain: { rule: RULE, worked: catWorked(cat, deg), whyWrong },
@@ -161,31 +149,28 @@ function t1LineLanguage(rng) {
 }
 
 const FACTS = [
-  { key: 'right', label: 'a RIGHT angle', val: 90 },
-  { key: 'straight', label: 'a STRAIGHT line', val: 180 },
-  { key: 'full', label: 'a FULL TURN', val: 360 },
+  { key: 'triangle', label: 'the angles inside a TRIANGLE', shape: 'a triangle', val: 180 },
+  { key: 'quadrilateral', label: 'the angles inside a QUADRILATERAL', shape: 'a quadrilateral', val: 360 },
 ];
-const FACT_POOL = [45, 90, 180, 270, 360];
+const FACT_POOL = [90, 180, 270, 360];
 
 function t1FactRecall(rng) {
   const f = pick(rng, FACTS);
-  const stem = `How many degrees are in ${f.label}?`;
+  const stem = `How many degrees do ${f.label} add up to?`;
   const distractorVals = shuffle(rng, FACT_POOL.filter((v) => v !== f.val));
   const options = [{ text: fmtDeg(f.val), misconception: null }];
   const misconceptionFor = (v) => {
-    if (v === 45) return 'half-right';
     if (v === 90) return 'confused-right';
-    if (v === 180) return 'confused-straight';
+    if (v === 180) return 'confused-triangle';
     if (v === 270) return 'confused-three-quarter';
-    return 'confused-full';
+    return 'confused-quadrilateral';
   };
   for (const v of distractorVals) options.push({ text: fmtDeg(v), misconception: misconceptionFor(v) });
   const REASON = {
-    'half-right': `45° is HALF of a right angle — not the whole thing.`,
-    'confused-right': `90° is a right angle, not ${f.label}.`,
-    'confused-straight': `180° is a straight line, not ${f.label}.`,
-    'confused-three-quarter': `270° is three-quarters of a full turn, not ${f.label}.`,
-    'confused-full': `360° is a full turn, not ${f.label}.`,
+    'confused-right': `90° is a single right angle, not the total for ${f.shape}.`,
+    'confused-triangle': `180° is the total for a TRIANGLE’s angles, not a quadrilateral’s.`,
+    'confused-three-quarter': `270° is three-quarters of a full turn — not the angle total for ${f.shape}.`,
+    'confused-quadrilateral': `360° is the total for a QUADRILATERAL’s angles, not a triangle’s.`,
   };
   const whyWrong = {};
   for (const o of options) if (o.misconception) whyWrong[o.text] = REASON[o.misconception];
@@ -195,45 +180,14 @@ function t1FactRecall(rng) {
     options,
     correctIndex: 0,
     hintSteps: [
-      `Picture ${f.label} — is it a small corner, a flat line, or all the way round?`,
-      `${f.label} measures exactly…?`,
+      `Picture ${f.shape} — how many corners does it have, and what do all its inside angles add up to?`,
+      `${f.label} always add up to…?`,
     ],
-    explain: { rule: RULE, worked: `${f.label} always measures ${fmtDeg(f.val)}.`, whyWrong },
+    explain: { rule: RULE, worked: `${f.label} always add up to ${fmtDeg(f.val)}.`, whyWrong },
   };
 }
 
 // -------- T2 templates --------
-
-function t2LineMissing(rng) {
-  let x;
-  do { x = rngInt(rng, 5, 175); } while (x === 90);
-  const y = 180 - x;
-  const arithSlip = y + (rng() < 0.5 ? 10 : -10);
-  const distractorSpecs = [
-    { val: x, misconception: 'copied-given' },
-    { val: 360 - x, misconception: 'wrong-total-360' },
-    { val: Math.abs(90 - x) || 1, misconception: 'wrong-total-90' },
-    { val: arithSlip, misconception: 'arithmetic-slip' },
-  ];
-  const options = buildDegreeOptions(rng, y, distractorSpecs, 5);
-  const stem = `Two angles sit together on a straight line. One angle is <b>${x}°</b>. What is the other angle?`;
-  return {
-    templateId: 'angle-t2-line-missing',
-    stem,
-    visual: { kind: 'angle', deg: x },
-    options,
-    correctIndex: 0,
-    hintSteps: [
-      'Angles on a straight line always add up to 180°. Which two numbers are we working with here?',
-      `180 − ${x} = …?`,
-    ],
-    explain: {
-      rule: RULE,
-      worked: `${x}° and the missing angle sit on a straight line, so together they make 180°. 180° − ${x}° = ${y}°.`,
-      whyWrong: whyWrongFor(options),
-    },
-  };
-}
 
 function t2TriangleMissing(rng) {
   let a, b;
@@ -268,43 +222,72 @@ function t2TriangleMissing(rng) {
   };
 }
 
-function t2WhichPairStraight(rng) {
-  const p = rngInt(rng, 10, 170);
-  const q = 180 - p;
-  const correctText = `${p}° and ${q}°`;
-  const wrongTotals = shuffle(rng, [170, 190, 200, 360]);
-  const seenTexts = new Set([correctText]);
-  const options = [{ text: correctText, misconception: null }];
-  const whyWrong = {};
-  for (const total of wrongTotals) {
-    let first, second, text;
-    let guard = 0;
-    do {
-      first = rngInt(rng, 10, total - 10);
-      second = total - first;
-      text = `${first}° and ${second}°`;
-      guard++;
-    } while (seenTexts.has(text) && guard < 20);
-    if (seenTexts.has(text)) continue;
-    seenTexts.add(text);
-    const misconception = total === 360 ? 'quad-total-pair' : 'wrong-sum-pair';
-    options.push({ text, misconception });
-    whyWrong[text] = total === 360
-      ? `${text} adds up to 360° — that’s the quadrilateral total, not a straight line.`
-      : `${text} adds up to ${total}°, not 180°.`;
-  }
+function t2QuadMissingAngle(rng) {
+  let a, b, c;
+  do {
+    a = rngInt(rng, 40, 140);
+    b = rngInt(rng, 40, 140);
+    c = rngInt(rng, 40, 140);
+  } while (a + b + c > 330 || a + b + c < 190);
+  const given = a + b + c;
+  const answer = 360 - given;
+  const arithSlip = answer + (rng() < 0.5 ? 10 : -10);
+  const distractorSpecs = [
+    { val: given, misconception: 'added-given-only' },
+    { val: 360 - a - b, misconception: 'forgot-one-angle' },
+    { val: 360 - a - c, misconception: 'forgot-one-angle' },
+    { val: arithSlip, misconception: 'arithmetic-slip' },
+  ];
+  const options = buildDegreeOptions(rng, answer, distractorSpecs, 4);
+  const stem = `A quadrilateral has angles of <b>${a}°</b>, <b>${b}°</b> and <b>${c}°</b>. What is the fourth angle?`;
   return {
-    templateId: 'angle-t2-which-pair-straight',
-    stem: 'Which pair of angles could lie together on a straight line (add up to exactly 180°)?',
+    templateId: 'angle-t2-quad-missing-angle',
+    stem,
     options,
     correctIndex: 0,
     hintSteps: [
-      'Add up each pair of angles. Only ONE pair should make exactly 180°.',
-      `Check the first pair: ${p} + ${q} = ?`,
+      `All four angles in a quadrilateral add up to 360°. Add the three you know: ${a} + ${b} + ${c} = ?`,
+      `360 − ${given} = …?`,
     ],
     explain: {
       rule: RULE,
-      worked: `${p}° + ${q}° = 180°, so that pair could sit together on a straight line.`,
+      worked: `${a}° + ${b}° + ${c}° = ${given}°. 360° − ${given}° = ${answer}°.`,
+      whyWrong: whyWrongFor(options),
+    },
+  };
+}
+
+const LINE_RELATIONS = [
+  { key: 'perpendicular', label: 'Perpendicular', reason: 'Perpendicular lines cross at exactly a right angle (90°) — that matches the picture here.' },
+  { key: 'parallel', label: 'Parallel', reason: 'Parallel lines never cross at all — but these two do, at 90°.' },
+  { key: 'vertical', label: 'Vertical', reason: 'Vertical just means pointing straight up and down — it doesn’t describe how two lines cross.' },
+  { key: 'horizontal', label: 'Horizontal', reason: 'Horizontal just means lying flat, side to side — it doesn’t describe how two lines cross.' },
+];
+
+function t2LineRelationship(rng) {
+  const others = shuffle(rng, LINE_RELATIONS.filter((r) => r.key !== 'perpendicular'));
+  const options = [
+    { text: 'Perpendicular', misconception: null },
+    ...others.map((r) => ({ text: r.label, misconception: r.key })),
+  ];
+  const whyWrong = {};
+  for (const o of options) {
+    if (!o.misconception) continue;
+    const r = LINE_RELATIONS.find((rr) => rr.key === o.misconception);
+    whyWrong[o.text] = r.reason;
+  }
+  return {
+    templateId: 'angle-t2-line-relationship',
+    stem: 'Two lines cross, and the angle where they meet is exactly <b>90°</b>. What word best describes these two lines?',
+    options,
+    correctIndex: 0,
+    hintSteps: [
+      'Think about the special word for two lines that cross at a perfect right angle.',
+      'Not lines that never meet, and not a direction word — the crossing word for exactly 90°…?',
+    ],
+    explain: {
+      rule: RULE,
+      worked: 'Lines that cross at exactly a right angle (90°) are called perpendicular.',
       whyWrong,
     },
   };
@@ -312,38 +295,29 @@ function t2WhichPairStraight(rng) {
 
 // -------- T3 templates (num) --------
 
-function t3Isosceles(rng) {
-  const apexGiven = rng() < 0.5;
-  let stem, answer, hintSteps, worked;
-  if (apexGiven) {
-    const apex = rngInt(rng, 10, 80) * 2; // even, so remainder halves cleanly
-    const base = (180 - apex) / 2;
-    stem = `An isosceles triangle has a top (apex) angle of <b>${apex}°</b>. The other two angles are equal to each other. What is the size of EACH of those two equal angles?`;
-    answer = base;
-    hintSteps = [
-      `The two equal angles share what's left after the apex: 180 − ${apex} = ?`,
-      `Now split that remainder equally between the two equal angles: ÷ 2 = …?`,
-    ];
-    worked = `180° − ${apex}° = ${180 - apex}°. Shared equally: ${180 - apex}° ÷ 2 = ${base}° each.`;
-  } else {
-    const base = rngInt(rng, 10, 79);
-    const apex = 180 - 2 * base;
-    stem = `An isosceles triangle has two equal base angles of <b>${base}°</b> each. What is the size of the third (different) angle?`;
-    answer = apex;
-    hintSteps = [
-      `Both base angles are ${base}°, so together they use 2 × ${base} = ?`,
-      `180 − ${2 * base} = …?`,
-    ];
-    worked = `2 × ${base}° = ${2 * base}°. 180° − ${2 * base}° = ${apex}°.`;
-  }
+function t3TriangleMissingNum(rng) {
+  let a, b;
+  do {
+    a = rngInt(rng, 15, 150);
+    b = rngInt(rng, 15, 150);
+  } while (a + b > 165 || a + b < 30);
+  const c = 180 - a - b;
+  const stem = `A triangle has angles of <b>${a}°</b> and <b>${b}°</b>. What is the third angle?`;
   return {
-    templateId: 'angle-t3-isosceles',
+    templateId: 'angle-t3-triangle-missing-num',
     stem,
     format: 'num',
-    accept: [String(answer)],
+    accept: [String(c)],
     unit: '°',
-    hintSteps,
-    explain: { rule: RULE, worked, whyWrong: {} },
+    hintSteps: [
+      `Every triangle's three angles add up to 180°. Add the two you know: ${a} + ${b} = ?`,
+      `180 − ${a + b} = …?`,
+    ],
+    explain: {
+      rule: RULE,
+      worked: `${a}° + ${b}° = ${a + b}°. 180° − ${a + b}° = ${c}°.`,
+      whyWrong: {},
+    },
   };
 }
 
@@ -374,30 +348,36 @@ function t3QuadMissingFourth(rng) {
   };
 }
 
-function t3TwoStep(rng) {
-  let u, b, a;
+function t3TwoTriangleShare(rng) {
+  let p, q, s;
   let guard = 0;
   do {
-    u = rngInt(rng, 10, 140);
-    b = rngInt(rng, 5, 150);
-    a = b + u;
+    p = rngInt(rng, 20, 120);
+    q = rngInt(rng, 20, 120);
+    s = 180 - p - q;
     guard++;
-  } while ((a >= 175 || a <= b || u <= 0) && guard < 100);
-  const intermediate = 180 - a;
-  const stem = `A straight line is split into two angles. One of them is <b>${a}°</b>. The OTHER angle on the line is also one of the three angles in a triangle. A second angle in that same triangle is <b>${b}°</b>. What is the third angle of the triangle?`;
+  } while ((s < 10 || s > 150) && guard < 100);
+  let r, answer;
+  let guard2 = 0;
+  do {
+    r = rngInt(rng, 10, 150);
+    answer = 180 - s - r;
+    guard2++;
+  } while ((answer <= 0 || answer >= 175) && guard2 < 100);
+  const stem = `Triangle A has angles of <b>${p}°</b> and <b>${q}°</b>. Its third angle is also one of the angles in Triangle B. Triangle B's other known angle is <b>${r}°</b>. What is the third angle of Triangle B?`;
   return {
-    templateId: 'angle-t3-two-step',
+    templateId: 'angle-t3-two-triangle-share',
     stem,
     format: 'num',
-    accept: [String(u)],
+    accept: [String(answer)],
     unit: '°',
     hintSteps: [
-      `First find the angle on the line that belongs to the triangle: 180 − ${a} = ?`,
-      `Now use the triangle's 180° total: 180 − ${intermediate} − ${b} = …?`,
+      `First find Triangle A's third angle — the one it shares with Triangle B: 180 − ${p} − ${q} = ?`,
+      `Now use Triangle B's own 180° total: 180 − ${s} − ${r} = …?`,
     ],
     explain: {
       rule: RULE,
-      worked: `180° − ${a}° = ${intermediate}° (the triangle’s angle on the line). Then 180° − ${intermediate}° − ${b}° = ${u}°.`,
+      worked: `Triangle A: 180° − ${p}° − ${q}° = ${s}° (the shared angle). Triangle B: 180° − ${s}° − ${r}° = ${answer}°.`,
       whyWrong: {},
     },
   };
@@ -406,8 +386,8 @@ function t3TwoStep(rng) {
 // -------- dispatch --------
 
 const T1 = [t1ClassifyAngle, t1LineLanguage, t1FactRecall];
-const T2 = [t2LineMissing, t2TriangleMissing, t2WhichPairStraight];
-const T3 = [t3Isosceles, t3QuadMissingFourth, t3TwoStep];
+const T2 = [t2TriangleMissing, t2QuadMissingAngle, t2LineRelationship];
+const T3 = [t3TriangleMissingNum, t3QuadMissingFourth, t3TwoTriangleShare];
 
 export function generate(tier, rng) {
   let pool;
