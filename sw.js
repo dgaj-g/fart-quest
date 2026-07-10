@@ -1,5 +1,5 @@
 // FART QUEST — sw.js (UI agent)
-const CACHE_V = 'fq-v7';
+const CACHE_V = 'fq-v8';
 
 const PRECACHE_URLS = [
   './',
@@ -337,6 +337,13 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const keys = await caches.keys();
       await Promise.all(keys.filter((k) => k !== CACHE_V).map((k) => caches.delete(k)));
+      // Self-heal: if this version's cache is missing entries (storage eviction on
+      // iOS, or a resurrected registration whose install never re-ran), top it up.
+      // Best-effort per entry — unlike install, activation must never fail.
+      const cache = await caches.open(CACHE_V);
+      const have = new Set((await cache.keys()).map((r) => new URL(r.url).pathname));
+      const missing = PRECACHE_URLS.filter((u) => !have.has(new URL(u, self.location.href).pathname));
+      await Promise.all(missing.map((u) => cache.add(new Request(u, { cache: 'reload' })).catch(() => {})));
       await self.clients.claim();
     })()
   );
