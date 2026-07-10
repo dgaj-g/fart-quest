@@ -3,6 +3,15 @@
 
 Originally written 7 Jul 2026 by Fable 5 mid-build. Sections below are chronological logs; the NEWEST state supersedes older sections wherever they conflict.
 
+---
+## 🟢 CURRENT STATE — 10 Jul 2026 ~15:30 (READ THIS FIRST; full detail in the dated ⏱ sections below, newest at the BOTTOM of the appended logs)
+**THE APP IS COMPLETE AND LIVE AND WORKING: https://dgaj-g.github.io/fart-quest/ (fq-v6).** Verified in a genuinely fresh browser boot: title screen renders, 48 Scout-Tech animations live (confirmed "THE FAIR-SHARE BLADE" fractions anim rendering in-lesson). Repo `dgaj-g/fart-quest`, local `/Users/damiengartland/Sites/fart-quest`, clean working tree, all pushed (HEAD = the .nojekyll-fix handoff commit).
+- **What's in it:** all 49 topics × (teach → interactive Scout-Tech animation → Secret Weapon → minion/elite/boss battles), 10 region bosses, 6 reading passages, Castle Clench timed mock exam, story cinematic + tutorial, collection, both VO waves (54 clips). Content spec-traceability-audited (docs/SPEC_CANON.md + docs/SPEC_TRACEABILITY.md; 26 superfluous items cut, nothing spec-core).
+- **LAST BUG FIXED (was blank-app for real visitors):** GitHub Pages/Jekyll drops `_`-prefixed files → `js/anims/_kit.js` 404'd → whole boot broke. FIXED with a root `.nojekyll` file. **RULE: never trust a Pages deploy without a fresh, un-cache-busted browser boot check (clear SW+caches, load bare URL, confirm #app renders the title). Cache-busted direct module imports MASK boot-path 404s — that mistake shipped a blank app once.**
+- **ONLY OUTSTANDING ITEM (non-blocking):** Damien's real-iPad shakedown — touch feel, audio by ear, the anims' drag on real glass, and confirm any prior progress survives (Install to Home Screen BEFORE playing; iOS standalone apps get separate storage from Safari tabs). Everything is code- and fresh-browser-verified but not yet touched on the actual device. Anything he finds → a cheap Sonnet session with this doc.
+- Model routing (Damien's economics): Opus = judgement/design/verification only; Sonnet = implementation & content agents; Haiku = mechanical (solvers, validation). Don't burn Opus on grunt work. Fable 5 access has ended.
+---
+
 ## ⏱ SCOUT-TECH HELPER ANIMATIONS — 9 Jul 2026 (IN PROGRESS — read this whole section before touching anything)
 
 **What/why:** Jarlath is progressing but not yet visualising concepts from text+static cards alone. Damien commissioned an interactive "helper animation" for EVERY topic's Scout Report — a machine the child DRIVES to feel the concept before the try-cards/battles. Proof of concept (decimals-x10, "The Slide-o-Matic 1000") was built standalone first, Damien approved it enthusiastically, requested two fixes (roller was obscuring the digits either side of the point → now a small wheel at the BASELINE like the dot in "3.5"; audio kept playing from a hidden tab → visibility-pause added in BOTH the app's audio.js music layer and the anims' synth), then said: embed it and build all topics.
