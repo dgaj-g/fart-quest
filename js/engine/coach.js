@@ -230,8 +230,13 @@ function run(steps, ctx) {
 
       if (step.type === 'battle-demo') {
         ring.style.display = 'none';
-        wrap.querySelector('.coach-card').classList.add('coach-card-centred');
-        wrap.querySelector('.coach-card').classList.add('coach-card-wide');
+        const card = wrap.querySelector('.coach-card');
+        // clear any inline position left by a preceding targeted step — inline
+        // top/left would override the centred class entirely
+        card.style.top = '';
+        card.style.left = '';
+        card.classList.add('coach-card-centred');
+        card.classList.add('coach-card-wide');
         nextBtn.style.display = 'none';
         demoEl.style.display = 'block';
         renderBattleDemo(demoEl, ctx, () => {

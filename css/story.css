@@ -266,6 +266,11 @@
   z-index: 2;
   width: 320px;
   max-width: calc(100vw - 32px);
+  /* never taller than the window — scroll inside instead, so the answer row and
+     Got it! button are always reachable on short windows */
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
   background: var(--card);
   color: var(--ink);
   border-radius: var(--r-lg);
@@ -279,7 +284,12 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  /* the translate PROPERTY, not transform: the card's enter-up entry animation
+     animates transform with fill-mode both, which permanently overrides any
+     transform declared here — the card's top-left corner sat at the viewport
+     centre and its bottom hung off-screen. The separate translate property
+     composes with the animated transform instead of losing to it. */
+  translate: -50% -50%;
 }
 .coach-card.coach-card-wide { width: 480px; }
 
