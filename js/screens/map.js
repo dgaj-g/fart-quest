@@ -43,15 +43,27 @@ function computeUnlocked(ctx) {
   REGIONS.forEach((region) => {
     if (!region.unlockAfter) { unlocked[region.id] = true; return; }
     const prev = byId[region.unlockAfter];
-    unlocked[region.id] = prev ? regionCapturedCount(prev, ctx) >= region.unlockNeeded : true;
+    // Boss-gated (Damien's call, 11 Jul 2026 — supersedes the spec's 2-capture
+    // rule): a region opens only when the previous region in its track is
+    // CLEANSED, i.e. every topic captured AND its region boss defeated. The
+    // boss is the key to the next path.
+    unlocked[region.id] = prev ? !!ctx.state.regionCleansed(prev.id) : true;
   });
   return { unlocked, byId };
 }
 
 // weakest > due review > next untaught, restricted to topics actually in the registry
 // (spec order: due review > weakest practising > next untaught — implemented in that order).
-function computeNextQuest(ctx) {
-  const liveIds = Object.keys(ctx.topics);
+function computeNextQuest(ctx, unlocked) {
+  // Boss-gated unlocks make locked-region topics genuinely unreachable — every
+  // branch must only ever point the child at a pad that is actually on the map
+  // (a topic can be taught-but-locked if its region re-locked under a rule change).
+  const reachable = new Set();
+  REGIONS.forEach((region) => {
+    if (unlocked && !unlocked[region.id]) return;
+    region.locations.forEach((loc) => reachable.add(loc.topicId));
+  });
+  const liveIds = Object.keys(ctx.topics).filter((id) => reachable.has(id));
   if (liveIds.length === 0) return null;
 
   const due = ctx.state.dueReviews().filter((id) => liveIds.includes(id));
@@ -70,6 +82,7 @@ function computeNextQuest(ctx) {
   if (weakest) return weakest;
 
   for (const region of REGIONS) {
+    if (unlocked && !unlocked[region.id]) continue;
     for (const loc of region.locations) {
       if (ctx.topics[loc.topicId] && !ctx.state.topic(loc.topicId).taught) return loc.topicId;
     }
@@ -168,13 +181,14 @@ function buildLockedBlock(region, ctx, byId) {
   wrap.style.width = `${LOCKED_W}px`;
 
   const prev = region.unlockAfter ? byId[region.unlockAfter] : null;
-  const prevCaptured = prev ? regionCapturedCount(prev, ctx) : 0;
-  const need = prev ? Math.max(0, region.unlockNeeded - prevCaptured) : 0;
-  const requirement = prev
-    ? (need > 0
-      ? `Capture ${need} more monster${need === 1 ? '' : 's'} in ${prev.name} to clear this path!`
-      : 'This path is about to clear — one more step!')
-    : '';
+  let requirement = '';
+  if (prev) {
+    const prevCaptured = regionCapturedCount(prev, ctx);
+    const total = prev.locations.length;
+    requirement = prevCaptured < total
+      ? `Capture all ${total} monsters in ${prev.name} (${prevCaptured}/${total} so far), then defeat ${prev.boss.name} to open this path!`
+      : `One job left — defeat ${prev.boss.name} to open this path!`;
+  }
 
   wrap.innerHTML = `
     <div class="region-block"></div>
@@ -337,7 +351,7 @@ export async function mount(root, ctx) {
 
   hud.querySelector('#map-next-quest-btn').addEventListener('click', () => {
     ctx.audio.sfx('click');
-    const targetId = computeNextQuest(ctx);
+    const targetId = computeNextQuest(ctx, unlocked);
     if (!targetId) { ctx.toast('Every open quest is done for now — amazing work!'); return; }
     const targetPad = stage.querySelector(`.map-pad[data-topic-id="${targetId}"]`);
     if (!targetPad) { ctx.toast('That quest is just out of reach for now!'); return; }

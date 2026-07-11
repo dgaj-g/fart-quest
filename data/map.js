@@ -4,11 +4,14 @@
 // data/topics/index.js registry — screens must derive liveness from the
 // registry, never trust a static flag here (this file carries none).
 //
-// Track unlock rule (ENGINE_SPEC_2 §G): two tracks start open — Number Swamp
-// (maths) and Punctuation Pits (english). Each subsequent region in a track
-// unlocks once the PREVIOUS region in that same track has >= unlockNeeded
-// captured topics ("the path de-stinks"). `unlockAfter: null` = track starter,
-// always open. Boss image slugs follow <creature-name-kebab>.png (apostrophes
+// Track unlock rule (UPDATED 11 Jul 2026, Damien's call — supersedes ENGINE_SPEC_2
+// §G's 2-capture rule): two tracks start open — Number Swamp (maths) and
+// Punctuation Pits (english). Each subsequent region in a track unlocks only when
+// the PREVIOUS region in that track is CLEANSED — every topic captured AND its
+// region boss defeated — so the boss is literally the key to the next path (the
+// stronger incentive Damien wanted). Enforced in js/screens/map.js
+// computeUnlocked(); `unlockNeeded` below is legacy and no longer read.
+// `unlockAfter: null` = track starter, always open. Boss image slugs follow <creature-name-kebab>.png (apostrophes
 // and punctuation stripped, "the" kept where it's part of the name) — see
 // docs/ROSTER.md. Region render order below is deliberately maths-track then
 // english-track then Castle Clench, matching ENGINE_SPEC_2 §G's stated order.
