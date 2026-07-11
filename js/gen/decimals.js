@@ -567,7 +567,10 @@ function t3RealLifeMetres(rng) {
   const baseText = fromHundredths(baseHundredths);
   const resultHundredths = baseHundredths * 100;
   const resultCm = Math.round(resultHundredths / 100); // whole cm, since x100 clears the /100 metres->cm
-  const stem = `${baseText} m = ___ cm`;
+  // Damien's teach-order rule (11 Jul 2026): 1 m = 100 cm belongs to metric-units,
+  // a LATER topic — this question may practise ×100 (this topic's own skill) but
+  // must hand the conversion fact to the child in the stem, not assume it.
+  const stem = `${baseText} m = ___ cm  (Remember: 1 m = 100 cm)`;
 
   return {
     templateId: 'dec-t3-metres-cm',

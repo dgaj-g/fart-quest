@@ -89,7 +89,7 @@ export default {
     {
       type: 'show',
       title: 'Meet the Four-Sided Family',
-      html: `<p>Quadrilaterals (4-sided shapes) are one big family — but each member has its own rules. Check the table:</p>
+      html: `<p>Quadrilaterals (4-sided shapes) are one big family — but each member has its own rules. One new word first: <b>parallel</b> sides run side-by-side, always the same distance apart, like train tracks — they never lean towards each other. Now check the table:</p>
 <div style="overflow-x:auto;">
 <table style="border-collapse:collapse;width:100%;font-size:13px;">
 <tr style="background:#eee;"><th style="border:1px solid #999;padding:6px;">Shape</th><th style="border:1px solid #999;padding:6px;">Sides equal?</th><th style="border:1px solid #999;padding:6px;">Right angles?</th><th style="border:1px solid #999;padding:6px;">Parallel sides?</th></tr>
@@ -167,7 +167,7 @@ export default {
           { text: 'It has 4 right angles.', misconception: 'picked-true-fact' },
           { text: 'Opposite sides are equal in length.', misconception: 'picked-true-fact' },
           { text: 'All 4 sides are always the same length.', misconception: null },
-          { text: 'Opposite sides are parallel.', misconception: 'picked-true-fact' },
+          { text: 'It is a quadrilateral.', misconception: 'picked-true-fact' },
         ],
         correctIndex: 2,
         hintSteps: [
@@ -176,11 +176,11 @@ export default {
         ],
         explain: {
           rule: 'Count the sides, check the angles, look for equal marks — the shape names itself.',
-          worked: 'A rectangle always has 4 right angles, equal opposite sides, and parallel opposite sides. It does NOT always have all 4 sides the same length — that extra rule only applies when the rectangle happens to be a square.',
+          worked: 'A rectangle is a quadrilateral with 4 right angles and equal opposite sides. It does NOT always have all 4 sides the same length — that extra rule only applies when the rectangle happens to be a square.',
           whyWrong: {
             'It has 4 right angles.': 'That IS true for every rectangle — not the odd one out.',
             'Opposite sides are equal in length.': 'That IS true for every rectangle — not the odd one out.',
-            'Opposite sides are parallel.': 'That IS true for every rectangle — not the odd one out.',
+            'It is a quadrilateral.': 'That IS true — every rectangle is a 4-sided shape, so it is a quadrilateral. Not the odd one out.',
           },
         },
       },
