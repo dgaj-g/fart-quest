@@ -66,6 +66,7 @@ export async function mount(root, ctx, params) {
   const captured = record.captured;
   const savedIndex = await readLessonProgress(ctx, topic.id);
   const scoutLabel = scoutReportLabel(record, savedIndex, topic.lesson.length);
+  const animIdx = topic.lesson.findIndex((c) => c.type === 'anim');
 
   const panel = document.createElement('div');
   panel.className = 'topic-panel';
@@ -101,6 +102,11 @@ export async function mount(root, ctx, params) {
         <span>📜 Scout Report</span>
         <span class="lock-note">${scoutLabel.line}</span>
       </button>
+      ${animIdx >= 0 ? `
+      <button class="btn btn-parchment topic-action-btn" data-action="anim">
+        <span>🔧 Scout-Tech</span>
+        <span class="lock-note">Drive the machine!</span>
+      </button>` : ''}
       <button class="btn btn-parchment topic-action-btn" data-action="minion" ${!record.taught ? 'disabled' : ''}>
         <span>⚔️ Minion Battle</span>
         <span class="lock-note">${record.taught ? 'Tier 1' : 'Learn it first'}</span>
@@ -124,6 +130,18 @@ export async function mount(root, ctx, params) {
     ctx.audio.sfx('confirm');
     ctx.go(`#/lesson/${topic.id}`);
   });
+  const animBtn = info.querySelector('[data-action="anim"]');
+  if (animBtn) {
+    animBtn.addEventListener('click', async () => {
+      ctx.audio.sfx('confirm');
+      // Jump straight to the Scout-Tech machine: point the lesson bookmark at the
+      // anim card and open the lesson. Deliberately overwrites any mid-lesson
+      // bookmark — the machine is one CARRY ON from the weapon, and a replayed
+      // lesson starts over anyway (completion clears progress).
+      try { await ctx.db.put('meta', lessonProgressKey(topic.id), animIdx); } catch (e) { /* ignore */ }
+      ctx.go(`#/lesson/${topic.id}`);
+    });
+  }
   const minionBtn = info.querySelector('[data-action="minion"]');
   if (!minionBtn.disabled) {
     minionBtn.addEventListener('click', () => { ctx.audio.sfx('confirm'); ctx.go(`#/battle/${topic.id}/minion`); });
