@@ -189,14 +189,23 @@ function buildLockedBlock(region, ctx, byId) {
   return { el: wrap, width: LOCKED_W };
 }
 
-function buildCastleGate() {
+function buildCastleGate(ctx) {
   const wrap = document.createElement('div');
   wrap.className = 'map-region-locked map-castle-gate';
   wrap.style.width = `${GATE_W}px`;
   wrap.innerHTML = `
-    <div class="region-block castle-block">🔒</div>
+    <div class="region-block castle-block">🏰</div>
     <div class="closed-sign">${CASTLE.name}<br>${CASTLE.sign}</div>
   `;
+  // The gate opens the Castle Clench hub — entry itself is never gated because
+  // the hub's two doors (Training Skirmish / the Skidmark King) each show their
+  // own lock state and cleansed-region progress. Without this handler the whole
+  // exam wing was unreachable in normal play.
+  wrap.style.cursor = 'pointer';
+  wrap.addEventListener('click', () => {
+    ctx.audio.sfx('confirm');
+    ctx.go('#/exam');
+  });
   return { el: wrap, width: GATE_W };
 }
 
@@ -284,7 +293,7 @@ export async function mount(root, ctx) {
     cursor += built.width + REGION_GAP;
   });
 
-  const gate = buildCastleGate();
+  const gate = buildCastleGate(ctx);
   gate.el.style.position = 'absolute';
   gate.el.style.left = `${cursor}px`;
   stage.appendChild(gate.el);
