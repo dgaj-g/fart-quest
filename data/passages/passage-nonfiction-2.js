@@ -14,6 +14,7 @@ const LIT_RULE = 'The line number is a gift — go BACK to the line, put your fi
 const INF_RULE = 'The text gives clues, not answers. Ask: what do these clues ADD UP to? Beware answers with \'always\', \'never\', \'entirely\'.';
 const VOCAB_RULE = 'Swap each option INTO the sentence and read it aloud — only the true meaning survives the swap.';
 const LANG_RULE = 'A simile compares with like or as; a metaphor says it IS; a list piles things up to overwhelm you — always ask what EFFECT it has.';
+const LANG_RULE_POS = 'Ask what JOB the word does in THIS sentence: naming = noun, doing = verb, describing = adjective, how = adverb.';
 const TEXT_RULE = 'Contents = where chapters start; index = where topics hide (back, A-Z); glossary = word meanings; bibliography = books used. Fiction is invented; non-fiction is fact.';
 
 export default {
@@ -293,7 +294,7 @@ export default {
       maxLen: 20,
       accept: ['adverb'],
       explain: {
-        rule: LANG_RULE,
+        rule: LANG_RULE_POS,
         worked: '"Gracefully" describes HOW the huge machine rises — that job (describing a verb) makes it an adverb. Spot the pattern: most adverbs that describe HOW something happens end in "-ly", just like this one.',
       },
       hintSteps: [

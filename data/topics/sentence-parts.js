@@ -51,6 +51,7 @@ export default {
       html: `<p>A phrase LOOKS like it might be a sentence — but something is missing. Ask two questions:</p>
 <ol><li>Is there a NAMING part (who or what)?</li><li>Is there a DOING part (a verb) that finishes the thought?</li></ol>
 <p>"Racing across the muddy playground at lunchtime." — that is just a phrase: WHO was racing? It never tells us. Add a naming part: "Jarlath was racing across the muddy playground at lunchtime." Now it is a complete sentence.</p>
+<p><b>One more trap:</b> a bit of writing that starts with a joining word like <b>because</b>, <b>although</b> or <b>while</b> can have a naming part AND a doing part and STILL leave you hanging. "Because the goalkeeper arrived late." — because he arrived late… WHAT HAPPENED? It never says, so it is not a complete sentence yet.</p>
 <div class="law-scroll">📜 THE SENTENCE TEST: read it alone — if it leaves you asking "who?" or "so what happened?", it is still only a phrase.</div>`,
     },
     {

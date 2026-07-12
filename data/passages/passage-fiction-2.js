@@ -8,6 +8,7 @@ const RULE_LIT = "The line number is a gift — go BACK to the line, put your fi
 const RULE_INF = "The text gives clues, not answers. Ask: what do these clues ADD UP to? Beware answers with 'always', 'never', 'entirely'.";
 const RULE_VOCAB = 'Swap each option INTO the sentence and read it aloud — only the true meaning survives the swap.';
 const RULE_LANG = 'A simile compares with like or as; a metaphor says it IS; a list piles things up to overwhelm you — always ask what EFFECT it has.';
+const RULE_LANG_POS = 'Ask what JOB the word does in THIS sentence: naming = noun, doing = verb, describing = adjective, how = adverb.';
 
 export default {
   id: 'passage-fiction-2',
@@ -272,7 +273,7 @@ export default {
         'It describes what the creeping shape was like — a word that describes is that word class.',
       ],
       explain: {
-        rule: RULE_LANG,
+        rule: RULE_LANG_POS,
         worked: '"Silent" describes what the creeping shape was like, telling us how it moved — that describing job makes it an adjective.',
       },
     },
@@ -314,7 +315,7 @@ export default {
         '"His fiercest honk" is a thing Gerald practises, described by the adjective "fiercest" — a naming word like that is a noun.',
       ],
       explain: {
-        rule: RULE_LANG,
+        rule: RULE_LANG_POS,
         worked: 'Here "honk" is the thing being practised — described by the adjective "fiercest" and following the possessive "his" — so it is being used as a noun, not as the verb "to honk".',
       },
     },

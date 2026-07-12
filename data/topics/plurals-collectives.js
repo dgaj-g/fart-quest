@@ -68,6 +68,15 @@ export default {
 <li>a <b>swarm</b> of bees</li>
 <li>a <b>pack</b> of wolves</li>
 <li>a <b>shoal</b> of fish</li>
+<li>a <b>pod</b> of dolphins</li>
+<li>a <b>litter</b> of puppies</li>
+<li>a <b>colony</b> of ants</li>
+</ul>
+<p>And the weird ones are the BEST — these are all real:</p>
+<ul>
+<li>a <b>murder</b> of crows (yes, really)</li>
+<li>a <b>parliament</b> of owls</li>
+<li>a <b>skein</b> of geese (when they're flying — the Geese Police insist)</li>
 </ul>
 <p>"Twenty cows stood in the field" is fine — but "a <b>herd</b> of cows stood in the field" is the word a proper nature documentary would use. Same meaning, one smart word.</p>`,
     },

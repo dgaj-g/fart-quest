@@ -108,7 +108,7 @@ export default {
   ],
 
   tips: [
-    'Speech marks hug ONLY the words that were actually said out loud — never the reporting clause like "she said".',
+    'Speech marks hug ONLY the words that were actually said out loud — never the telling bit like "she said".',
     'The punctuation mark at the end of the spoken words — full stop, comma, "!", "?" — always sits INSIDE the closing speech mark.',
     'Every spoken sentence starts with a capital letter, exactly like a written one.',
     'Brackets come in pairs: an opening ( always needs its closing ) — never leave the hug half-finished.',

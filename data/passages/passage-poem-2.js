@@ -1,7 +1,7 @@
 // FART QUEST — original passage: passage-poem-2
 // Authored content — implementation agents: read, never modify.
 // Genre: poetry (descriptive, strong simile/metaphor imagery). 4 quatrains,
-// 16 lines, ABAB rhyme scheme within each stanza.
+// 16 lines, ABAB rhyme scheme within each verse.
 // Feeds Storybog skill battles via `skill` tags (lit|inf|vocab|lang|verse|text)
 // and the passage-boss "one full passage, all 13 questions" run.
 //
@@ -18,6 +18,7 @@ const RULE_LIT = "The line number is a gift — go BACK to the line, put your fi
 const RULE_INF = "The text gives clues, not answers. Ask: what do these clues ADD UP to? Beware answers with 'always', 'never', 'entirely'.";
 const RULE_VOCAB = 'Swap each option INTO the sentence and read it aloud — only the true meaning survives the swap.';
 const RULE_LANG = 'A simile compares with like or as; a metaphor says it IS; a list piles things up to overwhelm you — always ask what EFFECT it has.';
+const RULE_LANG_POS = 'Ask what JOB the word does in THIS sentence: naming = noun, doing = verb, describing = adjective, how = adverb.';
 const RULE_VERSE = 'A verse is a paragraph of poetry; rhymes usually land at line-ends. Read a poem like a song: for story first, rhyme second.';
 
 export default {
@@ -68,7 +69,7 @@ export default {
         worked: 'Line 2 says: "its awnings stretched across the square" — the exact answer is stated word for word: the awnings.',
         whyWrong: {
           'A hundred voices': "That's from line 3, describing the market's chatter — not what is stretched across the square in line 2.",
-          'The flower buckets': "The flower buckets don't appear until line 10, a completely different stanza.",
+          'The flower buckets': "The flower buckets don't appear until line 10, a completely different verse.",
           'The muddy footprints': "Footprints are never mentioned anywhere in this poem — that answer isn't written down.",
         },
       },
@@ -92,7 +93,7 @@ export default {
         worked: 'Line 6 says: "his apples gleam like polished brass" — the exact comparison is written down word for word: polished brass.',
         whyWrong: {
           'Sheets of glass': "That comparison belongs to line 8, describing the fishmonger's icy floor — not the apples in line 6.",
-          'A rainbow spilled': "That's from line 9, describing the flower stall in a completely different stanza.",
+          'A rainbow spilled': "That's from line 9, describing the flower stall in a completely different verse.",
           'A pile of gold coins': "Gold coins are never mentioned anywhere in this poem — that answer isn't written down at all.",
         },
       },
@@ -123,7 +124,7 @@ export default {
     },
     {
       id: 'passage-poem-2-q4', tier: 2, format: 'mcq5', skill: 'inf', lineRef: '13-16',
-      stem: 'What do the clues in <b>stanza 4 (lines 13–16)</b> suggest about how the market feels as it closes for the day?',
+      stem: 'What do the clues in <b>verse 4 (lines 13–16)</b> suggest about how the market feels as it closes for the day?',
       options: [
         { text: 'Tired and ready to rest, but confident it will be lively again tomorrow', misconception: null },
         { text: 'Sad because nobody wants to visit it anymore', misconception: 'plausible-misreading' },
@@ -147,7 +148,7 @@ export default {
     },
     {
       id: 'passage-poem-2-q5', tier: 3, format: 'mcq5', skill: 'inf', lineRef: '9-12',
-      stem: 'What do the clues in <b>stanza 3 (lines 9–12)</b> together suggest about how this part of the market feels?',
+      stem: 'What do the clues in <b>verse 3 (lines 9–12)</b> together suggest about how this part of the market feels?',
       options: [
         { text: 'Warm, colourful and inviting, like a treat for the senses', misconception: null },
         { text: 'The coldest and gloomiest corner of the whole market', misconception: 'plausible-misreading' },
@@ -261,23 +262,23 @@ export default {
         'The apples gleam — that is the action the apples are doing. A doing word is called a…',
       ],
       explain: {
-        rule: RULE_LANG,
+        rule: RULE_LANG_POS,
         worked: 'In line 6, "gleam" tells you what the apples are DOING — a word that does an action is a verb.',
       },
     },
     {
       id: 'passage-poem-2-q11', tier: 2, format: 'wordentry', skill: 'verse', lineRef: '9-12',
-      stem: 'Write the word from <b>stanza 3 (lines 9–12)</b> that rhymes with "gold".',
+      stem: 'Write the word from <b>verse 3 (lines 9–12)</b> that rhymes with "gold".',
       hint: 'one word',
       accept: ['cold', 'Cold'],
       maxLen: 20,
       hintSteps: [
-        'Rhymes land at line-ENDS — check only the very last word of each line in stanza 3.',
-        '"Gold" ends line 10. Which OTHER line-ending word in the stanza chimes with it?',
+        'Rhymes land at line-ENDS — check only the very last word of each line in verse 3.',
+        '"Gold" ends line 10. Which OTHER line-ending word in the verse chimes with it?',
       ],
       explain: {
         rule: RULE_VERSE,
-        worked: 'Line 10 ends with "gold" and line 12 ends with "cold" — those two line-ending words chime together, the rhyme pair for this stanza.',
+        worked: 'Line 10 ends with "gold" and line 12 ends with "cold" — those two line-ending words chime together, the rhyme pair for this verse.',
       },
     },
     {

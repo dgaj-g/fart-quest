@@ -275,7 +275,7 @@ export default {
       faultyIndex: 0,
       explain: {
         rule: RULE,
-        worked: '"Both goalkeepers WERE late" needs the past tense of "are" — "where" only ever asks "which place?"',
+        worked: '"Both goalkeepers WERE late" needs the PAST of "are" — "where" only ever asks "which place?"',
         whyN: null,
       },
       hintSteps: [
@@ -645,7 +645,7 @@ export default {
       },
       hintSteps: [
         'WEAR always means putting clothes on a body. WHERE always asks "which place?"',
-        'Read it slowly — is a PLACE question hiding in that clause?',
+        'Read it slowly — is a PLACE question hiding in that sentence?',
       ],
     },
     {
@@ -659,7 +659,7 @@ export default {
       faultyIndex: 1,
       explain: {
         rule: RULE,
-        worked: 'A numbered song sung at assembly is a "hymn" (silent N), not "him" (a person) — tricky here because "him" can almost pass as an object pronoun.',
+        worked: 'A numbered song sung at assembly is a "hymn" (silent N), not "him" (a person) — tricky here because "him" looks like it could just be naming a person.',
         whyN: null,
       },
       hintSteps: [
@@ -683,7 +683,7 @@ export default {
       },
       hintSteps: [
         'WHERE always asks "which place?" WERE is simply the past of "are".',
-        'Read it slowly — is a PLACE question buried in that clause?',
+        'Read it slowly — is a PLACE question buried in that sentence?',
       ],
     },
     {

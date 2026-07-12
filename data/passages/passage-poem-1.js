@@ -17,6 +17,7 @@ const RULE_LIT = 'The line number is a gift — go BACK to the line, put your fi
 const RULE_INF = "The text gives clues, not answers. Ask: what do these clues ADD UP to? Beware answers with 'always', 'never', 'entirely'.";
 const RULE_VOCAB = 'Swap each option INTO the sentence and read it aloud — only the true meaning survives the swap.';
 const RULE_LANG = 'A simile compares with like or as; a metaphor says it IS; a list piles things up to overwhelm you — always ask what EFFECT it has.';
+const RULE_LANG_POS = 'Ask what JOB the word does in THIS sentence: naming = noun, doing = verb, describing = adjective, how = adverb.';
 const RULE_VERSE = 'A verse is a paragraph of poetry; rhymes usually land at line-ends. Read a poem like a song: for story first, rhyme second.';
 
 export default {
@@ -122,7 +123,7 @@ export default {
     },
     {
       id: 'passage-poem-1-q4', tier: 2, format: 'mcq5', skill: 'inf', lineRef: '5-8',
-      stem: 'What do the clues in <b>stanza 2 (lines 5–8)</b> suggest about how hard Nigel tries to cure his hiccup?',
+      stem: 'What do the clues in <b>verse 2 (lines 5–8)</b> suggest about how hard Nigel tries to cure his hiccup?',
       options: [
         { text: 'He tries several different remedies, showing he really wants to fix it', misconception: null },
         { text: 'He only tries once, then gives up completely', misconception: 'plausible-misreading' },
@@ -136,9 +137,9 @@ export default {
       ],
       explain: {
         rule: RULE_INF,
-        worked: 'Stanza 2 shows THREE separate attempts — gargling hot pepper, swallowing tea, and daily practice — even though none of them work. Adding those clues up shows real persistence, though the poem never uses that word directly.',
+        worked: 'Verse 2 shows THREE separate attempts — gargling hot pepper, swallowing tea, and daily practice — even though none of them work. Adding those clues up shows real persistence, though the poem never uses that word directly.',
         whyWrong: {
-          'He only tries once, then gives up completely': 'A near-miss for a quick skim — but the stanza actually lists several different attempts, not just one.',
+          'He only tries once, then gives up completely': 'A near-miss for a quick skim — but the verse actually lists several different attempts, not just one.',
           'Nothing will ever cure a hiccup, no matter what anyone tries': 'Watch for "ever" and "anyone" — this poem only tells us about Nigel\'s hiccup, not hiccups in general, forever.',
           'He asks a wizard to remove the hiccup with magic': 'No wizard or magic is mentioned anywhere in the poem — this is invented.',
         },
@@ -146,7 +147,7 @@ export default {
     },
     {
       id: 'passage-poem-1-q5', tier: 3, format: 'mcq5', skill: 'inf', lineRef: '13-16',
-      stem: 'What does <b>stanza 4 (lines 13–16)</b> suggest really frightens the knights away?',
+      stem: 'What does <b>verse 4 (lines 13–16)</b> suggest really frightens the knights away?',
       options: [
         { text: 'The huge, booming hiccup that shakes the ground', misconception: null },
         { text: 'Nigel finally manages a mighty roar', misconception: 'plausible-misreading' },
@@ -155,7 +156,7 @@ export default {
       ],
       correctIndex: 0,
       hintSteps: [
-        'The word "roar" isn\'t used anywhere in this stanza — check exactly what sound is described instead.',
+        'The word "roar" isn\'t used anywhere in this verse — check exactly what sound is described instead.',
         'Add up the clues: a BOOM, boulders bouncing, wobbly knees, drenched in sweat. What caused all that?',
       ],
       explain: {
@@ -260,23 +261,23 @@ export default {
         '"Boulders" names a THING that gets sent bouncing — naming words are one of the Big Seven word classes.',
       ],
       explain: {
-        rule: RULE_LANG,
+        rule: RULE_LANG_POS,
         worked: 'In line 14, "boulders" names the big rocks that bounce — a word that names a person, place or thing is a noun.',
       },
     },
     {
       id: 'passage-poem-1-q11', tier: 2, format: 'wordentry', skill: 'verse', lineRef: '13-16',
-      stem: 'Write the word from <b>stanza 4 (lines 13–16)</b> that rhymes with "drums".',
+      stem: 'Write the word from <b>verse 4 (lines 13–16)</b> that rhymes with "drums".',
       hint: 'one word',
       accept: ['hums', 'Hums'],
       maxLen: 20,
       hintSteps: [
-        'Rhymes land at line-ENDS — check only the very last word of each line in stanza 4.',
-        '"Drums" ends line 14. Which OTHER line-ending word in the stanza chimes with it?',
+        'Rhymes land at line-ENDS — check only the very last word of each line in verse 4.',
+        '"Drums" ends line 14. Which OTHER line-ending word in the verse chimes with it?',
       ],
       explain: {
         rule: RULE_VERSE,
-        worked: 'Line 14 ends with "drums" and line 16 ends with "hums" — those two line-ending words chime together, the rhyme pair for this stanza.',
+        worked: 'Line 14 ends with "drums" and line 16 ends with "hums" — those two line-ending words chime together, the rhyme pair for this verse.',
       },
     },
     {

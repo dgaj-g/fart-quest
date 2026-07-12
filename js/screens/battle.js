@@ -1,5 +1,6 @@
 // FART QUEST — screens/battle.js (UI agent)
 import { createBattleEngine } from '../engine/battle.js';
+import { shuffle } from '../rng.js';
 import formats from '../engine/formats/index.js';
 import { COMMONS, TEASERS } from '../../data/creatures.js';
 import { REGIONS } from '../../data/map.js';
@@ -218,7 +219,23 @@ export async function mount(root, ctx, params) {
       return;
     }
     bossPassage = pick(passages);
-    fixedQuestions = (bossPassage.questions || []).map((q) => ({ ...q, topicId: topic.id, passageId: bossPassage.id }));
+    // Damien's teach-order rule (11 Jul 2026): a full passage mixes every reading
+    // skill, but a topic's boss may only ask what the map has taught by this
+    // point — this topic's own passage skill plus the skills of storybog topics
+    // BEFORE it. Later-skill questions are swapped for same-skill questions from
+    // the OTHER passages, so the boss keeps its full "every mark counts" length
+    // without ever assuming an untaught skill. (kinds-of-writing authors its own
+    // bank and never reaches this branch.)
+    const SKILL_ORDER = ['lit', 'inf', 'vocab', 'lang', 'verse', 'text'];
+    const allowed = new Set(SKILL_ORDER.slice(0, SKILL_ORDER.indexOf(topic.passageSkill) + 1));
+    const targetLen = (bossPassage.questions || []).length;
+    const kept = (bossPassage.questions || [])
+      .filter((q) => allowed.has(q.skill))
+      .map((q) => ({ ...q, passageId: bossPassage.id }));
+    const topUps = shuffle(Math.random, passageQuestionsForSkill(
+      passages.filter((p) => p.id !== bossPassage.id), topic.passageSkill
+    )).slice(0, Math.max(0, targetLen - kept.length));
+    fixedQuestions = kept.concat(topUps).map((q) => ({ ...q, topicId: topic.id }));
     battleTopics = [topic];
   } else if (isRegionBattle) {
     battleTopics = await Promise.all(regionTopicsRaw.map(resolveBattleTopic));
@@ -232,9 +249,7 @@ export async function mount(root, ctx, params) {
   // Only fetch the full passages list (for panel lookup while rendering) when something in
   // play could actually be passage-tagged — a maths-only battle never pays this cost.
   let passagesById = {};
-  if (bossPassage) {
-    passagesById = { [bossPassage.id]: bossPassage };
-  } else if (battleTopics.some((t) => t.passageSkill)) {
+  if (battleTopics.some((t) => t.passageSkill)) {
     const passages = await loadPassagesModule();
     if (!alive) return;
     passagesById = Object.fromEntries(passages.map((p) => [p.id, p]));

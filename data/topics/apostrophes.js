@@ -630,7 +630,7 @@ export default {
       },
       hintSteps: [
         'Segment B ends with a possessive word — check it against segment C\'s "goalkeeper\'s". Do they follow the same rule?',
-        'The goalkeeper\'s gloves take an apostrophe because "goalkeeper" is a noun — but hers is a pronoun and never does.',
+        'The goalkeeper\'s gloves take an apostrophe because "goalkeeper" is an ordinary naming word — but words like hers, his, its, ours and theirs already show owning all by themselves, so they never take one.',
       ],
     },
     {

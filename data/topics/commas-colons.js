@@ -112,7 +112,7 @@ export default {
   tips: [
     'Lists: comma after each item except the very last one before "and".',
     'A fronted opener (After tea, Before the match, Suddenly) always gets a comma straight after it.',
-    'A colon can only announce a list after a COMPLETE sentence — never straight after a bare verb like "bring" or "contained".',
+    'A colon can only announce a list after a COMPLETE sentence — never mid-thought after words like "bring" or "contained" (bring WHAT?).',
     'A comma is too weak to join two whole sentences on its own — use a full stop or a semi-colon instead.',
     'A semi-colon is a super-comma: it links two closely related full sentences.',
     'Long lists hide their missing comma in the MIDDLE just as often as at the start — check every single join, not just the first.',
@@ -366,7 +366,7 @@ export default {
       },
       hintSteps: [
         'Does the sentence start with a phrase that sets the scene before the main action?',
-        'A fronted opener like this always gets a comma right after it, before the main clause begins.',
+        'A fronted opener like this always gets a comma right after it, before the main action begins.',
       ],
     },
     {
@@ -423,7 +423,7 @@ export default {
       },
       hintSteps: [
         'Find where the scene-setting opener actually ends and the main action starts.',
-        'A comma belongs right at the end of the opener, before the main clause begins.',
+        'A comma belongs right at the end of the opener, before the main action begins.',
       ],
     },
     {
@@ -475,7 +475,7 @@ export default {
       faultyIndex: 2,
       explain: {
         rule: RULE,
-        worked: '"You should bring" is not a complete sentence on its own — it needs an object to finish it, so a colon isn’t allowed to interrupt it. No colon should follow "bring."',
+        worked: '"You should bring" is not a complete sentence on its own — bring WHAT? The thought isn’t finished, so a colon isn’t allowed to interrupt it. No colon should follow "bring."',
         whyN: null,
       },
       hintSteps: [
@@ -591,12 +591,12 @@ export default {
       faultyIndex: 0,
       explain: {
         rule: RULE,
-        worked: '"The bag contained" is not a complete sentence on its own — "contained" needs an object to finish it, so no colon belongs there at all.',
+        worked: '"The bag contained" is not a complete sentence on its own — contained WHAT? The thought isn’t finished, so no colon belongs there at all.',
         whyN: null,
       },
       hintSteps: [
         'Cover up everything after that colon. Is what’s left a complete sentence on its own?',
-        '"The bag contained" is left hanging — a colon isn’t allowed to interrupt a verb like that.',
+        '"The bag contained" is left hanging — contained WHAT? A colon can’t jump in before the sentence says what.',
       ],
     },
     {
@@ -634,7 +634,7 @@ export default {
       },
       hintSteps: [
         'The scene-setting opener runs across two segments — find where it actually ends.',
-        'A comma belongs at the very end of that opener, right before the main clause begins.',
+        'A comma belongs at the very end of that opener, right before the main action begins.',
       ],
     },
     {
@@ -686,12 +686,12 @@ export default {
       faultyIndex: 2,
       explain: {
         rule: RULE,
-        worked: '"To bring" is not a complete sentence on its own — it needs an object to finish it, so a colon isn’t allowed to interrupt it there.',
+        worked: '"To bring" is not a complete sentence on its own — bring WHAT? The thought isn’t finished, so a colon isn’t allowed to interrupt it there.',
         whyN: null,
       },
       hintSteps: [
         'Cover up everything after that colon. Does what’s left make sense as its own sentence?',
-        '"To bring" is left hanging without an object — that’s the sign a colon shouldn’t sit there.',
+        '"To bring" is left hanging — bring WHAT? That unfinished feeling is the sign a colon shouldn’t sit there.',
       ],
     },
     {
@@ -763,7 +763,7 @@ export default {
       explain: {
         rule: RULE,
         worked: 'No colon interrupts "The bag contained" here — good, because it isn’t a complete sentence on its own. The list already pauses after "a torch" with none before "and a whistle."',
-        whyN: 'The list already has its one needed pause in the right place, and no colon wrongly interrupts the verb. All four segments are clean.',
+        whyN: 'The list already has its one needed pause in the right place, and no colon jumps in before the sentence has said WHAT. All four segments are clean.',
       },
       hintSteps: [
         'Check "The bag contained" — is a colon needed there, or is it correctly left out?',

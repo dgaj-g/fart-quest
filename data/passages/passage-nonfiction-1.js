@@ -10,6 +10,7 @@ const RULE_LIT = "The line number is a gift — go BACK to the line, put your fi
 const RULE_INF = "The text gives clues, not answers. Ask: what do these clues ADD UP to? Beware answers with 'always', 'never', 'entirely'.";
 const RULE_VOCAB = 'Swap each option INTO the sentence and read it aloud — only the true meaning survives the swap.';
 const RULE_LANG = 'A simile compares with like or as; a metaphor says it IS; a list piles things up to overwhelm you — always ask what EFFECT it has.';
+const RULE_LANG_POS = 'Ask what JOB the word does in THIS sentence: naming = noun, doing = verb, describing = adjective, how = adverb.';
 const RULE_TEXT = 'Contents = where chapters start; index = where topics hide (back, A-Z); glossary = word meanings; bibliography = books used. Fiction is invented; non-fiction is fact.';
 
 export default {
@@ -280,7 +281,7 @@ export default {
         'It describes the noun "rival" — a word that describes a noun is that word class.',
       ],
       explain: {
-        rule: RULE_LANG,
+        rule: RULE_LANG_POS,
         worked: '"Stinking" describes the noun "rival", telling us what kind of rival it is — that describing job makes it an adjective.',
       },
     },
