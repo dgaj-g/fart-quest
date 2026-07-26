@@ -104,8 +104,33 @@ const CSS = `
   gap: clamp(6px, 1.4vh, 14px);
   padding: clamp(6px, 1.4vh, 14px) clamp(10px, 1.8vw, 20px) clamp(6px, 1.2vh, 12px);
 }
+/* CAPTION-BAND FIX (post-F2/F3 review finding): NO BACKTICKS in this
+   comment — see the header note above about a nested backtick pair closing
+   this CSS template literal early and corrupting the module.
+   .gh-stem used to sit flush at the top of the stage (HUD height ~76px +
+   the stage's own clamp()-based top padding, ~7.6-10.4px across the three
+   proven sizes) — measured (both by hand and live in a headless browser)
+   at [83.5-118.4] at 1000x540, [85-126] at 1024x640, [86.4-134.8] at
+   1180x745 — i.e. entirely INSIDE .pier-caption-bar's (css/pier.css)
+   fixed-px position:fixed; top:calc(78px + safe-t) pill, which spans
+   78-142px from the viewport top IDENTICALLY at all three sizes (neither
+   its offset nor its content is vh-scaled — same fact splat.js's
+   .splat-question comment and gunge.js's .gg-fact comment independently
+   measured and fixed for their own stems). checkTailTension()'s nearMiss
+   caption (routine mid-run, whenever the ghost closes to one station) and
+   reactToMiss()'s every-wrong-answer caption (fired exactly when the SAME
+   stem must be re-read to retry) would render the caption pill's opaque
+   background directly over the one thing the player must read to answer.
+   FIX: the same fixed-px constant splat.js already proved clears this
+   exact collision (not a clamp()/vh value, because what it must clear
+   isn't vh-based either) — pushes the stem's top edge to ~151.5-154.4px,
+   9.5-12.4px clear of the band's 142px bottom edge at all three sizes.
+   Costs .gh-tunnel (flex:1 1 auto, absorbs it) ~68px of height, not the
+   stem — the tunnel stays a tall scene (F3: still 340-580px+ across the
+   three sizes), nowhere near the old 92-148px sliver. */
 .gh-stem {
   flex: none; align-self: center;
+  margin: 68px 0 0;
   background: var(--card); color: var(--ink); border-radius: 14px;
   box-shadow: 0 4px 0 rgba(0, 0, 0, .25), 0 8px 16px rgba(0, 0, 0, .3);
   padding: clamp(4px, 1.1vh, 11px) clamp(16px, 3vw, 26px);

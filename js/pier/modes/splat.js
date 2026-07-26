@@ -152,10 +152,32 @@ const CSS = `
   60% { translate:6px -2px; } 75% { translate:-3px 1px; } 90% { translate:2px 0; }
 }
 
+/* \`margin-top\` here is a DELIBERATE fixed-px constant, not a clamp()/vh
+   value — it exists to clear \`.pier-caption-bar\` (css/pier.css), which is
+   \`position:fixed\` at a fixed-px \`top:calc(78px + safe-t)\` and renders a
+   fixed ~64px-tall pill (measured live at all three proven sizes: bar spans
+   78-142px from the viewport top, IDENTICAL at 1000x540/1024x640/1180x745,
+   because neither its offset nor its content is vh-scaled). Pre-fix, this
+   question sat flush under the HUD (~82px top) — squarely inside that
+   78-142 band — so EVERY \`pier.say()\` this mode fires (announcer.roundStart
+   at every round start, gremlin.nearMiss on every miss) rendered the caption
+   pill's opaque background directly over the current question, making the
+   one thing a player must read to answer unreadable for up to 5.2s at a
+   time (screenshot-confirmed: "2 x 1 = ?" ghosted out under the tannoy
+   bubble). Fix: push the question down past the caption's fixed 142px
+   bottom edge with a matching fixed constant (not clamp/vh, since the thing
+   it must clear isn't vh-based either) — the ~8-14px of remaining headroom
+   this leaves at every size was re-verified against F2's reclaimed stage
+   height (still 276-436px of \`.splat-field\` left over, comfortably more
+   than the pre-rework squashed-strip baseline this whole pass exists to
+   fix) rather than reusing the shared caption bar's own CSS var (mode files
+   don't own/edit chassis chrome — this stays a self-contained splat.js
+   fix). */
 .splat-question {
   flex: 0 0 auto;
+  margin: 68px 0 0;
   font-size:clamp(22px,4.2vh,40px); font-weight:700; color:var(--parchment);
-  text-align:center; text-shadow:0 3px 0 rgba(0,0,0,.35); min-height:1.2em; margin:0;
+  text-align:center; text-shadow:0 3px 0 rgba(0,0,0,.35); min-height:1.2em;
 }
 
 /* \`.splat-arena\` fills the height the chassis reclaimed (F2) instead of
@@ -430,12 +452,22 @@ export default {
       dockClass: 'splat-dock',
     });
 
-    const scoreChip = el('div', 'splat-chip splat-score-chip', 'SCORE <b>0</b>');
+    // F4 fix: `.splat-chip` is `display:flex` (for vertical centring) with
+    // mixed raw-text + `<b>` content directly inside it — the EXACT bug
+    // js/screens/pier.js and js/pier/modes/tank.js already found and fixed
+    // on their own chips (flexbox wraps each maximal run of inline content
+    // in its own anonymous flex item, then trims THAT item's own leading/
+    // trailing whitespace, silently eating the space either side of `<b>` —
+    // "SCORE0" / "MALLET×0" instead of "SCORE 0" / "MALLET ×0"). Fix
+    // (identical to theirs): wrap the whole label in one inline `<span>` so
+    // it's the flex container's only child/flex item, where ordinary inline
+    // whitespace rules apply throughout its content.
+    const scoreChip = el('div', 'splat-chip splat-score-chip', '<span>SCORE <b>0</b></span>');
     const ring = el('div', 'splat-ring');
     ring.style.setProperty('--pct', '100');
     const ringNum = el('span', 'splat-ring-num', '60');
     ring.append(ringNum);
-    const toolChip = el('div', 'splat-chip splat-tool-chip', '🔨 <b>MALLET</b> ×0');
+    const toolChip = el('div', 'splat-chip splat-tool-chip', '<span>🔨 <b>MALLET</b> ×0</span>');
     toolChip.hidden = true;
     chassis.hud.append(scoreChip, ring, toolChip);
 
@@ -479,7 +511,9 @@ export default {
       if (streak >= 2) {
         toolChip.hidden = false;
         toolChip.className = 'splat-chip splat-tool-chip ' + tier.cls;
-        toolChip.innerHTML = `${tier.emoji} <b>${tier.name}</b> ×${streak}`;
+        // Same F4 fix as the chip's initial markup above: keep the whole
+        // label inside ONE `<span>` on every rewrite, not just at creation.
+        toolChip.innerHTML = `<span>${tier.emoji} <b>${tier.name}</b> ×${streak}</span>`;
         bump(toolChip);
       } else {
         toolChip.hidden = true;

@@ -103,6 +103,44 @@
 //    would have been a real (if numerically harmless, given `.tcp-cup`'s
 //    72px floor: 72*.9=64.8, still >=60) instance of the exact bug this
 //    rule exists to rule out categorically rather than case-by-case.
+//
+// REWORK v2, THIRD PASS (orchestrator playtest fix pass, 26 Jul) — two real
+// bugs found and fixed against the landscape chassis described above:
+//  - CRITICAL: this file's own CSS template literal (`const CSS = \`...\`;`)
+//    contained several literal backtick characters inside what were meant to
+//    be plain CSS comments (documentation prose using backticks for
+//    markdown-style emphasis). A JS template literal has no concept of a
+//    nested CSS comment — ANY raw backtick inside it closes the string
+//    outright, so those backticks silently truncated the module's source at
+//    parse time in a real browser (`SyntaxError: Unexpected identifier
+//    'rotate'`), which broke this file's import and, because
+//    js/screens/pier.js imports all five mode files statically, broke the
+//    ENTIRE pier for every route, not just Teacups. `node --check` did not
+//    catch this (it does not fully validate template-literal contents the
+//    same way a real ESM parse does — confirmed by reproducing the failure
+//    with a genuine `import()` in Node too). Fixed by de-backtick-ing the
+//    affected comment prose (plain hyphens/no-emphasis instead). Any future
+//    edit to this file's CSS block must NOT put a raw ` character in a CSS
+//    comment for emphasis — there is no safe way to do that inside a
+//    template literal.
+//  - The lap-2 "spin the other way" reversal was incomplete: `buildLapUI()`
+//    only ever added the `-back` class to the decorative ring, never to the
+//    big cup's own continuous carousel spin nor to the (CSS-defined but
+//    never-instantiated) satellite-cup orbit — so on lap 2 the ring visibly
+//    reversed but the cup and would-be satellites did not, undercutting
+//    PIER_REWORK.md §3's "make the direction reversal obvious ... on ALL of
+//    it". Fixed by: (a) actually instantiating `.tcp-platform` (soft floor
+//    glow) and `.tcp-orbit` + three `.tcp-orbit-cup` satellites in
+//    `buildLapUI()` — CSS for these already existed from an earlier pass but
+//    was dead until now; (b) applying `tcp-cupwrap-back`/`tcp-orbit-back`
+//    alongside `tcp-ring-back` whenever `lap === 2`, so cup, satellites and
+//    ring all reverse together. Verified live at 1000×540/1024×640/1180×745:
+//    stage/dock now genuinely landscape side-by-side (stage ~765–1136px wide
+//    stretching the full remaining height, dock a compact ~28px-empty/
+//    ~193–262px-with-numpad right column), every state (welcome/picker/lap
+//    ceremony/playing/wrong-answer hint/end card) has zero interactive
+//    elements under 60px or outside the viewport, and lap 2's cup+orbit+ring
+//    all confirmed carrying `-back` animation classes together.
 
 import {
   el, sfx, sparkleBurst, party, injectCss,
@@ -226,10 +264,10 @@ const CSS = `
 }
 
 /* Three small satellite cups riding the SAME rotating ring as the main
-   cup — .tcp-orbit is the thing that spins (via the independent `rotate`
+   cup - .tcp-orbit is the thing that spins (via the independent rotate
    property, see below); each .tcp-orbit-cup is placed at a fixed angle+
    radius with a plain static transform, so the parent's continuous
-   rotation carries them round AND tumbles them together — exactly how a
+   rotation carries them round AND tumbles them together - exactly how a
    real teacups ride's satellite cups move, no per-child animation needed. */
 .tcp-orbit {
   position: absolute; top: 46%; left: 50%; translate: -50% -50%;
@@ -256,12 +294,12 @@ const CSS = `
 }
 .tcp-ring.tcp-ring-back { animation-name: tcp-ring-back; border-color: rgba(47, 227, 196, .5); }
 
-/* The cup itself now spins continuously too (not just an idle bob) —
+/* The cup itself now spins continuously too (not just an idle bob) -
    "spinning" is the ride's resting state, lap-direction-matched, escalated
-   further on lap 2's reversal. Bob keeps writing `transform` (unchanged);
-   the continuous turn uses the INDEPENDENT `rotate` CSS property so the two
-   compose instead of fighting over the same `transform` slot — same
-   technique css/pier.css itself uses for `.pier-screen`'s static translate
+   further on lap 2's reversal. Bob keeps writing transform (unchanged);
+   the continuous turn uses the INDEPENDENT rotate CSS property so the two
+   compose instead of fighting over the same transform slot - same
+   technique css/pier.css itself uses for .pier-screen's static translate
    vs its opacity-only entrance (see that file's header contract, rule 3a). */
 .tcp-cupwrap {
   position: relative; z-index: 1;
@@ -521,12 +559,20 @@ export default {
       for (let i = 0; i < queue.length; i += 1) dotsEl.append(el('span', 'tcp-dot'));
 
       cupAreaEl = el('div', 'tcp-cuparea');
-      ringEl = el('div', 'tcp-ring' + (lap === 2 ? ' tcp-ring-back' : ''));
-      cupWrapEl = el('div', 'tcp-cupwrap');
+      const back = lap === 2;
+      const platformEl = el('div', 'tcp-platform');
+      const orbitEl = el('div', 'tcp-orbit' + (back ? ' tcp-orbit-back' : ''));
+      orbitEl.append(
+        el('span', 'tcp-orbit-cup', '🍵'),
+        el('span', 'tcp-orbit-cup', '🍵'),
+        el('span', 'tcp-orbit-cup', '🍵'),
+      );
+      ringEl = el('div', 'tcp-ring' + (back ? ' tcp-ring-back' : ''));
+      cupWrapEl = el('div', 'tcp-cupwrap' + (back ? ' tcp-cupwrap-back' : ''));
       cupEl = el('span', 'tcp-cup-big', '🍵');
       cupWrapEl.append(cupEl);
       stemEl = el('div', 'tcp-stem');
-      cupAreaEl.append(ringEl, cupWrapEl, stemEl);
+      cupAreaEl.append(platformEl, orbitEl, ringEl, cupWrapEl, stemEl);
 
       hintEl = el('div', 'tcp-hint');
 
@@ -704,7 +750,17 @@ export default {
           : 'Both laps spun clean — multiplication and the division inverses.'}</p>
         ${line ? `<div class="tcp-nana-line"><span class="tcp-nana-avatar">👵</span><span>${line.text}</span></div>` : ''}
       `;
-      const rideChip = el('button', 'tcp-ride-chip', `Fancy a bigger ride? <b>${ride.emoji} ${ride.label}</b> →`);
+      // F4 fix: `.tcp-ride-chip` is `display:flex` (for vertical centring) with
+      // mixed raw-text + `<b>` content directly inside it — flexbox wraps each
+      // maximal run of inline content in its own anonymous flex item and trims
+      // LEADING/TRAILING whitespace at each of those boxes' own edges, silently
+      // eating the space either side of `<b>` (the same "🚽0flushed forever"
+      // mechanism already fixed on the hub's/tank's flushed chip — see
+      // js/screens/pier.js's and js/pier/modes/tank.js's matching comments).
+      // Fix: wrap the whole label in ONE inline `<span>` so it is the flex
+      // container's only child/flex item — ordinary inline whitespace rules
+      // then apply throughout its content.
+      const rideChip = el('button', 'tcp-ride-chip', `<span>Fancy a bigger ride? <b>${ride.emoji} ${ride.label}</b> →</span>`);
       rideChip.type = 'button';
       rideChip.addEventListener('click', () => { ctx.audio.sfx('confirm'); ctx.go(`#/pier/${ride.id}`); });
 

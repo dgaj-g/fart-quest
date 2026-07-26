@@ -1,0 +1,104 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pier music rotation harness</title>
+<style>
+  body { font: 15px/1.5 -apple-system, sans-serif; margin: 24px; background:#12162a; color:#e8ecff; }
+  h1 { font-size: 19px; }
+  button { font: inherit; padding: 10px 16px; margin-right: 8px; border-radius: 10px; border:0; background:#f4c542; cursor:pointer; }
+  #log { white-space: pre-wrap; background:#0b0e1c; padding:12px; border-radius:10px; margin-top:14px; max-height:60vh; overflow:auto; font-family: ui-monospace, monospace; font-size:13px; }
+  .ok { color:#7BC950; } .warn { color:#f4c542; } .bad { color:#e74c3c; }
+</style>
+<h1>Whiff-End Pier — music rotation harness</h1>
+<p>Drives <code>musicPlaylist()</code> from <code>js/audio.js</code> directly (no pier screen, no mode files).
+Audio needs a user gesture, hence the button. Verifies: shuffled order, crossfade into the next track near the end,
+no two tracks left audible, cancellation by <code>music()</code>/<code>stopMusic()</code>, and that only one poller/fade lives at a time.</p>
+<button id="run">▶ Run rotation test</button>
+<button id="stop">■ Stop audio</button>
+<div id="log">idle…</div>
+<script type="module">
+import audio from '../js/audio.js';
+
+const logEl = document.getElementById('log');
+const lines = [];
+function log(msg, cls) {
+  lines.push(cls ? `<span class="${cls}">${msg}</span>` : msg);
+  logEl.innerHTML = lines.join('\n');
+  logEl.scrollTop = logEl.scrollHeight;
+}
+const audible = () => Array.from(document.querySelectorAll('audio'))
+  .filter((a) => !a.paused && a.volume > 0.02)
+  .map((a) => ({ track: (a.src || '').split('/').pop(), vol: +a.volume.toFixed(2), t: +a.currentTime.toFixed(1) }));
+
+const TRACKS = ['pier-1', 'pier-2', 'pier-3', 'pier-4'];
+
+document.getElementById('stop').onclick = () => { audio.stopMusic(200); log('stopMusic() called'); };
+
+document.getElementById('run').onclick = async () => {
+  lines.length = 0;
+  audio.attachUnlock();
+  audio.setVolumes({ music: 1, sfx: 1, vo: 1 });
+
+  log('--- TEST 1: start rotation ---');
+  audio.musicPlaylist(TRACKS, { crossfadeMs: 3000 });
+  await new Promise((r) => setTimeout(r, 3500));
+  const first = audio.getMusicState();
+  log(`live=${audio.isPlaylistLive()} track=${first.track} vol=${first.volume} paused=${first.paused}`,
+      audio.isPlaylistLive() && first.track && !first.paused ? 'ok' : 'bad');
+  if (!first.track) { log('No track started — is the preview serving audio/music/pier-*.mp3?', 'bad'); return; }
+
+  log('\n--- TEST 2: seek near the end, expect a crossfade to a DIFFERENT track ---');
+  const els = Array.from(document.querySelectorAll('audio'));
+  const playing = els.find((a) => !a.paused);
+  const dur = playing.duration;
+  log(`duration=${dur.toFixed(1)}s — seeking to ${(dur - 4).toFixed(1)}s`);
+  playing.currentTime = dur - 4;
+  const before = first.track;
+  let switched = null;
+  for (let i = 0; i < 24; i++) {                    // poll up to ~12s
+    await new Promise((r) => setTimeout(r, 500));
+    const st = audio.getMusicState();
+    if (st.track && st.track !== before) { switched = st.track; break; }
+  }
+  log(switched ? `crossfaded ${before} → ${switched}` : `NO SWITCH after 12s (still ${before})`,
+      switched ? 'ok' : 'bad');
+
+  log('\n--- TEST 3: mid-crossfade, how many elements are audible? ---');
+  const mid = audible();
+  log(JSON.stringify(mid));
+  log(mid.length <= 2 ? `${mid.length} audible (<=2 = a real blend, not a pile-up)` : `${mid.length} AUDIBLE — overlap bug`,
+      mid.length <= 2 ? 'ok' : 'bad');
+  await new Promise((r) => setTimeout(r, 4000));
+  const after = audible();
+  log(`after settle: ${JSON.stringify(after)}`, after.length === 1 ? 'ok' : 'bad');
+
+  log('\n--- TEST 4: a plain music() for another track must cancel the rotation ---');
+  audio.music('map');
+  await new Promise((r) => setTimeout(r, 1600));
+  log(`live=${audio.isPlaylistLive()} track=${audio.getMusicState().track}`,
+      audio.isPlaylistLive() === false ? 'ok' : 'bad');
+
+  log('\n--- TEST 5: restart rotation, then stopMusic() must cancel it ---');
+  audio.musicPlaylist(TRACKS, { crossfadeMs: 3000 });
+  await new Promise((r) => setTimeout(r, 2000));
+  const restarted = audio.isPlaylistLive();
+  audio.stopMusic(200);
+  await new Promise((r) => setTimeout(r, 1200));
+  log(`restarted=${restarted} → afterStop live=${audio.isPlaylistLive()} audible=${JSON.stringify(audible())}`,
+      restarted && !audio.isPlaylistLive() && audible().length === 0 ? 'ok' : 'bad');
+
+  log('\n--- TEST 6: shuffle actually varies the order ---');
+  const orders = [];
+  for (let i = 0; i < 6; i++) {
+    audio.musicPlaylist(TRACKS, { crossfadeMs: 3000 });
+    await new Promise((r) => setTimeout(r, 900));
+    orders.push(audio.getMusicState().track);
+    audio.stopMusic(60);
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  const uniq = new Set(orders.filter(Boolean));
+  log(`first tracks across 6 starts: ${JSON.stringify(orders)} — ${uniq.size} distinct`,
+      uniq.size > 1 ? 'ok' : 'warn');
+
+  log('\nDONE. Any "bad" line above is a real defect.', 'ok');
+};
+</script>

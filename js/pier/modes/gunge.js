@@ -29,47 +29,42 @@
 // content lives there, so a tight viewport just makes the scene compact,
 // never unreachable).
 //
-// *** CHASSIS GAP FOUND + WORKED AROUND (flagged for the chassis agent) ***
-// `js/pier/padkit.js`'s `mountChassis(container, opts)` adds a `.pier-chassis`
-// class to `container` and its own doc comment says "container must already
-// be the flex column itself — css/pier.css pre-wires this for BOTH...
-// `.pier-screen`... and `.pier-mode-host`". That is true for the HUB route
-// (`.pier-screen.screen` hardcodes `display:flex;flex-direction:column`
-// directly in css/pier.css), but as of this build there is NO CSS rule
-// anywhere targeting `.pier-chassis` (grepped css/pier.css AND css/main.css —
-// zero hits) and `.pier-mode-host` itself only declares
-// `flex:1 1 auto; min-height:0; position:relative; overflow-y:...` — no
-// `display:flex`. Without that, `.pier-hud`/`.pier-stage`/`.pier-dock`'s own
-// `flex:none` / `flex:1 1 auto` rules are INERT (a `flex:` property only
-// does anything on a flex ITEM, and a flex item requires a flex-container
-// PARENT) — every mode that calls `pier.mountChassis(host, ...)` would get
-// hud/stage/dock stacking as plain blocks with no shrink-the-stage-not-the-
-// dock behaviour at all, silently reproducing THE EXACT v1 bug this whole
-// rework exists to fix. Verified live in the browser (see report) before
-// writing a single pixel of vat art on top of it.
-// FIX (scoped to THIS file only — does not touch css/pier.css, does not
-// affect any other mode; identical in spirit and selector to the SAME
-// gap independently found+worked-around in splat.js/ghost.js/tank.js):
-// this file's own injected CSS carries
-// `.pier-mode-host.pier-chassis { display:flex; flex-direction:column; }`
-// — using the `.pier-chassis` class `mountChassis()` ALREADY auto-adds to
-// `host` (padkit.js), rather than a bespoke class, so the rule is byte-
-// identical to the other three modes' own workaround (idempotent — no
-// cascade fight regardless of mount order, per their own comments). Earlier
-// in this build this rule also carried `overflow:hidden`, which — because
-// this compound selector targets `.pier-mode-host` itself, the SAME element
-// that holds hud/stage/DOCK (the numpad) — silently deleted THE LAYOUT LAW's
-// mandatory scroll-rescue fallback (`.pier-mode-host`'s own `overflow-y:auto`,
-// css/pier.css's explicit "degrades to scrollable, never physically
-// unreachable" contract, §1.5). Dropped: this rule only ever needs to turn
-// the host into a flex COLUMN so hud/stage/dock size correctly; nothing in
-// this file's scene depends on the host itself clipping (the vat splash etc.
-// live inside `chassis.stage`, which already owns its own
-// `overflow-y:auto;overflow-x:hidden` from css/pier.css). css/pier.css still
-// needs a real `.pier-chassis { display:flex; flex-direction:column; }` rule
-// so every future mode gets this for free instead of each one re-discovering
-// the same gap. Flagged loudly for reviewers / the chassis agent, per the
-// task brief.
+// PIER REWORK v2, THIRD PASS (F1/F2/F3 landscape-chassis fix pass) — adopts
+// css/pier.css's now-real `.pier-chassis` CSS GRID rule (that file's header
+// contract block, §1a): once a mode calls `pier.mountChassis(host, ...)`,
+// `host` gets `display:grid` (portrait: `[hud]/[stage]/[dock]` stacked;
+// landscape ≥680px wide: `[hud hud]/[stage dock]` side by side, stage the
+// tall left column, dock a compact right-hand column) with zero JS needed
+// here — pure media query, re-evaluated by the browser on resize for free.
+// Two consequences for this file:
+//  - This file's OWN former `.pier-mode-host.pier-chassis { display:flex;
+//    flex-direction:column; }` workaround (written back when css/pier.css
+//    had no `.pier-chassis` rule at all — see git history) is DELETED. The
+//    real grid rule ships with `!important` on every `display`/
+//    `grid-template-*` property specifically so a leftover copy of this
+//    workaround could never silently defeat it and re-stack the mode back
+//    into a squashed portrait column — but keeping the dead rule around
+//    would read as a lie about the real layout mechanism, so it's gone.
+//  - The vat scene now gets a genuinely TALL stage column instead of a
+//    squashed horizontal strip (measured: stage height goes from the
+//    reported 139px to 427–622px across the three proven sizes — see this
+//    file's build report), which is what actually makes "plank hovers a
+//    long way above a bubbling vat" work as a sight gag rather than a
+//    cramped diagram. The vat/plank/winch geometry below was already
+//    percentage-of-`.gg-vatwrap` based (no hardcoded pixel assumptions), so
+//    it inherits the extra height automatically; what it did NOT already do
+//    is use the extra WIDTH the row layout hands the stage (the vat itself
+//    is deliberately capped narrow — a WIDE tank would read as a pool, not a
+//    vat, undoing the "tall" gag) — measured live, that left a large dead
+//    stretch of navy between the tank and the numpad column at every proven
+//    size. Fix: a full-width boardwalk (`.gg-boardwalk`) and bunting string
+//    (`.gg-bunting`) now dress the whole reclaimed stage width behind the
+//    scene (z-index:-1, pure decoration, `pointer-events:none`), and the
+//    side panel (`.gg-side`) — previously ONLY ever visible for a few
+//    seconds during a wrong-answer flash, dead space the rest of the round —
+//    now also carries a permanent `.gg-streak-plate` (current streak, matches
+//    the existing `STREAK_FOR_FLOURISH` combo threshold) so that column
+//    reads as a real gamified HUD element, not a gap waiting for an error.
 
 import {
   el, sfx, tween, party, injectCss,
@@ -163,12 +158,6 @@ function sayFrom(pier, rng, pool) {
 
 /* ---------- self-contained styles ---------- */
 const CSS = `
-/* --- chassis workaround, see header comment: same idempotent selector as
-   splat.js/ghost.js/tank.js's own fix, deliberately NO overflow override so
-   .pier-mode-host's defensive overflow-y:auto scroll-rescue (css/pier.css
-   §1.5) survives --- */
-.pier-mode-host.pier-chassis { display:flex; flex-direction:column; }
-
 /* ============================================================
    HUD — survival timer chip
    ============================================================ */
@@ -190,6 +179,47 @@ const CSS = `
 .gg-fact { flex:none; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-weight:700; font-size:clamp(15px,3.6vh,32px); color:var(--parchment); text-align:center; line-height:1.15; }
 
 .gg-playarea { flex:1 1 auto; min-height:0; display:flex; gap:clamp(8px,2vw,20px); align-items:stretch; justify-content:center; }
+
+/* ============================================================
+   AMBIENT PIER DRESSING — fills the WIDTH the landscape chassis reclaims
+   (F2/F3 fix pass). The vat is deliberately kept narrow/tall (a wide tank
+   reads as a pool, not a vat — undoes the "plank hovers over a bubbling
+   vat" gag) so on a wide-but-short landscape screen there is a lot of dead
+   navy either side of it before the numpad column starts (measured: ~250-
+   400px at every proven size). These two elements are pure decoration:
+   z-index -1 (see the header comment above the CSS block: this reliably
+   paints them BEHIND .gg-stage-inner's entire subtree regardless of DOM
+   order, since a negative-z-index positioned box always paints before
+   in-flow, non-positioned content within the same stacking context — no
+   fight with the vat scene's own internal z-indexed layers needed) and
+   pointer-events none, appended straight into chassis.stage (a sibling of
+   stageInner/splash), so they span the FULL stage width, not just the
+   width of the vat+side column group.
+   NOTE FOR ANYONE EDITING THIS TEMPLATE LITERAL: this whole CSS block is a
+   single JS template-literal string. Do NOT use backtick characters inside
+   these comments (or anywhere in this string) for markdown-style code
+   formatting — an unescaped backtick here silently terminates/
+   reopens the literal. Node's --check and even a real Node ESM import can
+   both accept the resulting (subtly different) token stream without error,
+   but real browsers parse it correctly per spec and throw a SyntaxError at
+   import time — this exact class of bug was found live in a sibling mode
+   file during this pass and is flagged in the build report. Use single
+   quotes or plain text instead. */
+.gg-stage-inner { position:relative; z-index:1; }
+.gg-boardwalk {
+  position:absolute; left:0; right:0; bottom:0; z-index:-1; pointer-events:none;
+  height:clamp(12px,2.2vh,20px);
+  background:repeating-linear-gradient(90deg,#6b5236 0 14px,#4a3722 14px 18px);
+  box-shadow:inset 0 3px 5px rgba(0,0,0,.35), 0 -2px 0 rgba(0,0,0,.25);
+}
+.gg-bunting { position:absolute; left:0; right:0; top:0; height:clamp(18px,2.8vh,28px); z-index:-1; pointer-events:none; overflow:hidden; }
+.gg-bunting::before { content:''; position:absolute; left:3%; right:3%; top:5px; height:2px; background:rgba(255,233,168,.3); }
+.gg-flag {
+  position:absolute; top:5px; width:0; height:0;
+  border-left:8px solid transparent; border-right:8px solid transparent; border-top:13px solid var(--fc,var(--pier-teal));
+  transform-origin:top center; animation:gg-flag-sway 3.6s ease-in-out infinite;
+}
+@keyframes gg-flag-sway { 0%,100% { transform:rotate(-5deg); } 50% { transform:rotate(5deg); } }
 
 /* ============================================================
    THE VAT SCENE
@@ -304,9 +334,22 @@ const CSS = `
 @keyframes gg-combo-pulse { 0% { filter:drop-shadow(0 0 0 rgba(244,197,66,0)); } 40% { filter:drop-shadow(0 0 14px rgba(244,197,66,.85)); } 100% { filter:drop-shadow(0 0 0 rgba(244,197,66,0)); } }
 
 /* ============================================================
-   SIDE PANEL — fact-family flash on a miss/slow answer
+   SIDE PANEL — permanent streak plate + the fact-family flash on a
+   miss/slow answer. Before this pass .gg-side held ONLY the flash (hidden
+   the vast majority of a round), leaving its whole column dead space on a
+   wide landscape stage — see the header comment. The streak plate is always
+   on screen so the column reads as a real HUD element throughout.
    ============================================================ */
-.gg-side { flex:0 1 auto; align-self:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; width:min(260px,72vw); min-width:0; }
+.gg-side { flex:0 1 auto; align-self:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; width:min(260px,72vw); min-width:0; }
+.gg-streak-plate {
+  width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+  background:rgba(10,18,48,.55); border:2px solid rgba(255,209,102,.3); border-radius:14px;
+  padding:10px 14px; box-shadow:0 4px 0 rgba(0,0,0,.3);
+  transition:border-color 200ms ease, box-shadow 200ms ease;
+}
+.gg-streak-plate.gg-streak-hot { border-color:rgba(244,197,66,.75); box-shadow:0 4px 0 rgba(0,0,0,.3), 0 0 14px rgba(244,197,66,.4); }
+.gg-streak-icon { font-size:19px; flex:none; }
+.gg-streak-text { font-family:'Fredoka',sans-serif; font-weight:700; font-size:clamp(11.5px,1.7vh,14px); color:var(--parchment); line-height:1.2; }
 .gg-flash { width:100%; background:rgba(231,76,60,.14); border:2px solid rgba(231,76,60,.4); border-radius:14px; padding:8px 12px; text-align:center; opacity:0; transform:translateY(-6px); transition:opacity 220ms var(--spring), transform 220ms var(--spring); pointer-events:none; }
 .gg-flash.show { opacity:1; transform:translateY(0); }
 .gg-flash-heading { font-family:'Fredoka',sans-serif; font-weight:700; font-size:12px; color:#ffd7d0; margin-bottom:3px; }
@@ -352,7 +395,7 @@ const CSS = `
 .gg-endbtns { display:flex; flex-direction:column; gap:10px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .gg-figure, .gg-wave, .gg-bub, .gg-drip, .gg-meter-fill.gg-critical, .gg-timer.gg-ramp-pulse, .gg-plank.gg-strain, .gg-fray, .gg-trophy { animation:none !important; }
+  .gg-figure, .gg-wave, .gg-bub, .gg-drip, .gg-meter-fill.gg-critical, .gg-timer.gg-ramp-pulse, .gg-plank.gg-strain, .gg-fray, .gg-trophy, .gg-flag { animation:none !important; }
   .gg-plank.gg-crack, .gg-plank.gg-fall, .gg-dave.gg-dave-peck, .gg-dave.gg-dave-land, .gg-figure.gg-surface { animation-duration:.01ms !important; }
   .gg-splash-stamp, .gg-splat-blob, .gg-droplet, .gg-splash-wash { animation:none !important; opacity:1 !important; transform:none !important; }
 }
@@ -383,10 +426,10 @@ export default {
     // navigation" convention elsewhere in this file).
     const beats = (machine && machine.gunge) || {};
 
-    /* ---------- chassis (see header note re: the .pier-chassis CSS gap;
-       mountChassis() below auto-adds the .pier-chassis class to `host`
-       itself, which this file's injected CSS rule above targets — no
-       bespoke class needed) ---------- */
+    /* ---------- chassis: mountChassis() adds `.pier-chassis` to `host`,
+       which css/pier.css's own grid rule now targets directly (header
+       comment, "THIRD PASS") — no bespoke class/workaround needed here
+       any more ---------- */
     const chassis = pier.mountChassis({
       onBack: () => { ctx.audio.sfx('back'); ctx.go('#/pier'); },
       backLabel: '← PIER',
@@ -429,7 +472,11 @@ export default {
     const wave2 = el('div', 'gg-wave gg-wave-2');
     const wave3 = el('div', 'gg-wave gg-wave-3');
     vat.append(wave1, wave2, wave3);
-    for (let i = 0; i < 5; i += 1) {
+    // Bubble/drip counts bumped up (5->8, 4->6) for the landscape chassis's
+    // much taller vat (F2/F3: the vat now runs 197–286px tall across the
+    // three proven sizes, up from a squashed strip) — the old counts read as
+    // sparse once there was real vertical room for them to rise through.
+    for (let i = 0; i < 8; i += 1) {
       const b = el('div', 'gg-bub');
       const size = 6 + rng() * 7;
       b.style.width = `${size}px`; b.style.height = `${size}px`;
@@ -437,7 +484,7 @@ export default {
       b.style.animationDelay = `${(rng() * 2.8).toFixed(2)}s`;
       vat.append(b);
     }
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 6; i += 1) {
       const d = el('div', 'gg-drip');
       d.style.left = `${10 + rng() * 78}%`;
       d.style.animationDelay = `${(rng() * 3.4).toFixed(2)}s`;
@@ -451,11 +498,34 @@ export default {
     vatwrap.append(vat, ropeGroup, winchpost, plank, dave, meter);
 
     const side = el('div', 'gg-side');
+    // Permanent streak plate — F2/F3 fix pass: `.gg-side` used to hold
+    // ONLY the wrong-answer flash (hidden the vast majority of a round),
+    // leaving this whole column dead space on the landscape chassis's wide
+    // stage. Always visible now; paintStreak() (below) keeps it live.
+    const streakPlate = el('div', 'gg-streak-plate');
+    const streakIcon = el('span', 'gg-streak-icon', '🪧');
+    const streakText = el('span', 'gg-streak-text', 'Answer to crank the winch!');
+    streakPlate.append(streakIcon, streakText);
     const flash = el('div', 'gg-flash');
     const flashHeading = el('div', 'gg-flash-heading');
     const flashBody = el('div', 'gg-flash-body');
     flash.append(flashHeading, flashBody);
-    side.append(flash);
+    side.append(streakPlate, flash);
+
+    // Ambient dressing (F2/F3): full stage-width boardwalk + bunting, pure
+    // decoration behind the whole scene — see the CSS comment for the
+    // z-index/paint-order reasoning.
+    const boardwalk = el('div', 'gg-boardwalk');
+    const bunting = el('div', 'gg-bunting');
+    const FLAG_COLOURS = ['var(--pier-teal)', 'var(--pier-pink)', 'var(--pier-bulb)'];
+    const FLAG_COUNT = 11;
+    for (let i = 0; i < FLAG_COUNT; i += 1) {
+      const flag = el('div', 'gg-flag');
+      flag.style.left = `${3 + (i / (FLAG_COUNT - 1)) * 94}%`;
+      flag.style.setProperty('--fc', FLAG_COLOURS[i % FLAG_COLOURS.length]);
+      flag.style.animationDelay = `${(i * 0.18).toFixed(2)}s`;
+      bunting.append(flag);
+    }
 
     playarea.append(vatwrap, side);
     // Deliberately playarea THEN factEl (not the reverse): the shared
@@ -478,7 +548,7 @@ export default {
     // for reviewers/the chassis agent: it's a general caption-bar/stage-
     // content collision risk, not something specific to gunge.
     stageInner.append(playarea, factEl);
-    chassis.stage.append(stageInner);
+    chassis.stage.append(boardwalk, bunting, stageInner);
 
     const splash = el('div', 'gg-splash');
     const splashWash = el('div', 'gg-splash-wash');
@@ -581,6 +651,20 @@ export default {
       flash.classList.add('show');
     }
 
+    // Keeps the permanent streak plate (side panel, F2/F3 fix pass) honest —
+    // called after every place `streak` changes, below.
+    function paintStreak() {
+      const hot = streak > 0 && streak % STREAK_FOR_FLOURISH === 0;
+      streakPlate.classList.toggle('gg-streak-hot', hot);
+      if (streak <= 0) {
+        streakIcon.textContent = '🪧';
+        streakText.textContent = 'Answer to crank the winch!';
+      } else {
+        streakIcon.textContent = '🔥';
+        streakText.textContent = `Streak: ${streak}${hot ? '!' : ''}`;
+      }
+    }
+
     function floatPlus() {
       const s = el('span', 'gg-floatplus', `+${BOOST_AMOUNT}`);
       plank.append(s);
@@ -636,6 +720,7 @@ export default {
 
     function handleCorrect(justFlushed) {
       streak += 1;
+      paintStreak();
       crankWinch();
       floatPlus();
       if (streak > 0 && streak % STREAK_FOR_FLOURISH === 0) {
@@ -690,6 +775,7 @@ export default {
 
     function handleWrong(answeredFact) {
       streak = 0;
+      paintStreak();
       sfx.tock(2);
       sayFrom(pier, rng, beats.nearMiss);
       showFlash("Here's the fact:", familyFlashText(answeredFact));
@@ -698,6 +784,7 @@ export default {
 
     function handleSlowCorrect(answeredFact) {
       streak = 0;
+      paintStreak();
       sfx.tock(1);
       showFlash('Quick as you can, hero! ⏱', familyFlashText(answeredFact));
       lurchThenContinue();
@@ -798,6 +885,7 @@ export default {
       resetSceneForRound();
       ended = false;
       streak = 0;
+      paintStreak();
       drainPerSec = BASE_DRAIN_PER_SEC;
       runStart = performance.now();
       hideFlash();

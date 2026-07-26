@@ -220,11 +220,13 @@
       `.btn:active{transform:scale(.94)}` is fine — it only ever runs while
       a finger is already down, i.e. hit-testing has already succeeded; this
       rule is about animations that run BEFORE a control has ever been
-      successfully tapped. Latent instances of the SAME risk this pass found
-      but could not fix — out of chassis file ownership — flagged in the
-      report: teacups.js's `.tcp-picker`/`.tcp-lap` still use
-      css/main.css's `enter-pop` directly on containers holding real ≥60px
-      cup buttons.)
+      successfully tapped. teacups.js's `.tcp-picker`/`.tcp-lap` were flagged
+      in an earlier pass as a latent instance of this same risk (they used
+      to animate css/main.css's `enter-pop` directly on containers holding
+      real ≥60px cup buttons) — TEACUPS agent has since fixed this: both now
+      use a local `.tcp-fade-in` (opacity-only, matching `.pier-enter`'s own
+      fix above); see teacups.js's own header for detail. Nothing outstanding
+      here as of this pass.)
 
    4. `overflow:hidden` is permitted ONLY on containers holding pure
       decoration (§1.5). Anything that can hold a control gets
