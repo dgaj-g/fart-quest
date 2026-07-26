@@ -283,6 +283,7 @@ export async function mount(root, ctx) {
     <div class="hud-right">
       <button class="hud-chip hud-btn" id="map-next-quest-btn">📍 Next quest</button>
       ${patrolBtnHtml}
+      <button class="crest-btn pier-hud-shortcut" id="map-pier-btn" aria-label="Whiff-End Pier">🎡</button>
       <button class="crest-btn" id="map-settings-btn" aria-label="Settings">⚙️</button>
     </div>
   `;
@@ -381,6 +382,14 @@ export async function mount(root, ctx) {
   hud.querySelector('#map-settings-btn').addEventListener('click', () => {
     ctx.audio.sfx('click');
     ctx.go('#/settings');
+  });
+
+  // Permanent pier shortcut, always enabled, in the fixed (non-scrolling) HUD
+  // bar — the coast landmark below still exists and still needs a scroll to
+  // reach; this is the always-on alternative (PIER_REWORK.md §5).
+  hud.querySelector('#map-pier-btn').addEventListener('click', () => {
+    ctx.audio.sfx('confirm');
+    ctx.go('#/pier');
   });
 
   hud.querySelector('#map-next-quest-btn').addEventListener('click', () => {

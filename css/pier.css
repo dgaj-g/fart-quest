@@ -1,9 +1,117 @@
-/* FART QUEST — css/pier.css (HUB agent)
-   WHIFF-END PIER: the hub screen + chrome shared by every machine (caption
-   bar, numpad, mode-host frame). Deliberate art direction — a neon seaside
-   night (pinks/teals/gold bulbs on deep navy), never the swamp's green/purple.
-   Individual machines (splat/gunge/ghost/teacups/tank) self-inject their OWN
-   CSS via injectCss('pier-<mode>', …) — nothing mode-specific belongs here. */
+/* FART QUEST — css/pier.css (HUB/CHASSIS agent)
+   WHIFF-END PIER: the hub screen + chrome SHARED by every machine (screen
+   skeleton, caption bar, numpad, screen-level overlay, mute button, mode-
+   host frame). Individual machines (splat/gunge/ghost/teacups/tank)
+   self-inject their OWN CSS via injectCss('pier-<mode>', …) — nothing
+   mode-specific belongs here.
+
+   =========================================================================
+   THE CHASSIS CONTRACT (docs/PIER_REWORK.md — READ THAT FILE FIRST; this is
+   a summary for whoever is styling a mode against it)
+   =========================================================================
+
+   1. THE LAYOUT LAW (contract §1, highest priority). `.pier-screen` is a
+      fixed flex column:
+        height: 100dvh (100vh fallback declared first, for engines without
+                dvh — see the rule below); display:flex; flex-direction:
+                column; overflow:hidden.
+      Two shapes exist under it:
+        a) HUB route: `.pier-screen` itself gets [hud][stage][dock] children
+           via js/pier/padkit.js's `mountChassis(screen, opts)`.
+        b) MODE route: `.pier-screen` gets ONE flex:1 child, `.pier-mode-host`
+           (built by js/screens/pier.js, passed to the mode as `host`). A
+           mode that wants the SAME [hud][stage][dock] skeleton calls
+           `mountChassis(host, opts)` itself (via the `pier.mountChassis`
+           convenience or a direct padkit.js import) — see padkit.js's own
+           header comment for the full API. This is OPT-IN per mode; nothing
+           forces an old, not-yet-rebuilt mode file to adopt it, which is
+           why `.pier-mode-host` also carries a defensive `overflow-y:auto`
+           (rule 5 below) rather than `hidden` — a mode that doesn't yet fit
+           degrades to SCROLLABLE, never physically unreachable (the exact
+           v1 bug this rework fixes).
+      Slot classes, once mounted via mountChassis: `.pier-hud` (flex:none),
+      `.pier-stage` (flex:1 1 auto; min-height:0 — MANDATORY, or flex refuses
+      to shrink and pushes the dock off-screen), `.pier-dock` (flex:none).
+
+   2. THE DOCK NEVER SHRINKS AND IS NEVER CLIPPED (§1.3). Any numpad/primary-
+      action control lives in `.pier-dock`. The shared numpad
+      (`.pier-numpad-key`, built by padkit.js's `makeNumpad`) sizes its keys
+      with `clamp()` off viewport height via the `--pnk` custom property —
+      floor is a hard 60px (both the clamp() floor AND a redundant
+      min-width/min-height belt-and-braces) so a key can NEVER render under
+      the touch-target minimum, at ANY of the three proven sizes
+      (1000×540 / 1024×640 / 1180×745) or smaller. If a mode's own stage
+      content is too tall to also fit, the STAGE must give up space
+      (min-height:0 lets it shrink to 0) — never the dock.
+
+   3. OVERLAYS RENDER AT SCREEN LEVEL (§1.4). `mountChassis(...).overlay
+      (contentEl, opts)` is THE only sanctioned way to show a welcome/end/
+      ceremony card. It builds `.pier-overlay-veil` (`position:fixed;
+      inset:0`) holding `.pier-overlay-card`, CENTRED with the `translate:`
+      property — never `transform:` (see the rule below for why) — capped at
+      `max-height:calc(100dvh - 32px); overflow-y:auto`. A mode must NOT
+      build its own in-stage veil (the v1 bug: `.splat-veil` sat inside a
+      254px `overflow-y:hidden` stage at 1000×540 and sliced the START
+      button clean in half — screenshot-confirmed, PIER_REWORK.md §0).
+
+      WHY `translate:`, not `transform:` — `.pier-screen` carries
+      `.enter-pop` (css/main.css), an `animation-fill-mode:both` entrance
+      that sets `transform: scale(1) translateY(0)` on completion and NEVER
+      clears it (this is the exact fq-v11 coach-card bug: a fill-mode:both
+      keyframe pins `transform` forever). Two consequences, both handled:
+        - Any element wanting a PERMANENT `translate(-50%,-50%)`-style centre
+          offset must use the modern standalone `translate` CSS property
+          (independent of `transform`, composited alongside it) so a card's
+          entrance `animation` can still use `transform`/`scale` for its pop-
+          in without fighting the centring. `.pier-overlay-card` does exactly
+          this: `translate:-50% -50%` (static, in the rule below) + a
+          `scale`-based `@keyframes` for the pop-in.
+        - `.pier-screen` having a permanently non-`none` `transform` makes IT
+          the containing block for any `position:fixed` descendant (CSS
+          spec: a transformed ancestor establishes the fixed containing
+          block). This sounds alarming but is harmless here: `.pier-screen`
+          is itself `position:absolute; inset:0` (css/main.css `.screen`)
+          inside `#app` (`position:fixed; inset:0`), so its rendered box IS
+          pixel-identical to the viewport rect. "Fixed relative to
+          `.pier-screen`" and "fixed relative to the viewport" land in
+          exactly the same place. The standard "position:fixed escapes an
+          `overflow:hidden` ancestor's clipping" behaviour still applies
+          fully — `.pier-overlay-veil`/`.pier-caption-bar`/`.pier-mute-btn`
+          can be mounted arbitrarily deep (even inside a clipped stage) and
+          will still render full-screen/un-clipped, because their containing
+          block (`.pier-screen`) is an ANCESTOR of every clipping container
+          in between. mountChassis's `overlay()` still appends to a
+          dedicated `.pier-overlay-host` that is a direct sibling of
+          hud/stage/dock (never nested inside `.pier-stage`) as belt-and-
+          braces, not because it's strictly required.
+
+   4. `overflow:hidden` is permitted ONLY on containers holding pure
+      decoration (§1.5). Anything that can hold a control gets
+      `overflow-y:auto` (scrollable-as-fallback) at worst, never `hidden`.
+
+   5. CAPTION BAR (`js/screens/pier.js` `pier.say()`) is anchored BELOW the
+      HUD (`.pier-caption-bar { top: ... }`), not the bottom — the dock's
+      height varies a lot between a lever (~80px) and a numpad (~330px+ at
+      1000×540), so a fixed bottom offset would sit ON TOP OF a mode's
+      controls on some machines and not others (previously verified against
+      `.pier-dock`'s clamp()-computed minimum in the numbers above); the HUD
+      row's height is fixed/predictable (this file controls it), so anchoring
+      just below it is the one placement that is provably clear of BOTH the
+      dock's controls and the HUD's own back/mute buttons at every proven
+      size. It never shows text a welcome/end card is already displaying —
+      see `js/pier/padkit.js` `markOnScreen()`/`isOnScreen()`.
+
+   6. MUTE BUTTON (`.pier-mute-btn`, contract §4) is built once per
+      `js/screens/pier.js` `mount()` — `position:fixed`, always ≥60px,
+      always on screen, independent of hub/mode route or whether a mode has
+      adopted this chassis.
+
+   7. MAP HUD SHORTCUT (`.pier-hud-shortcut`, contract §5) — the permanent
+      🎡 chip in the map's `.map-hud` bar (`js/screens/map.js`, HUD agent's
+      surgical edit). Styled here, not css/main.css, matching the existing
+      convention for `.map-pier-landmark` below (pier-owned chrome that
+      happens to render on the map screen).
+   ========================================================================= */
 
 .pier-screen {
   --pier-navy-deep: #050914;
@@ -20,120 +128,211 @@
   color: var(--parchment);
 }
 
+/* THE LAYOUT LAW skeleton — doubled selector (.pier-screen.screen) so this
+   beats css/main.css's `.screen { position:absolute; inset:0; overflow:auto }`
+   on specificity alone, not just link order (pier.css already loads last in
+   index.html, but this is one less thing to break if that ever changes). */
+.pier-screen.screen {
+  height: 100vh;   /* fallback for engines without dvh support */
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* ============================================================
-   BULB SIGN
+   CHASSIS SLOTS (js/pier/padkit.js mountChassis)
    ============================================================ */
-.pier-sign {
-  padding: calc(18px + var(--safe-t)) 16px 6px;
+.pier-hud {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(8px + var(--safe-t)) calc(84px + var(--safe-r)) 8px calc(14px + var(--safe-l));
+  flex-wrap: wrap;
+}
+.pier-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.pier-dock {
+  flex: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: clamp(6px, 1.4vh, 14px) calc(14px + var(--safe-r)) calc(clamp(6px, 1.4vh, 14px) + var(--safe-b)) calc(14px + var(--safe-l));
+}
+.pier-hud-back { min-height: 60px; padding: 0 18px; font-size: 15px; white-space: nowrap; }
+
+/* ============================================================
+   MUTE BUTTON — always on, screen-level (contract §4/#5)
+   ============================================================ */
+.pier-mute-btn {
+  position: fixed;
+  top: calc(10px + var(--safe-t));
+  right: calc(10px + var(--safe-r));
+  z-index: 70;
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
+  min-height: 60px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  line-height: 1;
+}
+.pier-mute-btn.is-muted { background: rgba(231, 76, 60, .28); }
+
+/* ============================================================
+   SCREEN-LEVEL OVERLAY (welcome / end / ceremony cards) — §1.3
+   ============================================================ */
+.pier-overlay-host { /* pure layout anchor — mountChassis appends veils here */ }
+.pier-overlay-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  padding: 16px;
+  background: rgba(4, 7, 18, .72);
+  animation: pier-veil-in 200ms ease both;
+}
+@keyframes pier-veil-in { from { opacity: 0; } to { opacity: 1; } }
+.pier-overlay-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* Standalone `translate` property — NOT `transform:` — see the header
+     contract block (§3) for why. This is a STATIC value; it is never part
+     of any @keyframes rule, so animation-fill-mode:both anywhere can never
+     touch it. */
+  translate: -50% -50%;
+  width: 100%;
+  max-width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: linear-gradient(160deg, #131c3e, #0c1330);
+  border: 3px solid rgba(255, 79, 163, .35);
+  border-radius: var(--r-lg);
+  box-shadow: 0 10px 0 rgba(0, 0, 0, .35), 0 20px 40px rgba(0, 0, 0, .5);
+  padding: 26px 24px;
   text-align: center;
+  color: var(--parchment);
+  /* Entrance pop uses `scale` (also a standalone property, independent of
+     `transform` and of the static `translate:` above) — animation-fill-mode
+     :both leaves it at scale(1), a no-op, so nothing to "pin" here either. */
+  animation: pier-overlay-in 320ms var(--spring) both;
 }
-.pier-bulbrow { display: flex; justify-content: center; gap: 9px; margin: 4px 0; }
-.pier-bulb {
-  width: 11px; height: 11px; border-radius: 50%;
-  box-shadow: 0 0 8px 2px currentColor;
-  animation: pier-bulb-flicker 1.6s ease-in-out infinite;
-  animation-delay: var(--bd, 0s);
+@keyframes pier-overlay-in { from { opacity: 0; scale: .9; } to { opacity: 1; scale: 1; } }
+
+/* ============================================================
+   MODE HOST — the container every machine mounts into (§1.2b)
+   ============================================================ */
+.pier-mode-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  /* Defensive fallback (§1.5), NOT the target state: a mode that has been
+     rebuilt against mountChassis fits with zero scrolling and this never
+     engages. A mode that HASN'T been rebuilt yet degrades to scrollable
+     instead of physically unreachable. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
-.pier-bulb.pb-gold { background: var(--pier-bulb); color: var(--pier-bulb); }
-.pier-bulb.pb-pink { background: var(--pier-pink); color: var(--pier-pink); }
-.pier-bulb.pb-teal { background: var(--pier-teal); color: var(--pier-teal); }
+
+/* ============================================================
+   BULB SIGN (map landmark reuses this keyframe — kept for that)
+   ============================================================ */
 @keyframes pier-bulb-flicker {
   0%, 100% { opacity: 1; transform: scale(1); }
   45% { opacity: .55; transform: scale(.88); }
   55% { opacity: .85; transform: scale(1.02); }
 }
-.pier-sign-text {
-  font-family: 'Fredoka', sans-serif; font-weight: 700;
-  font-size: clamp(28px, 5.2vw, 46px); letter-spacing: .03em;
-  color: var(--pier-bulb);
-  text-shadow: 0 0 10px rgba(255, 233, 168, .55), 0 0 26px rgba(255, 79, 163, .35), 0 4px 0 rgba(0, 0, 0, .4);
-  margin: 2px 0;
-}
 
 /* ============================================================
-   TOP BAR
+   HUB HUD — back-to-map + compact title + flushed counter
    ============================================================ */
-.pier-topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px calc(16px + var(--safe-r)) 10px calc(16px + var(--safe-l));
-  flex-wrap: wrap; gap: 10px;
+.pier-hub-hud { justify-content: flex-start; }
+.pier-hub-title {
+  font-family: 'Fredoka', sans-serif; font-weight: 700;
+  font-size: clamp(16px, 2.6vw, 22px); letter-spacing: .02em;
+  color: var(--pier-bulb);
+  text-shadow: 0 0 8px rgba(255, 233, 168, .5), 0 0 18px rgba(255, 79, 163, .3);
+  white-space: nowrap;
 }
-.pier-back-map { min-height: 60px; padding: 0 18px; font-size: 15px; }
 .pier-flushed-chip {
   background: rgba(10, 18, 48, .7); border: 2px solid rgba(255, 233, 168, .3);
-  color: var(--parchment); padding: 8px 16px; border-radius: 999px;
-  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 15px;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, .3);
+  color: var(--parchment); padding: 8px 14px; border-radius: 999px;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .3); white-space: nowrap;
+  min-height: 34px; display: flex; align-items: center;
 }
 .pier-flushed-chip b { color: var(--pier-bulb); }
 
 /* ============================================================
-   NANA'S CORNER — a fixed sprite presence, separate from the
-   rotating caption line she also speaks via pier.say()
+   HUB STAGE — the 5-cabinet grid, single row at every proven size
    ============================================================ */
-.pier-nana-corner {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  margin: 4px auto 6px;
-}
-.pier-nana-sprite {
-  font-size: 46px;
-  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45));
-}
-.pier-nana-name {
-  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 12.5px;
-  letter-spacing: .08em; color: var(--pier-pink);
-}
-
-/* ============================================================
-   CABINET GRID
-   ============================================================ */
+.pier-hub-stage { display: flex; align-items: flex-start; justify-content: center; padding: 4px 14px; }
 .pier-cabinets {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px; max-width: 1080px; margin: 0 auto; padding: 6px 20px 10px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
 }
 .pier-cab {
   position: relative;
   background: linear-gradient(160deg, #131c3e, #0c1330);
-  border: 3px solid rgba(255, 79, 163, .28);
-  border-radius: var(--r-lg);
-  box-shadow: 0 8px 0 rgba(0, 0, 0, .35), 0 16px 30px rgba(0, 0, 0, .4), inset 0 0 24px rgba(47, 227, 196, .06);
-  padding: 18px 16px 20px;
+  border: 2px solid rgba(255, 79, 163, .28);
+  border-radius: var(--r-sm);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .35), 0 10px 18px rgba(0, 0, 0, .35);
+  padding: 8px 8px 9px;
   display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 4px;
 }
 .pier-cab-plain { border-color: rgba(47, 227, 196, .28); }
-.pier-cab-emoji { font-size: 40px; margin-bottom: 4px; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)); }
+.pier-cab-head { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.pier-cab-emoji { font-size: 18px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .4)); }
 .pier-cab h3 {
-  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 17px;
-  margin: 2px 0 6px; color: var(--pier-bulb); letter-spacing: .01em;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px;
+  margin: 0; color: var(--pier-bulb); letter-spacing: .01em;
 }
-.pier-cab-blurb { font-size: 13.5px; line-height: 1.4; color: rgba(246, 235, 212, .78); margin: 0 0 10px; min-height: 36px; }
+.pier-cab-blurb {
+  font-size: 10px; line-height: 1.25; color: rgba(246, 235, 212, .72);
+  margin: 0; width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pier-cab-sub { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; }
 .pier-cab-pb {
-  font-weight: 700; font-size: 13px; color: var(--pier-teal);
-  background: rgba(47, 227, 196, .1); border-radius: 999px; padding: 5px 12px; margin-bottom: 8px;
+  font-weight: 700; font-size: 10px; color: var(--pier-teal);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
-.pier-cab-note {
-  font-size: 12px; font-weight: 600; color: rgba(246, 235, 212, .65); margin-bottom: 8px;
-}
-.pier-tier-row { display: flex; align-items: center; gap: 4px; margin-bottom: 10px; min-height: 22px; }
-.pier-tier-chip { font-size: 19px; opacity: .28; filter: grayscale(1); }
+.pier-cab-note { font-size: 10px; font-weight: 600; color: rgba(246, 235, 212, .65); }
+.pier-tier-row { display: flex; align-items: center; justify-content: center; gap: 3px; }
+.pier-tier-chip { font-size: 14px; opacity: .28; filter: grayscale(1); }
 .pier-tier-chip.achieved { opacity: 1; filter: none; }
-.pier-trophy { font-size: 19px; margin-left: 4px; animation: pier-trophy-spin 2.6s ease-in-out infinite; }
+.pier-trophy { font-size: 14px; margin-left: 2px; animation: pier-trophy-spin 2.6s ease-in-out infinite; }
 @keyframes pier-trophy-spin {
   0%, 100% { transform: rotate(-6deg) scale(1); }
   50% { transform: rotate(6deg) scale(1.12); }
 }
-.pier-cab-play { min-height: 60px; padding: 0 30px; font-size: 16px; margin-top: auto; }
+.pier-cab-play { min-height: 60px; width: 100%; padding: 0 4px; font-size: 13px; margin-top: auto; }
 
 /* ============================================================
-   DELUXE BRASS LEVER
+   HUB DOCK — the DELUXE brass lever (must be on screen, §1/§3 "hub")
    ============================================================ */
-.pier-lever-dock {
-  display: flex; justify-content: center; padding: 6px 20px calc(24px + var(--safe-b));
-}
+.pier-hub-dock { display: flex; justify-content: center; align-items: center; }
 .pier-lever-wrap {
   display: flex; align-items: center; gap: 14px;
   background: rgba(10, 18, 48, .65); border: 2px solid rgba(255, 209, 102, .35);
-  border-radius: 999px; padding: 10px 18px 10px 20px;
+  border-radius: 999px; padding: 8px 18px 8px 20px;
   box-shadow: 0 5px 0 rgba(0, 0, 0, .3);
 }
 .pier-lever-label {
@@ -169,14 +368,13 @@
 }
 
 /* ============================================================
-   CAPTION BAR (§9) — shared by hub + every machine mount
+   CAPTION BAR (§9, policy per REWORK §2/#6) — shared by hub + every
+   machine mount via pier.say(). Anchored BELOW the HUD — see header
+   contract block point 5 for why bottom-anchoring was rejected.
    ============================================================ */
 .pier-caption-bar {
-  /* Sits clear of css/main.css's .toast band (bottom:30px, ~48px tall) so the
-     rare moment both appear at once (e.g. the unknown-mode fallback toast)
-     doesn't visually collide with a character line. */
-  position: fixed; left: 50%; bottom: calc(96px + var(--safe-b));
-  transform: translate(-50%, 130%);
+  position: fixed; left: 50%; top: calc(78px + var(--safe-t));
+  transform: translate(-50%, -12px);
   display: flex; align-items: center; gap: 12px;
   width: min(560px, calc(100vw - 32px));
   max-width: min(560px, calc(100vw - 32px));
@@ -189,7 +387,7 @@
 }
 .pier-caption-bar.show { transform: translate(-50%, 0); opacity: 1; }
 .pier-caption-avatar {
-  flex: 0 0 auto; font-size: 30px; width: 44px; height: 44px; border-radius: 50%;
+  flex: 0 0 auto; font-size: 26px; width: 40px; height: 40px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .18);
 }
@@ -202,46 +400,57 @@
 .pier-caption-bar.ct-announcer .pier-caption-tag { color: var(--pier-teal); }
 .pier-caption-bar.ct-dave .pier-caption-tag { color: #dceeff; }
 .pier-caption-bar.ct-gremlin .pier-caption-tag { color: #9be15d; }
-.pier-caption-text { font-size: 14.5px; font-weight: 500; line-height: 1.3; color: var(--parchment); }
+.pier-caption-text { font-size: 14px; font-weight: 500; line-height: 1.3; color: var(--parchment); }
 
 /* ============================================================
-   MODE HOST — the full-space container every machine mounts into
+   SHARED NUMPAD (js/pier/padkit.js) — used by gunge/ghost/teacups/tank.
+   Keys size off viewport height via --pnk (§1.2/contract §3 "dock-safe
+   numpad") — clamp() floor is a hard 60px, never lower, at any size.
    ============================================================ */
-.pier-mode-host { position: relative; min-height: 100%; }
-
-/* ============================================================
-   SHARED NUMPAD (js/pier/padkit.js) — used by gunge/ghost/teacups/tank
-   ============================================================ */
-.pier-numpad { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.pier-numpad {
+  --pnk: clamp(60px, 7vh + 20px, 76px);
+  display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 1vh, 10px);
+}
 .pier-numpad-readout {
   background: #0a0f22; border: 3px solid rgba(255, 255, 255, .14); border-radius: 14px;
-  min-width: 140px; min-height: 52px; padding: 6px 20px;
+  min-width: 140px; min-height: 44px; padding: 5px 20px;
   display: flex; align-items: center; justify-content: center;
   box-shadow: inset 0 3px 10px rgba(0, 0, 0, .6);
 }
 .pnr-value {
-  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 28px;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 24px;
   color: var(--pier-teal); letter-spacing: .05em; text-shadow: 0 0 10px rgba(47, 227, 196, .4);
 }
 .pnr-cursor {
-  width: 3px; height: 26px; background: var(--pier-teal); margin-left: 2px;
+  width: 3px; height: 22px; background: var(--pier-teal); margin-left: 2px;
   animation: pier-cursor-blink 1s step-end infinite;
 }
 @keyframes pier-cursor-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 .pier-numpad-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(280px, 78vw);
+  display: grid; grid-template-columns: repeat(3, var(--pnk)); gap: clamp(6px, 1.2vh, 10px);
 }
 .pier-numpad-key {
-  min-width: 64px; min-height: 64px; border: none; border-radius: 15px; cursor: pointer;
-  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 22px;
+  width: var(--pnk); height: var(--pnk);
+  min-width: 60px; min-height: 60px; /* redundant hard floor — belt-and-braces on top of clamp()'s own 60px floor */
+  border: none; border-radius: 15px; cursor: pointer;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: calc(var(--pnk) * 0.32);
   background: rgba(255, 255, 255, .1); color: var(--parchment);
   box-shadow: 0 4px 0 rgba(0, 0, 0, .35);
   transition: transform 120ms var(--spring), box-shadow 120ms var(--spring);
 }
 .pier-numpad-key:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
 .pier-numpad-key.pnk-back { background: rgba(231, 76, 60, .22); }
-.pier-numpad-key.pnk-go { background: var(--gold); color: var(--ink); box-shadow: 0 4px 0 var(--gold-deep); font-size: 18px; }
+.pier-numpad-key.pnk-go { background: var(--gold); color: var(--ink); box-shadow: 0 4px 0 var(--gold-deep); font-size: calc(var(--pnk) * 0.24); }
 .pier-numpad.pnp-disabled .pier-numpad-key { opacity: .4; pointer-events: none; }
+
+/* ============================================================
+   MAP HUD SHORTCUT (js/screens/map.js) — permanent 🎡 chip in the map's
+   always-visible top bar, contract §5. Distinct from the coast landmark
+   below (which stays, and still needs a scroll to reach).
+   ============================================================ */
+.pier-hud-shortcut.crest-btn {
+  width: 60px; height: 60px; font-size: 27px;
+}
 
 /* ============================================================
    MAP LANDMARK (js/screens/map.js) — the always-unlocked pier entry
@@ -278,4 +487,8 @@
   width: 160px; height: 52px; margin-top: 8px; border-radius: 6px;
   background: repeating-linear-gradient(90deg, #6b5236 0 14px, #4a3722 14px 18px);
   box-shadow: 0 8px 0 rgba(0, 0, 0, .35), inset 0 -4px 8px rgba(0, 0, 0, .35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pier-overlay-veil, .pier-overlay-card { animation: none !important; opacity: 1 !important; }
 }

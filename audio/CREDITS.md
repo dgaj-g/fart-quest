@@ -88,8 +88,34 @@ at each seam (so no hard click at the repeat boundary), then encoded to MP3 (lib
 CBR, 44.1kHz stereo). Verified with `ffprobe`/`ffmpeg -f null -` (clean full decode, no errors):
 **98.99s, 1.98MB**, well inside the 1–3 min / ≤5MB spec bounds.
 
+### Whiff-End Pier rework — v2 candidates PENDING SELECTION (audio/music/pier-candidate-1..4.mp3)
+
+Per `docs/PIER_REWORK.md` §4: Damien says v1's "Carnival Rides" is awful. It was picked from
+metadata by an agent who could not hear it — same blind-selection caveat applies to the four
+tracks below (selected on tags/description/author's-own-words only, no audio playback available
+in this environment). **`pier.mp3` above has NOT been touched or replaced.** These four are
+candidates only, for Damien to audition by ear at `fq-verify/pier-music-audition.html` and pick
+one; whichever is chosen should then be re-encoded/renamed over `pier.mp3` and this candidates
+section (plus the three unused files and the audition page) deleted.
+
+| File | Track | Source | Licence evidence |
+|---|---|---|---|
+| pier-candidate-1.mp3 | "Insert Coin" by megupets | https://opengameart.org/content/insert-coin — file: `Insert Coin_1.mp3` | Page shows "License(s): CC0" only (verified in raw page HTML, not just the summary tags); also in "8-bit Chiptune commercial ok", "CC0 Chiptunes", "CC0 Music" collections. Tagged 8-bit/chiptune/"title screen"; author's own words: "simple title screen song with chiptune/8bit style". Punchy NES-style arcade-cabinet energy. |
+| pier-candidate-2.mp3 | "Bonus Round - 8bit" by Wolfgang_ | https://opengameart.org/content/bonus-round-8bit — file: `bonusgame.wav` | Page shows "License(s): CC0" only (verified in raw page HTML). In "8-bit Game Music" and "CC0 - Retro Music" collections. Tagged 8bit/retro/minigames; author's own words: "bonus round/minigame theme made with Famitracker" — different chiptune engine/composer to candidate 1. |
+| pier-candidate-3.mp3 | "We Are Prophet - Happy, Energetic Tune" by TinyWorlds | https://opengameart.org/content/we-are-prophet-happy-energetic-tune — file: `bu-offensive-birds.mp3` | Page shows "License(s): CC0" only (verified in raw page HTML). In "Audio - CC0 - 8Bit -Chiptune", "CC0 Chiptunes", "CC0 Music" collections. Tags: happy, funny, fun, energy, energetic, 8-bit, chiptune — most directly on-brief title of the four. Made with Autotracker for a 2014 game jam. Same author (TinyWorlds) as the existing map-theme.mp3, different track. |
+| pier-candidate-4.mp3 | "Bouncy Hamster Dancing (Menu Music?)" by cynicmusic | https://opengameart.org/content/bouncy-hamster-dancing-menu-music — file: `AlexBouncyMaster.wav` | Page shows "License(s): CC0" only (verified in raw page HTML). In "CC0 Upbeat / Electronic Music" and "Music - Platform & Background" collections. Tagged catchy/infectious/menu; author's own words: a "ridiculously infectious theme" deliberately reminiscent of the Hamster Dance meme. Synth/electronic instrumentation, not chiptune — the instrumentation outlier of the four. |
+
+Each source loop (35–65s) was built up to spec-required 1–3 minute length with `ffmpeg`, looped
+2–3× with 1-second triangular `acrossfade` crossfades at each seam (same technique as pier.mp3
+above), then encoded to MP3 (libmp3lame, 160kbps CBR, 44.1kHz stereo). Verified with
+`ffprobe`/`ffmpeg -f null -` (clean full decode, no errors) — 1:24–2:09 long, 1.6–2.6MB each, all
+inside the 1–3 min / ≤5MB spec bounds.
+
 ## Verification
 
 Every file below was checked with `afinfo` on macOS to confirm it decodes as valid audio, with the
 reported duration noted. Total combined payload of audio/sfx + audio/music = **4.6 MB** (2.7 MB
-pre-Pier + pier.mp3's 1.98 MB).
+pre-Pier + pier.mp3's 1.98 MB). This total excludes the four pending-selection candidates above
+(pier-candidate-1..4.mp3, 8.4MB combined) — they are temporary audition files, not shipped
+assets, and should be removed (all four, plus `fq-verify/pier-music-audition.html`) once Damien
+has chosen one.

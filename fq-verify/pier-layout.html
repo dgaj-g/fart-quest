@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Whiff-End Pier — layout law harness</title>
+<!-- Same stylesheet set as index.html — this file is loaded a SECOND time,
+     fresh, inside each measurement <iframe> (the "child" role), so these
+     links apply there too, giving the child document the REAL app chrome
+     (css/pier.css's chassis rules, css/main.css's .screen/.btn/etc). The
+     harness's OWN chrome below is scoped to #harness/#summary/table/etc, so
+     it never collides with the app's classes in the parent-role render. -->
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/anims.css">
+<link rel="stylesheet" href="../css/pier.css">
+<!--
+  docs/PIER_REWORK.md §1.6 — "build fq-verify/pier-layout.html — a harness
+  page that mounts each pier screen/state at each of the three viewport sizes
+  and asserts every interactive element's bounding rect is fully inside the
+  viewport and >=60px on its smaller axis. Must print PASS/FAIL per screen."
+
+  ONE file plays both roles, switched by a query string:
+    ?child=<stateId>  — mounts THAT state's real screen (via the actual
+                        js/screens/pier.js `mount()`, no router involved)
+                        inside whatever CSS box this document is loaded at
+                        (the harness sizes the <iframe> itself to
+                        1000x540/1024x640/1180x745), measures every visible
+                        interactive element, and exposes the result on
+                        `window.__pierReady` (a Promise) for the parent to
+                        read directly (same-origin, no postMessage needed).
+    (no query)        — the harness itself: for every entry in STATES, spins
+                        up a same-origin iframe at each of the three sizes
+                        pointed at `?child=<id>`, awaits its measurement, and
+                        renders a PASS/FAIL table.
+
+  Must be served over http(s) (ES module imports + the app's own `fetch()`
+  calls need a real origin) — `python3 -m http.server` from the repo root and
+  open `http://localhost:<port>/fq-verify/pier-layout.html`.
+
+  STATES is a small ARRAY OF PLAIN OBJECTS at the top of the script below —
+  machine agents can append their own entries (playing/mid-feedback/end-card/
+  ceremony/empty-state) once their mode calls `pier.mountChassis(...)` and
+  exposes a way to reach that state without live input (e.g. a `?debugState=`
+  hook, or simply accept that only the WELCOME state is reachable through a
+  fresh `mount()` with no simulated taps — see this file's own STATES list
+  for exactly which ones this pass could and could not exercise, and the
+  final report for why).
+-->
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 1180px; margin: 0 auto; padding: 24px 20px 80px; line-height: 1.5;
+    background: #14161f; color: #f0f0f5;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  .intro { color: #b8bacc; margin-bottom: 10px; max-width: 900px; font-size: 0.92rem; }
+  .intro code { background: #232637; padding: 1px 6px; border-radius: 4px; }
+  #summary { font-size: 1.05rem; font-weight: 700; margin: 18px 0; padding: 12px 16px; border-radius: 10px; }
+  #summary.pass { background: #133a24; border: 1px solid #2ecc71; color: #7be3a4; }
+  #summary.fail { background: #3a1616; border: 1px solid #e74c3c; color: #ff9d90; }
+  #summary.running { background: #232637; border: 1px solid #3a3f57; color: #b8bacc; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #2a2d3d; vertical-align: top; font-size: 0.87rem; }
+  th { color: #8b8fa8; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: .04em; }
+  .state-block { margin-bottom: 30px; }
+  .state-h { font-weight: 700; font-size: 1.02rem; margin: 0 0 3px; }
+  .state-note { color: #8b8fa8; font-size: 0.83rem; margin-bottom: 8px; }
+  .badge { display: inline-block; border-radius: 6px; padding: 2px 9px; font-weight: 700; font-size: 0.76rem; }
+  .badge.pass { background: #133a24; color: #6fe3a0; }
+  .badge.fail { background: #3a1616; color: #ff9d90; }
+  .badge.legacy { background: #3a3116; color: #f0c96b; }
+  .elrow-fail td { color: #ff9d90; }
+  .elrow-fail b { color: #ffb3a6; }
+  details summary { cursor: pointer; color: #8b8fa8; font-size: 0.85rem; margin: 4px 0 10px; }
+  pre { white-space: pre-wrap; word-break: break-all; background: #0d0e15; padding: 8px 10px; border-radius: 6px; font-size: 0.76rem; color: #b8bacc; }
+  iframe.rig { position: absolute; left: -20000px; top: 0; border: 0; background: #050914; }
+  button#run { background: #e94f8a; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-weight: 700; cursor: pointer; font-size: 0.95rem; }
+  .err { color: #ff9d90; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body>
+<div id="harness"></div>
+<div id="child-root" style="display:none"></div>
+
+<script type="module">
+/* ===================================================================
+ * SHARED CONFIG — sizes + states (both roles use this)
+ * =================================================================== */
+const SIZES = [
+  { w: 1000, h: 540, label: '1000×540' },
+  { w: 1024, h: 640, label: '1024×640' },
+  { w: 1180, h: 745, label: '1180×745' },
+];
+
+// exercisable: 'full'   — a state this rework's chassis fully controls (hub).
+//              'legacy' — mounts a REAL, currently-unmodified mode file
+//                         (js/pier/modes/*.js still own their v1 internal
+//                         layout; only the outer .pier-mode-host chassis
+//                         changed under them, per padkit.js's header comment
+//                         and css/pier.css's contract block point 1a). These
+//                         are measured and reported HONESTLY — a FAIL here is
+//                         expected/documented, not a bug in this harness.
+const STATES = [
+  {
+    id: 'hub-deluxe-off', label: 'HUB — cabinet grid, DELUXE off', params: {},
+    dbSeed: { meta: { pierDeluxe: false } }, exercisable: 'full',
+    note: 'js/screens/pier.js mountHub(): back-to-map, title, flushed chip, 5 cabinet cards, DELUXE lever.',
+  },
+  {
+    id: 'hub-deluxe-on', label: 'HUB — cabinet grid, DELUXE on', params: {},
+    dbSeed: { meta: { pierDeluxe: true } }, exercisable: 'full',
+    note: 'Same screen with the lever flipped ON at mount (persisted state) — Teacups note swaps to "Tables 2–12".',
+  },
+  {
+    id: 'splat-welcome', label: 'SPLAT — welcome card', params: { mode: 'splat' }, exercisable: 'legacy',
+    note: 'js/pier/modes/splat.js showWelcome() — still its OWN in-stage .splat-veil (v1 code, not rebuilt against mountChassis/overlay() yet). This is the exact machine v1’s bug was screenshot-confirmed on.',
+  },
+  {
+    id: 'gunge-welcome', label: 'GUNGE — welcome card', params: { mode: 'gunge' }, exercisable: 'legacy',
+    note: 'js/pier/modes/gunge.js — its own .gg-overlay (v1 code), numpad mounted inside its own stage, not the dock.',
+  },
+  {
+    id: 'ghost-welcome', label: 'GHOST — welcome card', params: { mode: 'ghost' }, exercisable: 'legacy',
+    note: 'js/pier/modes/ghost.js — its own .gh-veil inside .gh-root (v1 code).',
+  },
+  {
+    id: 'teacups-welcome', label: 'TEACUPS — table picker', params: { mode: 'teacups' }, exercisable: 'legacy',
+    note: 'js/pier/modes/teacups.js initial screen (v1 code).',
+  },
+  {
+    id: 'tank-welcome', label: 'TANK — fresh-profile empty state', params: { mode: 'tank' }, exercisable: 'legacy',
+    note: 'js/pier/modes/tank.js initial screen, no gremlins ever recorded (v1 code).',
+  },
+];
+
+const isChild = new URLSearchParams(location.search).has('child');
+
+/* ===================================================================
+ * MOCK ctx — just enough for facts.load()/ensureContent()/mount() to run
+ * without touching the real app's IndexedDB, main.js boot sequence, or
+ * real audio/network. Mirrors the shapes js/main.js's real ctx object and
+ * js/pier/facts.js / js/pier/padkit.js actually read.
+ * =================================================================== */
+function makeMockCtx(dbSeed) {
+  const store = { meta: {}, settings: {} };
+  if (dbSeed) {
+    Object.keys(dbSeed).forEach((table) => {
+      store[table] = Object.assign({}, store[table], dbSeed[table]);
+    });
+  }
+  const db = {
+    async get(table, key) { return store[table] ? store[table][key] : undefined; },
+    async put(table, key, val) { store[table] = store[table] || {}; store[table][key] = val; },
+    async del(table, key) { if (store[table]) delete store[table][key]; },
+  };
+  const prefs = {
+    music: 1, sfx: 0, vo: 0, musicOn: true, sfxOn: false, voOn: false, fartOMeter: 0, textSize: 'A', examTimerSounds: false,
+  };
+  const audio = {
+    music() {}, sfx() {}, async vo() { return false; }, setVolumes() {}, setFartOMeter() {}, parp() {}, duck() {}, stopMusic() {},
+  };
+  return {
+    db, audio, prefs, state: {},
+    go(hash) { /* no-op — the harness never navigates for real */ },
+    toast(msg) { /* eslint-disable-next-line no-console */ console.log('[pier-layout harness] toast:', msg); },
+    capabilities: {},
+  };
+}
+
+/* ===================================================================
+ * MEASUREMENT — run inside a CHILD document only
+ * =================================================================== */
+function round(n) { return Math.round(n * 10) / 10; }
+
+function measureInteractive() {
+  const sel = 'button, [role="button"], a[href], input, select, textarea, [tabindex]';
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const EPS = 0.5; // subpixel-rounding tolerance only
+  const nodes = Array.from(document.querySelectorAll(sel)).filter((n) => {
+    if (n.disabled) return false; // not a live target
+    const tIdx = n.getAttribute('tabindex');
+    if (tIdx === '-1') return false;
+    const cs = getComputedStyle(n);
+    if (cs.visibility === 'hidden' || cs.display === 'none') return false;
+    const r = n.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  });
+  return nodes.map((n) => {
+    const r = n.getBoundingClientRect();
+    const inside = r.left >= -EPS && r.top >= -EPS && r.right <= vw + EPS && r.bottom <= vh + EPS;
+    const minAxis = Math.min(r.width, r.height);
+    const bigEnough = minAxis >= 60 - EPS;
+    return {
+      tag: n.tagName.toLowerCase(),
+      cls: String(n.className || '').split(' ').filter(Boolean).slice(0, 3).join(' '),
+      text: (n.textContent || n.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 34),
+      rect: {
+        left: round(r.left), top: round(r.top), right: round(r.right), bottom: round(r.bottom), width: round(r.width), height: round(r.height),
+      },
+      inside, bigEnough, pass: inside && bigEnough,
+    };
+  });
+}
+
+/* ===================================================================
+ * CHILD ROLE
+ * =================================================================== */
+async function runChild() {
+  document.getElementById('harness').remove();
+  const rootHost = document.getElementById('child-root');
+  rootHost.style.display = '';
+  rootHost.id = 'app'; // faithful to real boot: main.js mounts screens into #app
+
+  // Freeze every animation/transition BEFORE mount() runs any DOM writes.
+  // This automation environment renders on-demand (no continuous compositor
+  // tick unless something — a screenshot, a real user paint — asks for one),
+  // so a running CSS animation's timeline can sit frozen at its 0% keyframe
+  // indefinitely: caught for real during development, `.pier-screen`'s
+  // `.enter-pop` (css/main.css, 380ms `scale(.9)->scale(1)`) stayed stuck at
+  // EXACTLY `matrix(0.9,...)` well past any wall-clock wait, under-reporting
+  // every element inside it by a flat 10%. This mirrors the codebase's own
+  // `@media (prefers-reduced-motion: reduce)` handling in css/main.css (same
+  // fix, applied unconditionally here since the harness wants the SETTLED
+  // end-state, not a mid-animation frame, and can't rely on a real rendering
+  // loop to reach it).
+  const freeze = document.createElement('style');
+  freeze.textContent = '*, *::before, *::after { animation: none !important; transition: none !important; }';
+  document.head.appendChild(freeze);
+
+  const stateId = new URLSearchParams(location.search).get('child');
+  const state = STATES.find((s) => s.id === stateId);
+  if (!state) {
+    window.__pierReady = Promise.resolve({ id: stateId, error: 'unknown state id', elements: [] });
+    return;
+  }
+
+  const ctx = makeMockCtx(state.dbSeed);
+  let error = null;
+  window.__pierReady = (async () => {
+    try {
+      const { mount } = await import('../js/screens/pier.js');
+      await mount(rootHost, ctx, state.params || {});
+    } catch (e) {
+      error = String((e && e.stack) || e);
+    }
+    // A plain setTimeout, NOT requestAnimationFrame, for the settle-wait:
+    // this document is mounted off-screen (`.rig { left:-20000px }`) inside
+    // the harness's measurement iframe, and Chrome throttles rAF callbacks
+    // for iframes it judges non-visible — almost exactly the "hidden tab"
+    // throttling js/anims/_kit.js's tween() guards against, and it stalled
+    // this harness for real during development (a rAF chain here could hang
+    // tens of seconds per iframe). CSS layout itself is NOT throttled the
+    // same way, so getBoundingClientRect() below is accurate regardless —
+    // only JS's rAF *scheduling* was the problem.
+    //
+    await new Promise((r) => { setTimeout(r, 50); });
+    const elements = error ? [] : measureInteractive();
+    const result = {
+      id: state.id, error, elements, vw: window.innerWidth, vh: window.innerHeight,
+    };
+    window.__pierResult = result;
+    return result;
+  })();
+}
+
+/* ===================================================================
+ * PARENT (HARNESS) ROLE
+ * =================================================================== */
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  return e;
+}
+
+async function measureOneIframe(state, size) {
+  const iframe = document.createElement('iframe');
+  iframe.className = 'rig';
+  iframe.style.width = size.w + 'px';
+  iframe.style.height = size.h + 'px';
+  document.body.appendChild(iframe);
+  const loaded = new Promise((resolve) => { iframe.addEventListener('load', resolve, { once: true }); });
+  iframe.src = `pier-layout.html?child=${encodeURIComponent(state.id)}`;
+  await loaded;
+  let result;
+  try {
+    result = await iframe.contentWindow.__pierReady;
+  } catch (e) {
+    result = { id: state.id, error: String(e), elements: [] };
+  }
+  iframe.remove();
+  return result;
+}
+
+function renderResult(container, state, size, result) {
+  const failing = (result.elements || []).filter((e) => !e.pass);
+  const hasError = !!result.error;
+  const verdict = hasError ? 'fail' : (failing.length === 0 ? 'pass' : 'fail');
+
+  const row = el('div');
+  const head = el('div');
+  head.innerHTML = `<b>${size.label}</b> — <span class="badge ${verdict}">${verdict.toUpperCase()}</span>`
+    + (hasError ? ` <span class="err mono">${escapeHtml(result.error)}</span>`
+      : ` <span class="mono">${result.elements.length} interactive element${result.elements.length === 1 ? '' : 's'} checked${failing.length ? `, ${failing.length} failing` : ''}</span>`);
+  row.appendChild(head);
+
+  if (!hasError && result.elements.length) {
+    const details = el('details');
+    details.appendChild(el('summary', null, 'element-by-element detail'));
+    const table = el('table');
+    table.innerHTML = '<tr><th>Elem</th><th>Text</th><th>Rect (l,t,r,b / w×h)</th><th>Inside?</th><th>&ge;60px?</th></tr>';
+    result.elements.forEach((e) => {
+      const tr = el('tr', e.pass ? '' : 'elrow-fail');
+      tr.innerHTML = `<td class="mono">${e.tag}.${escapeHtml(e.cls)}</td>`
+        + `<td>${escapeHtml(e.text)}</td>`
+        + `<td class="mono">${e.rect.left},${e.rect.top},${e.rect.right},${e.rect.bottom} / ${e.rect.width}×${e.rect.height}</td>`
+        + `<td>${e.inside ? '✅' : '❌ OUTSIDE VIEWPORT'}</td>`
+        + `<td>${e.bigEnough ? '✅' : '❌ TOO SMALL'}</td>`;
+      table.appendChild(tr);
+    });
+    details.appendChild(table);
+    row.appendChild(details);
+  }
+  container.appendChild(row);
+  return verdict;
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+async function runHarness() {
+  const root = document.getElementById('harness');
+  root.innerHTML = `
+    <h1>Whiff-End Pier — layout law harness</h1>
+    <p class="intro">Mounts each registered pier screen/state (via the real <code>js/screens/pier.js</code> <code>mount()</code>, no router) inside a same-origin iframe sized to exactly <code>1000×540</code>, <code>1024×640</code> and <code>1180×745</code> CSS px, then asserts every VISIBLE interactive element's bounding rect is fully inside that box and &ge;60px on its smaller axis (docs/PIER_REWORK.md §1.6). <b>legacy</b>-tagged states mount an unmodified v1 machine file (out of this chassis pass's file ownership) — a FAIL there is an honest, expected report of current state, not a harness bug.</p>
+    <div id="summary" class="running">Running…</div>
+    <div id="states"></div>
+  `;
+  const summaryEl = document.getElementById('summary');
+  const statesEl = document.getElementById('states');
+
+  let overallPass = true;
+  const lines = [];
+
+  for (const state of STATES) {
+    const block = el('div', 'state-block');
+    const badge = state.exercisable === 'legacy' ? '<span class="badge legacy">LEGACY MODE FILE</span>' : '<span class="badge pass">CHASSIS-OWNED</span>';
+    block.appendChild(el('div', 'state-h', `${state.label} ${badge}`));
+    block.appendChild(el('div', 'state-note', state.note || ''));
+    statesEl.appendChild(block);
+
+    let stateAllPass = true;
+    // eslint-disable-next-line no-await-in-loop
+    for (const size of SIZES) {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await measureOneIframe(state, size);
+      const verdict = renderResult(block, state, size, result);
+      if (verdict !== 'pass') stateAllPass = false;
+      lines.push(`${verdict.toUpperCase()} — ${state.label} @ ${size.label}${state.exercisable === 'legacy' ? ' [legacy mode file]' : ''}`);
+    }
+    // Only chassis-owned states count toward the pass/fail this rework is
+    // actually accountable for — legacy states are printed in full above
+    // (nothing is hidden) but don't flip the top banner red for a mode file
+    // outside this pass's ownership; see the console/report line-by-line
+    // PASS/FAIL either way.
+    if (state.exercisable !== 'legacy' && !stateAllPass) overallPass = false;
+  }
+
+  summaryEl.className = overallPass ? 'pass' : 'fail';
+  summaryEl.textContent = overallPass
+    ? 'PASS — every chassis-owned screen/state fits all three viewport sizes with zero scrolling.'
+    : 'FAIL — see the red rows above.';
+
+  // eslint-disable-next-line no-console
+  console.log('=== Whiff-End Pier layout harness ===\n' + lines.join('\n'));
+}
+
+if (isChild) {
+  runChild();
+} else {
+  runHarness();
+}
+</script>
+</body>
+</html>

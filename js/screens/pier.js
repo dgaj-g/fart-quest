@@ -1,33 +1,54 @@
-// FART QUEST — js/screens/pier.js (HUB agent)
+// FART QUEST — js/screens/pier.js (HUB/CHASSIS agent)
 // WHIFF-END PIER — the seaside times-tables arcade world. This single screen
 // module handles BOTH routes: `#/pier` (the hub — cabinet cards, DELUXE
 // lever, flushed-gremlin counter) and `#/pier/:mode` (mounts one of the five
-// machine modules full-screen). See docs/PIER_SPEC.md §3/§4/§8 for the
-// binding contract this file implements.
+// machine modules full-screen). See docs/PIER_SPEC.md §3/§4/§8 and
+// docs/PIER_REWORK.md (THE binding fix contract, esp. §1 THE LAYOUT LAW and
+// §2/#6 the caption-bar policy) for what this file implements.
+//
+// REWORK v2 (this pass) — chassis changes, see css/pier.css's header comment
+// block for the full contract this file + css/pier.css + js/pier/padkit.js
+// together establish:
+// - `.pier-screen` is now the mandatory flex column (hud/stage/dock or, for
+//   modes, a single flex:1 `.pier-mode-host`) — THE LAYOUT LAW, §1.
+// - A mute button (🔊/🔇, always ≥60px, contract §4) is built ONCE here and
+//   is screen-level (position:fixed) so it exists on every route regardless
+//   of whether a given mode has adopted the new chassis yet.
+// - The hub is rebuilt compact enough to fit 1000×540 with the DELUXE lever
+//   on screen with zero scrolling (§1/§3 "hub").
+// - pier.say() (the caption bar) now refuses to echo text a welcome/end
+//   overlay is already showing verbatim — see padkit.js's
+//   markOnScreen()/isOnScreen() and the §2/#6 comment on `say()` below.
 //
 // Cross-agent contract notes (read before touching this file):
 // - `js/pier/facts.js` (ENGINE agent) is imported statically — it's already
 //   on disk and its exports are frozen per §5, so this mirrors how the rest
 //   of the app imports firm sibling modules (e.g. lesson.js -> anims/index.js).
 // - `js/pier/content.js` (CONTENT agent) did NOT exist yet at the time this
-//   file was written. Rather than let a still-landing content module take
-//   the WHOLE APP down (main.js statically imports this screen, so a failed
-//   static import here would fail main.js's module graph too), content.js is
-//   loaded defensively via a dynamic import with a safe empty-shape fallback
-//   (see `ensureContent()` below). Once content.js lands with the shape
-//   described in §9 (`nana`/`announcer`/`dave`/`gremlin` line pools, each
-//   entry `{id, text}`), captions pick it up with zero code changes here —
-//   nothing needs to be flipped back to a static import for it to work.
+//   file was originally written. Rather than let a still-landing content
+//   module take the WHOLE APP down (main.js statically imports this screen,
+//   so a failed static import here would fail main.js's module graph too),
+//   content.js is loaded defensively via a dynamic import with a safe empty-
+//   shape fallback (see `ensureContent()` below). Once content.js lands with
+//   the shape described in §9 (`nana`/`announcer`/`dave`/`gremlin` line
+//   pools, each entry `{id, text}`), captions pick it up with zero code
+//   changes here.
 // - The "pier kit" object passed to every mode's `mount(host, ctx, pier)` is
-//   `{ facts, content, say, deluxe }` — `facts` is the engine module, one
-//   `content` slice per §9's namespaces, `say(entry)` is this file's caption
-//   bar (also used internally by the hub), and `deluxe` is a boolean snapshot
-//   of `facts.deluxeOn()` taken at mount time (modes don't need it to change
-//   live under them — the lever lives on the hub, a different route/mount).
+//   `{ facts, content, say, deluxe, mountChassis }` — `facts` is the engine
+//   module, one `content` slice per §9's namespaces, `say(entry)` is this
+//   file's caption bar (also used internally by the hub), `deluxe` is a
+//   boolean snapshot of `facts.deluxeOn()` taken at mount time (modes don't
+//   need it to change live under them — the lever lives on the hub, a
+//   different route/mount), and `mountChassis` is `js/pier/padkit.js`'s
+//   chassis builder PRE-BOUND to this mode's `host` element — a convenience
+//   on top of `{facts,content,say,deluxe}` (§4's frozen list); a mode may
+//   equally `import { mountChassis } from '../padkit.js'` directly and call
+//   `mountChassis(host, opts)` itself. Both are the identical function.
 
 import facts from '../pier/facts.js';
 import { el, sfx as animSfx } from '../anims/_kit.js';
 import { mulberry32, pick } from '../rng.js';
+import { mountChassis, buildMuteButton, isOnScreen } from '../pier/padkit.js';
 
 import splat from '../pier/modes/splat.js';
 import gunge from '../pier/modes/gunge.js';
@@ -42,12 +63,23 @@ const MODE_ORDER = ['splat', 'gunge', 'ghost', 'teacups', 'tank'];
 // deliberately NOT duplicated here — those come straight off each mode
 // module (§4: "title: cabinet name", "blurb: hub card one-liner"), so a real
 // mode landing over its stub updates the hub card copy with zero edits here.
+// `short` is a NEW, hub-only addition (this rework): the compact 5-cards-in-
+// one-row hub grid (§1/§3 "hub" — must fit 1000×540 with zero scroll) has no
+// room for a mode's full cabinet name ("SPLAT-A-GREMLIN" etc.) at readable
+// size — `mod.title` is still used everywhere else (welcome/end screens,
+// document semantics); this is purely a tighter hub-tile label.
 const MACHINE_META = {
-  splat: { emoji: '🔨', tiers: true, metric: 'score', direction: 'high', fmt: (b) => `${b.score} splat${b.score === 1 ? '' : 's'} in 60s` },
-  gunge: { emoji: '🪣', tiers: true, metric: 'seconds', direction: 'high', fmt: (b) => `${b.seconds}s survived` },
-  ghost: { emoji: '👻', tiers: true, metric: 'ms', direction: 'low', fmt: (b) => formatMs(b.ms) },
-  teacups: { emoji: '🍵', tiers: false },
-  tank: { emoji: '🫧', tiers: false },
+  splat: {
+    emoji: '🔨', short: 'SPLAT', tiers: true, metric: 'score', direction: 'high', fmt: (b) => `${b.score} splat${b.score === 1 ? '' : 's'} in 60s`,
+  },
+  gunge: {
+    emoji: '🪣', short: 'GUNGE', tiers: true, metric: 'seconds', direction: 'high', fmt: (b) => `${b.seconds}s survived`,
+  },
+  ghost: {
+    emoji: '👻', short: 'GHOST', tiers: true, metric: 'ms', direction: 'low', fmt: (b) => formatMs(b.ms),
+  },
+  teacups: { emoji: '🍵', short: 'CUPS', tiers: false },
+  tank: { emoji: '🫧', short: 'TANK', tiers: false },
 };
 
 const TIER_ORDER = ['bronze', 'silver', 'gold'];
@@ -100,7 +132,8 @@ function ensureContent() {
   return contentLoadPromise;
 }
 
-/* ---------- caption bar (§9) — implemented once here, shared by hub + every mode ---------- */
+/* ---------- caption bar (§9, policy per REWORK §2/#6) — implemented once
+   here, shared by hub + every mode via pier.say() ---------- */
 function buildCaptionBar(ctx) {
   const bar = el('div', 'pier-caption-bar');
   const avatar = el('div', 'pier-caption-avatar');
@@ -113,6 +146,15 @@ function buildCaptionBar(ctx) {
 
   function say(entry) {
     if (!entry || !entry.text) return;
+    // VO always attempts (it's audio, not a second VISIBLE copy of the line)
+    // even when the caption bubble itself is suppressed below.
+    try { ctx.audio.vo(entry.id); } catch (e) { /* vo() never throws, but never trust it from here */ }
+    // §2/#6, binding: "the caption bar must not echo text already displayed
+    // on screen" — a welcome/end/ceremony card built via padkit.js's
+    // overlay({..., speaks: entry}) has already registered its text; skip
+    // the bubble entirely rather than print the same line twice at once
+    // (the exact v1 bug this rework fixes).
+    if (isOnScreen(entry.text)) return;
     clearTimeout(hideTimer);
     const meta = CHAR_META[characterFromId(entry.id)] || CHAR_META.nana;
     avatar.textContent = meta.emoji;
@@ -123,7 +165,6 @@ function buildCaptionBar(ctx) {
     bar.classList.remove('show');
     void bar.offsetWidth; // restart the enter animation even on rapid-fire says
     bar.classList.add('show');
-    try { ctx.audio.vo(entry.id); } catch (e) { /* vo() never throws, but never trust it from here */ }
     hideTimer = setTimeout(() => bar.classList.remove('show'), 5200);
   }
 
@@ -189,22 +230,22 @@ function buildCabinetCard(modeId, ctx, bests) {
   const card = el('div', 'pier-cab' + (meta.tiers ? '' : ' pier-cab-plain'));
   card.dataset.machine = modeId;
 
-  let pbHtml = '';
-  let tierHtml = '';
+  let subHtml = '';
   if (meta.tiers) {
-    pbHtml = `<div class="pier-cab-pb">${best ? meta.fmt(best) : 'no PB yet — be the first!'}</div>`;
     const bestVal = best ? best[meta.metric] : null;
     const trophy = best && best.goldSeen ? '<span class="pier-trophy" title="Gold beaten!">🏆</span>' : '';
-    tierHtml = `<div class="pier-tier-row">${tierChips(modeId, bestVal)}${trophy}</div>`;
+    subHtml = `<div class="pier-cab-sub">`
+      + `<span class="pier-cab-pb">${best ? meta.fmt(best) : 'no PB yet'}</span>`
+      + `<span class="pier-tier-row">${tierChips(modeId, bestVal)}${trophy}</span>`
+      + `</div>`;
+  } else if (modeId === 'teacups') {
+    subHtml = `<div class="pier-cab-note">Tables ${facts.deluxeOn() ? '2–12' : '2–10'}</div>`;
   }
 
   card.innerHTML = `
-    <div class="pier-cab-emoji">${meta.emoji}</div>
-    <h3>${mod.title}</h3>
-    <p class="pier-cab-blurb">${mod.blurb}</p>
-    ${pbHtml}
-    ${tierHtml}
-    ${modeId === 'teacups' ? `<div class="pier-cab-note">Tables ${facts.deluxeOn() ? '2–12' : '2–10'}</div>` : ''}
+    <div class="pier-cab-head"><span class="pier-cab-emoji">${meta.emoji}</span><h3>${meta.short}</h3></div>
+    <div class="pier-cab-blurb">${mod.blurb}</div>
+    ${subHtml}
     <button type="button" class="btn btn-gold pier-cab-play">PLAY</button>
   `;
   card.querySelector('.pier-cab-play').addEventListener('click', () => {
@@ -212,16 +253,6 @@ function buildCabinetCard(modeId, ctx, bests) {
     ctx.go(`#/pier/${modeId}`);
   });
   return card;
-}
-
-/* ---------- bulb string ---------- */
-function bulbRow(n) {
-  const hues = ['gold', 'pink', 'teal'];
-  let out = '';
-  for (let i = 0; i < n; i += 1) {
-    out += `<span class="pier-bulb pb-${hues[i % 3]}" style="--bd:${(i * 0.16).toFixed(2)}s"></span>`;
-  }
-  return out;
 }
 
 /* ---------- hub view ---------- */
@@ -234,42 +265,23 @@ async function mountHub(screen, ctx, caption) {
   let flushedCount = 0;
   try { flushedCount = facts.flushed() || 0; } catch (e) { flushedCount = 0; }
 
-  const hub = el('div', 'pier-hub');
-  screen.appendChild(hub);
-
-  const sign = el('div', 'pier-sign');
-  sign.innerHTML = `
-    <div class="pier-bulbrow">${bulbRow(9)}</div>
-    <div class="pier-sign-text">WHIFF-END PIER</div>
-    <div class="pier-bulbrow">${bulbRow(9)}</div>
-  `;
-  hub.appendChild(sign);
-
-  const topbar = el('div', 'pier-topbar');
-  topbar.innerHTML = `
-    <button type="button" class="btn btn-ghost pier-back-map">← BACK TO MAP</button>
-    <div class="pier-flushed-chip">🚽 <b>${flushedCount}</b> gremlin${flushedCount === 1 ? '' : 's'} flushed</div>
-  `;
-  hub.appendChild(topbar);
-  topbar.querySelector('.pier-back-map').addEventListener('click', () => {
-    ctx.audio.sfx('back');
-    ctx.go('#/map');
+  const chassis = mountChassis(screen, {
+    onBack: () => { ctx.audio.sfx('back'); ctx.go('#/map'); },
+    backLabel: '← MAP',
+    hudClass: 'pier-hub-hud',
+    stageClass: 'pier-hub-stage',
+    dockClass: 'pier-hub-dock',
   });
 
-  const nanaCorner = el('div', 'pier-nana-corner');
-  nanaCorner.innerHTML = `
-    <div class="pier-nana-sprite idle-bob">👵💨</div>
-    <div class="pier-nana-name">NANA WINDBREAKER</div>
-  `;
-  hub.appendChild(nanaCorner);
+  const title = el('div', 'pier-hub-title', '🎡 WHIFF-END PIER');
+  const flushedChip = el('div', 'pier-flushed-chip', `🚽 <b>${flushedCount}</b> gremlin${flushedCount === 1 ? '' : 's'} flushed`);
+  chassis.hud.append(title, flushedChip);
 
   const grid = el('div', 'pier-cabinets');
   MODE_ORDER.forEach((id) => grid.appendChild(buildCabinetCard(id, ctx, bests)));
-  hub.appendChild(grid);
+  chassis.stage.append(grid);
 
-  const dock = el('div', 'pier-lever-dock');
-  dock.appendChild(buildLever(ctx, facts.deluxeOn(), caption, grid));
-  hub.appendChild(dock);
+  chassis.dock.append(buildLever(ctx, facts.deluxeOn(), caption, grid));
 
   const welcomeLine = pickLine(content.nana.welcome);
   if (welcomeLine) caption.say(welcomeLine);
@@ -309,11 +321,27 @@ export async function mount(root, ctx, params) {
   screen.appendChild(caption.el);
   activeCaption = caption;
 
+  // Always-visible mute toggle (REWORK §4) — screen-level (position:fixed,
+  // css/pier.css), built ONCE per mount regardless of hub vs mode route, so
+  // it's guaranteed present even for a machine mode that hasn't been rebuilt
+  // against mountChassis yet.
+  const muteBtn = buildMuteButton(ctx);
+  screen.appendChild(muteBtn);
+
   if (mod) {
     const host = el('div', 'pier-mode-host');
     screen.appendChild(host);
     await ensureContent();
-    const pierKit = { facts, content, say: caption.say, deluxe: facts.deluxeOn() };
+    const pierKit = {
+      facts,
+      content,
+      say: caption.say,
+      deluxe: facts.deluxeOn(),
+      // Convenience: this mode's own chassis builder, pre-bound to `host` —
+      // see this file's header comment. Additive to the §4 frozen
+      // {facts,content,say,deluxe} shape.
+      mountChassis: (opts) => mountChassis(host, opts),
+    };
     try {
       activeModeCleanup = mod.mount(host, ctx, pierKit);
     } catch (e) {

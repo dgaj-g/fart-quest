@@ -9,8 +9,18 @@
 //      prose) or one of the family's two actual operands (a or b) — matching
 //      content.js's own CRITICAL CORRECTNESS RULE (lines 138-143) exactly.
 //   4. All VO_MANIFEST ids are unique (and match their source pools 1:1).
+//   5. (PIER_REWORK §2) every caption-style line pool entry is ~12 words or
+//      fewer (generous 16-word hard cap — a soft "~12" with slack for a
+//      trailing stage-direction full stop), never uses fail/wrong/bad.
+//   6. `machine` covers exactly the five machines, each with exactly the six
+//      reactive-beat pools (+ welcome) the pier modes can fire on, all
+//      non-empty, all ids well-formed and folded into VO_MANIFEST.
+//   7. dave.steal keeps at least one entry matching /SCORECARD/i — gunge.js
+//      pattern-matches on this for its end-of-round beat.
 
-import { nana, announcer, dave, gremlin, GREMLIN_NAMES, VO_MANIFEST } from '../js/pier/content.js';
+import {
+  nana, announcer, dave, gremlin, machine, GREMLIN_NAMES, VO_MANIFEST,
+} from '../js/pier/content.js';
 
 let failures = 0;
 function check(cond, msg) {
@@ -69,12 +79,43 @@ for (const key of actualKeys) {
   check(hasProductDigit, `family ${key} (product ${product}): no digit-form of the product ${product} appears in name/oneliner`);
 }
 
+// ---------- 6. `machine`: five machines, six beats + welcome, all present ----------
+const EXPECTED_MACHINES = ['splat', 'gunge', 'ghost', 'teacups', 'tank'];
+const EXPECTED_BEATS = ['welcome', 'combo', 'nearMiss', 'daveTheft', 'gremlinFlush', 'newPB', 'goldBeaten'];
+
+check(typeof machine === 'object' && machine !== null, 'content.js must export `machine`');
+const machineKeys = Object.keys(machine || {});
+check(machineKeys.length === EXPECTED_MACHINES.length, `machine should have ${EXPECTED_MACHINES.length} entries, has ${machineKeys.length}`);
+for (const id of EXPECTED_MACHINES) {
+  check(Object.prototype.hasOwnProperty.call(machine, id), `machine is missing '${id}'`);
+}
+for (const id of machineKeys) {
+  check(EXPECTED_MACHINES.includes(id), `machine has unexpected key '${id}'`);
+  const beats = machine[id] || {};
+  const beatKeys = Object.keys(beats);
+  check(beatKeys.length === EXPECTED_BEATS.length, `machine.${id} should have ${EXPECTED_BEATS.length} beat pools, has ${beatKeys.length}`);
+  for (const beat of EXPECTED_BEATS) {
+    check(Object.prototype.hasOwnProperty.call(beats, beat), `machine.${id} is missing beat '${beat}'`);
+    const pool = beats[beat];
+    check(Array.isArray(pool) && pool.length > 0, `machine.${id}.${beat} must be a non-empty array`);
+  }
+}
+
+const machinePoolEntries = machineKeys.flatMap((id) => EXPECTED_BEATS.flatMap((beat) => (machine[id] && machine[id][beat]) || []));
+
+// ---------- 7. dave.steal keeps a SCORECARD entry (gunge.js depends on it) ----------
+check(
+  Array.isArray(dave.steal) && dave.steal.some((e) => /SCORECARD/i.test(e.text)),
+  "dave.steal must keep at least one entry matching /SCORECARD/i — js/pier/modes/gunge.js does `dave.steal.find(e => /SCORECARD/i.test(e.text))` for its end-of-round beat",
+);
+
 // ---------- 4. VO_MANIFEST: all ids unique, well-formed, complete ----------
 const allPoolEntries = [
   ...nana.welcome, ...nana.win, ...nana.goldBeaten, ...nana.deluxeOn, ...nana.deluxeOff, ...nana.tankClean,
   ...announcer.roundStart, ...announcer.highScore,
   ...dave.steal,
   ...gremlin.taunt, ...gremlin.flushed,
+  ...machinePoolEntries,
 ];
 check(VO_MANIFEST.length === allPoolEntries.length, `VO_MANIFEST length ${VO_MANIFEST.length} should equal total pool entries ${allPoolEntries.length}`);
 
@@ -100,6 +141,17 @@ for (const e of allPoolEntries) {
 const forbidden = /\b(fail(?:s|ed|ing)?|wrong|bad)\b/i;
 for (const e of allPoolEntries) {
   check(!forbidden.test(e.text), `pool entry ${e.id} uses a forbidden word (fail/wrong/bad): "${e.text}"`);
+}
+
+// ---------- 5. word-count guard (PIER_REWORK §2: "max ~12 words per line") ----------
+// GREMLIN_TABLE oneliners are deliberately exempt — they're persistent card
+// flavour text a player reads at their own pace, not a fleeting caption, and
+// were never in scope for the word-count rule (see content.js's own note by
+// the GREMLIN_TABLE definition).
+const WORD_CAP = 16; // generous hard cap for a soft "~12"
+for (const e of allPoolEntries) {
+  const words = e.text.trim().split(/\s+/).filter(Boolean).length;
+  check(words <= WORD_CAP, `pool entry ${e.id} is ${words} words (cap ${WORD_CAP}, target ~12): "${e.text}"`);
 }
 for (const key of actualKeys) {
   const entry = GREMLIN_NAMES[key];
