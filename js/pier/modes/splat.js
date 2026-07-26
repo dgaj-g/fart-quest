@@ -1,42 +1,74 @@
 // FART QUEST — js/pier/modes/splat.js (SPLAT agent)
-// SPLAT-A-GREMLIN: a 60-second whack-a-mole blitz. Five holes, a gremlin
-// popping out of each holding a number card (one correct answer + plausible
-// distractors from facts.distractors, positions shuffled with rng shuffle —
-// see docs/PIER_SPEC.md §6 "splat"). Tap the right card = SPLAT, score +1,
-// next question. Tap a wrong one = the gremlin blows a raspberry and the
-// CORRECT card flashes green for as long as (and only as long as) that exact
-// board stays on screen (Hard Rule ②) before the next question replaces it.
-// A 3+ streak lights up a MEGA SPLAT combo flash; there's no OS pointer on an
-// iPad, so "the mallet cursor grows" is realised as a mallet-strike graphic
-// at the hit hole that scales up with the streak (see final report).
+// SPLAT-A-GREMLIN — REWORK v2 (docs/PIER_REWORK.md).
 //
-// The 60s countdown is driven entirely by kit `tween()` (Hard Rule ④, and the
-// brief's explicit "no bare rAF" for the clock) — never a bare rAF loop and
-// never a raw setInterval. tween()'s own cubic easing is meant for springy UI
-// motion, not a literal second-by-second clock, so the tween's `apply`
-// callback here ignores the eased value it's handed and instead recomputes
-// the TRUE linear remaining time from a captured start timestamp each frame.
-// That keeps the visible seconds ticking down evenly and correctly, while
-// still riding on tween()'s rAF+timeout-guard scaffolding — which is exactly
-// what makes the round survive a hidden tab: the guard `setTimeout(finish,
-// dur+250)` fires `onTimeUp` at the correct wall-clock moment even if rAF
-// never once ran while the tab was hidden.
+// Damien's verdict on v1: "the animation of the hammer is barely visible; it
+// flashes too quickly and there should be more funny effect." This rebuild
+// makes the whack unmissable: a >=140px mallet swings in on an ARC with a
+// ~120ms wind-up (anticipation), the impact frame HOLDS ~350ms+, the stage
+// shakes, a radial splat-star bursts, the gremlin FLATTENS TO A PANCAKE and
+// pings off-screen spinning, and a puddle of goo persists on that hole for a
+// few seconds after (a separate, never-recreated layer under the holes, so
+// it survives the next question redrawing the hole above it). Combo tiers
+// visibly GROW the mallet and rename it MALLET -> SLEDGE -> THE BIG ONE with
+// escalating sound. A miss = a raspberry + a cheeky duck-and-wiggle, never a
+// "wrong" flash alone. See the CSS block below for the exact keyframe timing
+// (percentages of a fixed 900ms sequence) and this file's final report for
+// the measured Layout Law proof at all three viewport sizes.
+//
+// CHASSIS INTEGRATION (this pass): the v1 file built its OWN in-stage
+// `.splat-veil` for welcome/end — THAT is the exact bug PIER_REWORK.md §0
+// screenshot-confirmed (sliced START button, physically unreachable at
+// 1000x540). This rebuild uses `pier.mountChassis(...)` for the mandatory
+// [hud][stage][dock] skeleton and `chassis.overlay(...)` (screen-level,
+// `position:fixed`, centred with `translate:`, `max-height:calc(100dvh -
+// 32px); overflow-y:auto`) for every welcome/end card. See js/pier/padkit.js
+// and css/pier.css's header contract blocks for the full shape this relies
+// on. There is deliberately no `.splat-dock` content — this machine is
+// tap-based (no numpad/primary-action control), so the dock slot is left
+// empty per the contract ("a mode that wants the same skeleton calls
+// mountChassis... nothing forces a mode to fill every slot").
+//
+// Content: per-machine line pools now live in js/pier/content.js's `machine`
+// export, NOT surfaced through `pier.content` (that whitelist only forwards
+// nana/announcer/dave/gremlin — see content.js's own "INTEGRATION NOTE FOR
+// REVIEWERS"). This file imports `machine`/`nana`/`announcer` directly as a
+// plain sibling import, exactly as js/pier/modes/tank.js already does for
+// `GREMLIN_NAMES` — a read-only import of a file this agent doesn't own, not
+// an edit to it.
 import {
   el, sfx, tween, toast, sparkleBurst, party, injectCss,
 } from '../../anims/_kit.js';
 import { mulberry32, pick, shuffle } from '../../rng.js';
+import { nana, announcer, machine } from '../content.js';
 
 const ROUND_MS = 60000;
 const HOLE_COUNT = 5;
-const COMBO_THRESHOLD = 3;
 const TICK_WINDOW_SEC = 10;
-const CORRECT_PAUSE_MS = 420; // long enough to see the squash+float, short enough to read as "immediately"
-const WRONG_PAUSE_MS = 950;   // the correct card must be visible and readable before the board changes
-const DAVE_MS = 1450;
+const HIT_ANIM_MS = 900;         // total mallet/gremlin sequence — see CSS splatMalletSwing/splatWhack
+const IMPACT_DELAY_MS = 270;     // matches the 30% keyframe mark (270ms of 900ms) — the actual strike
+const CORRECT_PAUSE_MS = HIT_ANIM_MS + 50; // next question waits for the FULL sequence to be seen
+const WRONG_PAUSE_MS = 900;      // long enough to read the duck+wiggle and the green flash
+const GOO_FADE_MS = 3400;        // "persists on that hole for a few seconds"
+const DAVE_MS = 1650;
 const COUNTDOWN_STEP_MS = 560;
 
+const M = machine.splat;
+
+/* ---------- combo tiers — "visibly GROW the mallet and rename it" ---------- */
+const TOOL_TIERS = [
+  { min: 0, name: 'MALLET', emoji: '🔨', cls: 'tier-0' },
+  { min: 3, name: 'SLEDGE', emoji: '🔨', cls: 'tier-1' },
+  { min: 6, name: 'THE BIG ONE', emoji: '🔨', cls: 'tier-2' },
+];
+function toolForStreak(streak) {
+  let t = TOOL_TIERS[0];
+  for (const tier of TOOL_TIERS) { if (streak >= tier.min) t = tier; }
+  return t;
+}
+
 /* ---------- caption line picking (own throwaway rng — kept separate from
-   the gameplay rng so cosmetic line variety never perturbs fact draws) ---------- */
+   the gameplay rng so cosmetic line/flight/goo variety never perturbs fact
+   draws, same discipline v1 established) ---------- */
 function freshRng() {
   return mulberry32((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
 }
@@ -44,202 +76,268 @@ function pickLine(pool) {
   if (!Array.isArray(pool) || pool.length === 0) return null;
   return pick(freshRng(), pool);
 }
+function pickFlight() {
+  const r = freshRng();
+  const dir = r() < 0.5 ? -1 : 1;
+  const x = dir * (60 + r() * 70);
+  const y = -(90 + r() * 70);
+  const rot = dir * (520 + r() * 360);
+  return { x: Math.round(x), y: Math.round(y), rot: Math.round(rot) };
+}
 
 const CSS = `
-.splat-back { position:absolute; top:calc(16px + var(--safe-t,0px)); left:calc(16px + var(--safe-l,0px)); min-height:60px; padding:0 20px; font-size:15px; z-index:50; }
+/* ---------- CHASSIS WORKAROUND ---------- */
+/* css/pier.css's .pier-mode-host rule is missing display:flex;flex-direction:
+   column — without it, mountChassis()'s [hud][stage][dock] children stack by
+   plain block flow instead of flex, so .pier-stage never grows to fill the
+   remaining height (measured: stage collapsed to its own content height,
+   leaving ~220px of dead space below an empty dock at 1000x540). Scoped to
+   the COMPOUND selector .pier-mode-host.pier-chassis — "pier-chassis" is
+   added automatically by mountChassis() itself (js/pier/padkit.js), so this
+   rule only ever touches a host that has actually opted into the chassis,
+   never a legacy mode's own custom layout. The ghost and tank mode files
+   independently landed on this exact same selector/declaration for the same
+   reason — this is a shared chassis gap, not a splat-specific one; it
+   belongs in css/pier.css permanently (out of this agent's file ownership,
+   flagged in the final report rather than edited there). */
+.pier-mode-host.pier-chassis { display: flex; flex-direction: column; }
 
-.splat-stage {
-  position:relative; min-height:100%; overflow:hidden; touch-action:manipulation;
-  display:flex; flex-direction:column; align-items:center;
-  padding:calc(78px + var(--safe-t,0px)) calc(16px + var(--safe-r,0px)) calc(28px + var(--safe-b,0px)) calc(16px + var(--safe-l,0px));
-}
-
-/* ---------- HUD ---------- */
-.splat-topbar { width:100%; max-width:720px; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+/* ---------- HUD chips ---------- */
 .splat-chip {
   background: rgba(10,18,48,.7); border:2px solid rgba(255,255,255,.16); border-radius:999px;
-  padding:8px 16px; font-family:'Fredoka',sans-serif; font-weight:700; font-size:14px;
+  padding:7px 15px; font-family:'Fredoka',sans-serif; font-weight:700; font-size:14px;
   color:var(--parchment); box-shadow:0 4px 0 rgba(0,0,0,.3);
+  min-height:34px; display:flex; align-items:center; white-space:nowrap;
 }
-.splat-chip b { color: var(--pier-bulb, #ffe9a8); font-size:18px; margin-left:4px; }
+.splat-chip b { color: var(--pier-bulb,#ffe9a8); font-size:16px; margin:0 2px; }
 .splat-chip.pop { animation: splatChipPop .32s var(--spring) both; }
-@keyframes splatChipPop { 0% { transform:scale(1); } 45% { transform:scale(1.2); } 100% { transform:scale(1); } }
-.splat-streak-chip { background: linear-gradient(160deg, rgba(255,79,163,.28), rgba(255,79,163,.12)); border-color: rgba(255,79,163,.5); }
-.splat-streak-chip[hidden] { display:none; }
+@keyframes splatChipPop { 0% { scale:1; } 45% { scale:1.18; } 100% { scale:1; } }
 
 .splat-ring {
-  --pct: 100; position:relative; width:60px; height:60px; border-radius:50%; flex:0 0 auto;
-  background: conic-gradient(var(--pier-teal, #2fe3c4) calc(var(--pct) * 1%), rgba(255,255,255,.14) 0);
+  --pct:100; position:relative; width:60px; height:60px; border-radius:50%; flex:0 0 auto;
+  background: conic-gradient(var(--pier-teal,#2fe3c4) calc(var(--pct) * 1%), rgba(255,255,255,.14) 0);
   display:flex; align-items:center; justify-content:center; box-shadow:0 4px 0 rgba(0,0,0,.3);
 }
 .splat-ring::before { content:''; position:absolute; inset:6px; border-radius:50%; background:#0a1230; }
 .splat-ring-num { position:relative; z-index:1; font-family:'Fredoka',sans-serif; font-weight:700; font-size:19px; color:var(--parchment); }
 .splat-ring.urgent { animation: splatUrgentPulse .5s ease-in-out infinite; }
 .splat-ring.urgent .splat-ring-num { color: var(--wrong); }
-@keyframes splatUrgentPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.12); } }
+@keyframes splatUrgentPulse { 0%,100% { scale:1; } 50% { scale:1.12; } }
 
-/* ---------- question ---------- */
-.splat-question {
-  font-size:clamp(24px,4.6vw,38px); font-weight:700; color:var(--parchment);
-  text-align:center; margin-bottom:24px; text-shadow:0 3px 0 rgba(0,0,0,.35); min-height:1.2em;
+.splat-tool-chip[hidden] { display:none; }
+.splat-tool-chip { border-color: rgba(255,79,163,.5); background: linear-gradient(160deg, rgba(255,79,163,.24), rgba(255,79,163,.1)); }
+.splat-tool-chip.tier-1 { border-color: rgba(255,159,67,.65); background: linear-gradient(160deg, rgba(255,159,67,.32), rgba(255,159,67,.12)); }
+.splat-tool-chip.tier-2 { border-color: var(--gold); background: linear-gradient(160deg, rgba(244,197,66,.42), rgba(244,197,66,.14)); box-shadow: 0 4px 0 rgba(0,0,0,.3), 0 0 14px rgba(244,197,66,.55); }
+
+/* ---------- stage content ---------- */
+.splat-shakewrap {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:100%; width:100%; box-sizing:border-box;
+  gap: clamp(8px,1.8vh,18px); padding: 6px 10px;
+}
+.splat-shakewrap.shake { animation: splatShake .3s ease both; }
+@keyframes splatShake {
+  0%,100% { translate:0 0; }
+  15% { translate:-9px 2px; } 30% { translate:8px -3px; } 45% { translate:-7px 3px; }
+  60% { translate:6px -2px; } 75% { translate:-3px 1px; } 90% { translate:2px 0; }
 }
 
-/* ---------- holes ---------- */
-.splat-holes { display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-end; gap:18px; width:100%; max-width:760px; transition:opacity .35s ease; }
-.splat-holes.splat-fade-out { opacity:0; pointer-events:none; }
+.splat-question {
+  font-size:clamp(22px,4.2vh,40px); font-weight:700; color:var(--parchment);
+  text-align:center; text-shadow:0 3px 0 rgba(0,0,0,.35); min-height:1.2em; margin:0;
+}
 
+.splat-arena { position:relative; width:min(100%,720px); padding-top: clamp(56px,13vh,100px); }
+
+/* ---------- goo layer — its OWN layer, never recreated by renderHoles(), so
+   a splat outlives that question's holes redrawing on top of it ---------- */
+.splat-goo-layer {
+  position:absolute; left:0; right:0; bottom:0;
+  height: clamp(56px,10vh,90px);
+  display:grid; grid-template-columns:repeat(5,1fr); gap: clamp(8px,1.6vw,18px);
+  pointer-events:none; z-index:1;
+}
+.splat-goo-cell { position:relative; }
+.splat-goo-cell::before {
+  content:''; position:absolute; left:50%; bottom:4px;
+  width:76%; height:62%; border-radius:52% 48% 46% 44% / 62% 58% 42% 38%;
+  background: radial-gradient(ellipse at 38% 28%, #9be15d, #3d8a26 72%);
+  box-shadow: 0 3px 8px rgba(0,0,0,.35);
+  translate:-50% 0; rotate: var(--goo-rot,0deg); scale:0; opacity:0;
+}
+.splat-goo-cell.splat::before { animation: splatGooIn 3.4s cubic-bezier(.22,1,.36,1) both; }
+@keyframes splatGooIn {
+  0% { opacity:0; scale:0; }
+  8% { opacity:1; scale: var(--goo-scale,1); }
+  74% { opacity:1; scale: var(--goo-scale,1); }
+  100% { opacity:0; scale: calc(var(--goo-scale,1) * .86); }
+}
+
+.splat-holes {
+  position:relative; z-index:2; width:100%;
+  display:grid; grid-template-columns:repeat(5,1fr); gap: clamp(8px,1.6vw,18px); align-items:end;
+}
 .splat-hole {
-  position:relative; width:112px; height:130px; border:none; background:transparent; cursor:pointer;
-  padding:0; display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+  position:relative; border:none; background:transparent; cursor:pointer; padding:0;
+  width:100%; height:clamp(100px,20vh,160px); min-width:60px; min-height:60px;
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
   -webkit-tap-highlight-color:transparent; touch-action:manipulation;
 }
 .splat-mound {
-  position:absolute; bottom:0; left:50%; transform:translateX(-50%);
-  width:112px; height:34px; border-radius:50%;
+  position:absolute; bottom:0; left:50%; translate:-50% 0;
+  width:88%; height:24%; border-radius:50%;
   background: radial-gradient(ellipse at 50% 30%, #3a2a10, #1c1408 75%);
   box-shadow: 0 6px 0 rgba(0,0,0,.35);
 }
 .splat-gremlin {
-  position:relative; z-index:2; font-size:40px; margin-bottom:-6px; display:block;
+  position:relative; z-index:2; font-size:clamp(34px,7vh,56px); margin-bottom:-4px; display:block;
   filter:drop-shadow(0 4px 6px rgba(0,0,0,.4));
   animation: splatBob 1.8s ease-in-out infinite;
 }
-.splat-hole:nth-child(2n) .splat-gremlin { animation-delay: .3s; }
-.splat-hole:nth-child(3n) .splat-gremlin { animation-delay: .6s; }
-@keyframes splatBob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-5px); } }
+.splat-hole:nth-child(2n) .splat-gremlin { animation-delay:.3s; }
+.splat-hole:nth-child(3n) .splat-gremlin { animation-delay:.6s; }
+@keyframes splatBob { 0%,100% { translate:0 0; } 50% { translate:0 -5px; } }
+
 .splat-card {
   position:relative; z-index:3; margin-top:2px; display:block;
   background: linear-gradient(160deg,#fff3ce,#f4c542); color:var(--ink);
-  font-family:'Fredoka',sans-serif; font-weight:700; font-size:22px;
-  min-width:56px; padding:6px 10px; border-radius:12px; text-align:center;
+  font-family:'Fredoka',sans-serif; font-weight:700; font-size:clamp(16px,3.2vh,24px);
+  min-width:46px; padding:5px 10px; border-radius:12px; text-align:center;
   box-shadow: 0 4px 0 var(--gold-deep,#d9a21b); border:2px solid rgba(255,255,255,.5);
 }
 
-.splat-hole.splat-hit .splat-gremlin { animation: splatSquash .4s cubic-bezier(.22,1.2,.36,1) both; }
-@keyframes splatSquash {
-  0% { transform: scale(1); }
-  35% { transform: scale(1.25,.7) translateY(6px); }
-  70% { transform: scale(.9,1.12) translateY(-3px); }
-  100% { transform: scale(1); }
+/* ---------- the whack: gremlin flattens to a pancake, then pings off spinning ---------- */
+.splat-gremlin.whack { animation: splatWhack .9s both; }
+@keyframes splatWhack {
+  0%   { translate:0 0; rotate:0deg; scale:1 1; opacity:1; }
+  13%  { translate:0 -2px; rotate:-4deg; scale:.94 1.08; opacity:1; }
+  30%  { translate:0 9px; rotate:-2deg; scale:1.55 .24; opacity:1; }
+  75%  { translate:0 9px; rotate:2deg; scale:1.5 .27; opacity:1; }
+  100% { translate: var(--fly-x,70px) var(--fly-y,-140px); rotate: var(--fly-rot,640deg); scale:.4 .4; opacity:0; }
 }
-.splat-hole.splat-hit .splat-card { animation: splatCardPop .4s var(--spring) both; }
-@keyframes splatCardPop { 0% { transform:scale(1); } 40% { transform:scale(1.3) rotate(-6deg); } 100% { transform:scale(1) rotate(0); } }
-
-.splat-hole.splat-miss .splat-gremlin { animation: splatWobble .45s ease both; }
-@keyframes splatWobble {
-  0%,100% { transform: rotate(0); }
-  25% { transform: rotate(-12deg); }
-  50% { transform: rotate(10deg); }
-  75% { transform: rotate(-6deg); }
+.splat-card.whack { animation: splatCardWhack .9s both; }
+@keyframes splatCardWhack {
+  0% { scale:1; opacity:1; }
+  30% { scale:1.24; opacity:1; }
+  55%,75% { scale:1.05; opacity:1; }
+  100% { scale:.7; opacity:0; translate:0 -10px; }
 }
 
-.splat-hole.splat-flash-correct .splat-card { animation: splatFlashGreen .9s ease-in-out both; }
+/* ---------- miss: raspberry + a duck-and-wiggle, never a flat "wrong" ---------- */
+.splat-gremlin.duck { animation: splatDuck .62s ease both; }
+@keyframes splatDuck {
+  0%   { translate:0 0; rotate:0deg; scale:1 1; }
+  18%  { translate:0 13px; rotate:-7deg; scale:1.06 .82; }
+  38%  { translate:0 13px; rotate:9deg; scale:1.06 .82; }
+  58%  { translate:0 9px; rotate:-8deg; scale:1.03 .88; }
+  78%  { translate:0 5px; rotate:5deg; scale:1.01 .95; }
+  100% { translate:0 0; rotate:0deg; scale:1 1; }
+}
+.splat-card.flash-correct { animation: splatFlashGreen .95s ease-in-out both; }
 @keyframes splatFlashGreen {
-  0%, 100% { box-shadow: 0 4px 0 var(--gold-deep,#d9a21b); background:linear-gradient(160deg,#fff3ce,#f4c542); }
-  15%, 85% { box-shadow: 0 0 0 4px var(--correct), 0 4px 0 var(--gold-deep,#d9a21b); background: linear-gradient(160deg,#eafff2,#8ce6ae); }
+  0%,100% { box-shadow:0 4px 0 var(--gold-deep,#d9a21b); background:linear-gradient(160deg,#fff3ce,#f4c542); }
+  15%,85% { box-shadow:0 0 0 4px var(--correct), 0 4px 0 var(--gold-deep,#d9a21b); background:linear-gradient(160deg,#eafff2,#8ce6ae); }
 }
 
-/* ---------- floating feedback ---------- */
+/* ---------- the mallet — >=140px, arcs in with a wind-up, holds on impact ---------- */
+.splat-mallet-fx {
+  position:absolute; left:50%; bottom:16%; z-index:6; pointer-events:none;
+  font-size:140px; line-height:1; translate:-50% -6px;
+  animation: splatMalletSwing .9s both;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.45));
+}
+.splat-mallet-fx.tier-1 { font-size:172px; filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)) drop-shadow(0 0 22px rgba(255,159,67,.65)); }
+.splat-mallet-fx.tier-2 { font-size:206px; filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)) drop-shadow(0 0 30px rgba(244,197,66,.9)); }
+@keyframes splatMalletSwing {
+  0%   { rotate:-22deg; translate:-50% -6px;  scale:1;    opacity:1; }
+  13%  { rotate:-66deg; translate:-50% -30px; scale:1.05; opacity:1; }
+  30%  { rotate:16deg;  translate:-50% 6px;   scale:1;    opacity:1; }
+  75%  { rotate:9deg;   translate:-50% 8px;   scale:.97;  opacity:1; }
+  100% { rotate:-40deg; translate:-50% -38px; scale:1;    opacity:0; }
+}
+
+/* ---------- radial splat-star at the moment of impact ---------- */
+.splat-star {
+  position:absolute; left:50%; top:36%; translate:-50% -50%; z-index:7; pointer-events:none;
+  font-size:56px; opacity:0; scale:.3;
+  animation: splatStarBurst .5s cubic-bezier(.2,1.4,.4,1) both;
+}
+@keyframes splatStarBurst {
+  0% { opacity:0; scale:.2; rotate:-15deg; }
+  35% { opacity:1; scale:1.35; rotate:8deg; }
+  100% { opacity:0; scale:1.1; rotate:0deg; }
+}
+
 .splat-float {
-  position:absolute; top:-4px; left:50%; transform:translateX(-50%);
-  font-family:'Fredoka',sans-serif; font-weight:700; font-size:15px; color:var(--pier-bulb,#ffe9a8);
-  text-shadow:0 2px 4px rgba(0,0,0,.5); pointer-events:none; z-index:6; white-space:nowrap;
-  animation: splatFloatUp .48s ease-out both;
+  position:absolute; top:-2px; left:50%; translate:-50% 0;
+  font-family:'Fredoka',sans-serif; font-weight:700; font-size:14px; color:var(--pier-bulb,#ffe9a8);
+  text-shadow:0 2px 4px rgba(0,0,0,.5); pointer-events:none; z-index:8; white-space:nowrap;
+  animation: splatFloatUp .7s ease-out both;
 }
 @keyframes splatFloatUp {
-  0% { opacity:0; transform:translate(-50%,0) scale(.7); }
-  30% { opacity:1; transform:translate(-50%,-12px) scale(1.1); }
-  100% { opacity:0; transform:translate(-50%,-38px) scale(1); }
-}
-.splat-mallet {
-  position:absolute; top:-30px; left:50%; z-index:7; pointer-events:none; font-size:34px;
-  transform-origin:70% 90%; animation: splatMalletHit .38s ease-out both;
-}
-@keyframes splatMalletHit {
-  0% { transform: translate(-50%,-24px) scale(var(--mscale,1)) rotate(-55deg); opacity:0; }
-  55% { opacity:1; transform: translate(-50%,4px) scale(var(--mscale,1)) rotate(8deg); }
-  100% { opacity:0; transform: translate(-50%,10px) scale(var(--mscale,1)) rotate(-8deg); }
+  0% { opacity:0; translate:-50% 0; scale:.7; }
+  25% { opacity:1; translate:-50% -14px; scale:1.1; }
+  100% { opacity:0; translate:-50% -46px; scale:1; }
 }
 
-/* ---------- combo flash ---------- */
+/* ---------- combo tier-up flash ---------- */
 .splat-combo {
-  position:absolute; top:36%; left:50%; transform:translate(-50%,-50%) scale(.6);
-  font-family:'Fredoka',sans-serif; font-weight:700; font-size:clamp(28px,6vw,46px);
+  position:absolute; top:4%; left:50%; translate:-50% -50%; scale:.6;
+  font-family:'Fredoka',sans-serif; font-weight:700; font-size:clamp(20px,4.6vh,34px);
   color:var(--pier-pink,#ff4fa3); text-shadow:0 0 16px rgba(255,79,163,.7), 0 4px 0 rgba(0,0,0,.4);
-  pointer-events:none; z-index:15; opacity:0; letter-spacing:.02em; white-space:nowrap;
+  pointer-events:none; z-index:9; opacity:0; letter-spacing:.02em; white-space:nowrap; text-align:center;
 }
-.splat-combo.show { animation: splatComboFlash .75s var(--spring) both; }
+.splat-combo.show { animation: splatComboFlash .85s var(--spring) both; }
 @keyframes splatComboFlash {
-  0% { opacity:0; transform:translate(-50%,-50%) scale(.4) rotate(-6deg); }
-  30% { opacity:1; transform:translate(-50%,-50%) scale(1.15) rotate(3deg); }
-  60% { transform:translate(-50%,-50%) scale(1) rotate(0deg); }
-  100% { opacity:0; transform:translate(-50%,-58%) scale(1.05) rotate(0deg); }
+  0% { opacity:0; translate:-50% -50%; scale:.4; rotate:-6deg; }
+  30% { opacity:1; translate:-50% -50%; scale:1.15; rotate:3deg; }
+  60% { translate:-50% -50%; scale:1; rotate:0deg; }
+  100% { opacity:0; translate:-50% -62%; scale:1.05; rotate:0deg; }
 }
 
-/* ---------- pre-round countdown ---------- */
+/* ---------- pre-round GET READY countdown ---------- */
 .splat-countdown {
-  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  font-family:'Fredoka',sans-serif; font-weight:700; font-size:88px; color:var(--pier-bulb,#ffe9a8);
-  text-shadow:0 0 20px rgba(255,233,168,.6), 0 5px 0 rgba(0,0,0,.4); z-index:25; pointer-events:none;
+  position:absolute; top:50%; left:50%; translate:-50% -50%; z-index:25; pointer-events:none;
+  font-family:'Fredoka',sans-serif; font-weight:700; font-size:min(88px,16vh); color:var(--pier-bulb,#ffe9a8);
+  text-shadow:0 0 20px rgba(255,233,168,.6), 0 5px 0 rgba(0,0,0,.4);
 }
 .splat-countdown.pop { animation: splatCdPop .5s var(--spring) both; }
 @keyframes splatCdPop {
-  0% { transform:translate(-50%,-50%) scale(.4); opacity:0; }
-  60% { transform:translate(-50%,-50%) scale(1.15); opacity:1; }
-  100% { transform:translate(-50%,-50%) scale(1); opacity:1; }
+  0% { translate:-50% -50%; scale:.4; opacity:0; }
+  60% { translate:-50% -50%; scale:1.15; opacity:1; }
+  100% { translate:-50% -50%; scale:1; opacity:1; }
 }
 
 /* ---------- Dave steals the mallet ---------- */
+.splat-dave-layer { position:absolute; inset:0; z-index:20; pointer-events:none; }
 .splat-dave {
-  position:absolute; top:22%; left:-15%; font-size:46px; z-index:20; pointer-events:none;
+  position:absolute; top:18%; left:-15%; font-size:50px;
   filter:drop-shadow(0 6px 10px rgba(0,0,0,.4));
-  animation: splatDaveSwoop 1.3s cubic-bezier(.4,.1,.3,1) both;
+  animation: splatDaveSwoop 1.5s cubic-bezier(.4,.1,.3,1) both;
 }
 @keyframes splatDaveSwoop {
-  0% { left:-15%; transform:translateY(0) rotate(-8deg); }
-  50% { transform:translateY(-40px) rotate(6deg); }
-  100% { left:115%; transform:translateY(10px) rotate(-4deg); }
+  0% { left:-15%; translate:0 0; rotate:-8deg; }
+  50% { translate:0 -44px; rotate:6deg; }
+  100% { left:115%; translate:0 12px; rotate:-4deg; }
 }
 
-/* ---------- welcome / end-screen veil ---------- */
-.splat-veil {
-  position:absolute; inset:0; z-index:30; display:none; align-items:center; justify-content:center;
-  padding:20px calc(20px + var(--safe-r,0px)) 20px calc(20px + var(--safe-l,0px));
-  background: rgba(4,8,20,.72); backdrop-filter: blur(2px);
+/* ---------- welcome / end-screen overlay content (chassis.overlay() card) ---------- */
+.splat-ov-emoji { font-size:52px; margin-bottom:6px; filter:drop-shadow(0 4px 8px rgba(0,0,0,.4)); }
+.splat-ov-title { font-family:'Fredoka',sans-serif; font-weight:700; font-size:22px; color:var(--pier-bulb,#ffe9a8); margin:0 0 10px; letter-spacing:.02em; }
+.splat-ov-line {
+  font-size:14px; line-height:1.4; font-weight:500; color:rgba(246,235,212,.85);
+  background:rgba(255,255,255,.06); border-radius:12px; padding:9px 12px; margin-bottom:12px;
 }
-.splat-veil.show { display:flex; }
-.splat-card-panel {
-  background: linear-gradient(160deg, #131c3e, #0c1330);
-  border:3px solid rgba(255,79,163,.35); border-radius:var(--r-lg);
-  box-shadow: 0 10px 0 rgba(0,0,0,.35), 0 20px 40px rgba(0,0,0,.5);
-  padding:30px 28px; max-width:440px; width:100%; text-align:center;
-  animation: splatCardIn .38s var(--spring) both;
-}
-@keyframes splatCardIn { from { opacity:0; transform:scale(.88) translateY(18px); } to { opacity:1; transform:scale(1) translateY(0); } }
-.splat-title-emoji { font-size:52px; margin-bottom:6px; filter:drop-shadow(0 4px 8px rgba(0,0,0,.4)); }
-.splat-title { font-family:'Fredoka',sans-serif; font-weight:700; font-size:24px; color:var(--pier-bulb,#ffe9a8); margin:0 0 10px; letter-spacing:.02em; }
-.splat-line {
-  font-size:14.5px; line-height:1.4; font-weight:500; color:rgba(246,235,212,.85);
-  background:rgba(255,255,255,.06); border-radius:12px; padding:10px 12px; margin-bottom:12px;
-}
-.splat-blurb { font-size:14px; line-height:1.4; color:rgba(246,235,212,.75); margin:0 0 18px; }
-.splat-start-btn, .splat-again-btn { min-height:60px; padding:0 34px; font-size:18px; }
-.splat-newrecord {
-  font-family:'Fredoka',sans-serif; font-weight:700; font-size:16px; color:var(--gold,#f4c542);
+.splat-ov-blurb { font-size:13.5px; line-height:1.4; color:rgba(246,235,212,.75); margin:0 0 16px; }
+.splat-ov-btn { min-height:60px; padding:0 30px; font-size:17px; width:100%; }
+.splat-ov-newrecord {
+  font-family:'Fredoka',sans-serif; font-weight:700; font-size:15px; color:var(--gold,#f4c542);
   margin-bottom:8px; animation: splatNewRecordGlow 1.1s ease-in-out infinite;
 }
 @keyframes splatNewRecordGlow { 0%,100% { text-shadow:0 0 6px rgba(244,197,66,.4); } 50% { text-shadow:0 0 18px rgba(244,197,66,.9); } }
-.splat-end-score { font-family:'Fredoka',sans-serif; font-weight:700; font-size:52px; color:var(--parchment); margin-bottom:6px; }
-.splat-end-score span { font-size:18px; font-weight:500; color:rgba(246,235,212,.7); margin-left:6px; }
-.splat-tier-row { justify-content:center; margin-bottom:14px; }
-
-@media (max-width: 680px) {
-  .splat-hole { width:88px; height:108px; }
-  .splat-mound { width:88px; height:28px; }
-  .splat-gremlin { font-size:32px; }
-  .splat-card { font-size:18px; min-width:46px; padding:5px 8px; }
-  .splat-holes { gap:12px; }
-}
+.splat-ov-score { font-family:'Fredoka',sans-serif; font-weight:700; font-size:48px; color:var(--parchment); margin-bottom:4px; }
+.splat-ov-score span { font-size:16px; font-weight:500; color:rgba(246,235,212,.7); margin-left:6px; }
+.splat-ov-tierrow { justify-content:center; margin-bottom:12px; }
 `;
 
 export default {
@@ -261,6 +359,7 @@ export default {
     let holeEls = [];
     let lastTickSec = null;
     let mainTweenCancel = null;
+    let activeOverlay = null;
 
     const timers = new Set();
     const later = (fn, ms) => {
@@ -270,35 +369,45 @@ export default {
     };
     const clearAllTimers = () => { timers.forEach((id) => clearTimeout(id)); timers.clear(); };
 
-    /* ---------- chrome ---------- */
-    const back = el('button', 'btn btn-ghost splat-back', '← PIER');
-    const stage = el('div', 'splat-stage');
+    /* ---------- chassis skeleton (docs/PIER_REWORK.md §1) — the dock is
+       deliberately left empty: this machine is tap-based, no numpad/primary
+       control belongs there. ---------- */
+    const chassis = pier.mountChassis({
+      onBack: () => { ctx.audio.sfx('back'); ctx.go('#/pier'); },
+      backLabel: '← PIER',
+      hudClass: 'splat-hud',
+      stageClass: 'splat-stagefx',
+      dockClass: 'splat-dock',
+    });
 
-    const topbar = el('div', 'splat-topbar');
     const scoreChip = el('div', 'splat-chip splat-score-chip', 'SCORE <b>0</b>');
     const ring = el('div', 'splat-ring');
     ring.style.setProperty('--pct', '100');
     const ringNum = el('span', 'splat-ring-num', '60');
     ring.append(ringNum);
-    const streakChip = el('div', 'splat-chip splat-streak-chip', '🔥 <b>0</b>');
-    streakChip.hidden = true;
-    topbar.append(scoreChip, ring, streakChip);
+    const toolChip = el('div', 'splat-chip splat-tool-chip', '🔨 <b>MALLET</b> ×0');
+    toolChip.hidden = true;
+    chassis.hud.append(scoreChip, ring, toolChip);
 
     const questionEl = el('div', 'splat-question', '');
+    const arena = el('div', 'splat-arena');
+    const gooLayer = el('div', 'splat-goo-layer');
+    const gooCells = [];
+    for (let i = 0; i < HOLE_COUNT; i += 1) {
+      const c = el('div', 'splat-goo-cell');
+      gooLayer.append(c);
+      gooCells.push(c);
+    }
     const holesWrap = el('div', 'splat-holes');
     const comboEl = el('div', 'splat-combo');
-    const veil = el('div', 'splat-veil');
+    const daveLayer = el('div', 'splat-dave-layer');
+    arena.append(gooLayer, holesWrap, comboEl, daveLayer);
 
-    stage.append(topbar, questionEl, holesWrap, comboEl, veil);
-    host.append(back, stage);
-
-    back.addEventListener('click', () => {
-      ctx.audio.sfx('back');
-      ctx.go('#/pier');
-    });
+    const shakeWrap = el('div', 'splat-shakewrap');
+    shakeWrap.append(questionEl, arena);
+    chassis.stage.append(shakeWrap);
 
     const scoreNum = scoreChip.querySelector('b');
-    const streakNum = streakChip.querySelector('b');
 
     /* ---------- tiny helpers ---------- */
     function bump(chipEl) {
@@ -310,19 +419,63 @@ export default {
       scoreNum.textContent = String(score);
       bump(scoreChip);
     }
-    function updateStreakHud() {
+    function updateToolHud() {
+      const tier = toolForStreak(streak);
       if (streak >= 2) {
-        streakChip.hidden = false;
-        streakNum.textContent = String(streak);
-        bump(streakChip);
+        toolChip.hidden = false;
+        toolChip.className = 'splat-chip splat-tool-chip ' + tier.cls;
+        toolChip.innerHTML = `${tier.emoji} <b>${tier.name}</b> ×${streak}`;
+        bump(toolChip);
       } else {
-        streakChip.hidden = true;
+        toolChip.hidden = true;
       }
+      return tier;
     }
-    function hideVeil() { veil.classList.remove('show'); veil.innerHTML = ''; }
-
-    function tierChipsHtml(bestVal, goldSeen) {
-      const tiers = pier.facts.nanaTiers('splat') || { bronze: 12, silver: 20, gold: 30 };
+    function shakeStage() {
+      shakeWrap.classList.remove('shake');
+      void shakeWrap.offsetWidth;
+      shakeWrap.classList.add('shake');
+      later(() => shakeWrap.classList.remove('shake'), 300);
+    }
+    function spawnStar(holeEl) {
+      const s = el('span', 'splat-star', '💥');
+      holeEl.append(s);
+      later(() => s.remove(), 520);
+    }
+    function spawnFloat(holeEl, text) {
+      const f = el('span', 'splat-float', text);
+      holeEl.append(f);
+      later(() => f.remove(), 720);
+    }
+    function spawnMallet(holeEl, tier) {
+      const m = el('span', 'splat-mallet-fx ' + tier.cls, tier.emoji);
+      holeEl.append(m);
+      later(() => m.remove(), HIT_ANIM_MS + 60);
+    }
+    function splatGoo(i) {
+      const c = gooCells[i];
+      if (!c) return;
+      const fr = freshRng();
+      c.style.setProperty('--goo-rot', (fr() * 46 - 23).toFixed(1) + 'deg');
+      c.style.setProperty('--goo-scale', (0.85 + fr() * 0.35).toFixed(2));
+      c.classList.remove('splat');
+      void c.offsetWidth; // restart if the same slot splats again before the previous fade finished
+      c.classList.add('splat');
+      later(() => c.classList.remove('splat'), GOO_FADE_MS);
+    }
+    function comboFlash(name) {
+      comboEl.textContent = `${name} UNLOCKED! 🔥`;
+      comboEl.classList.remove('show');
+      void comboEl.offsetWidth;
+      comboEl.classList.add('show');
+    }
+    function celebrateFlush(name) {
+      const line = pickLine(M.gremlinFlush);
+      if (line) pier.say(line);
+      toast(chassis.stage, `${name} FLUSHED! 🚽💨`);
+      sparkleBurst(chassis.stage, chassis.stage.clientWidth / 2, chassis.stage.clientHeight / 2, 12);
+    }
+    function tierChipsHtml(bestVal, goldSeen, tiers) {
       const icons = { bronze: '🥉', silver: '🥈', gold: '🥇' };
       const chips = ['bronze', 'silver', 'gold'].map((t) => {
         const achieved = bestVal != null && bestVal >= tiers[t];
@@ -332,45 +485,18 @@ export default {
       return chips + trophy;
     }
 
-    /* ---------- in-hole flourishes ---------- */
-    function spawnFloat(hole, text) {
-      const f = el('span', 'splat-float', text);
-      hole.append(f);
-      later(() => f.remove(), 520);
-    }
-    function spawnMallet(hole, currentStreak) {
-      const scale = Math.min(1.9, 1 + currentStreak * 0.12);
-      const m = el('span', 'splat-mallet', '🔨');
-      m.style.setProperty('--mscale', scale.toFixed(2));
-      hole.append(m);
-      later(() => m.remove(), 420);
-    }
-    function comboFlash() {
-      comboEl.textContent = 'MEGA SPLAT! 🔥';
-      comboEl.classList.remove('show');
-      void comboEl.offsetWidth;
-      comboEl.classList.add('show');
-    }
-    function celebrateFlush(name) {
-      const line = pickLine(pier.content.gremlin.flushed);
-      if (line) pier.say(line);
-      toast(stage, `${name} FLUSHED! 🚽💨`);
-      sparkleBurst(stage, stage.clientWidth / 2, stage.clientHeight / 2, 12);
-    }
-
     /* ---------- question lifecycle ---------- */
     function renderHoles(values, answer) {
-      holesWrap.classList.remove('splat-fade-out');
       holesWrap.innerHTML = '';
       holeEls = [];
-      values.forEach((val) => {
+      values.forEach((val, i) => {
         const hole = el('button', 'splat-hole');
         hole.type = 'button';
         hole.dataset.val = String(val);
         hole.innerHTML = '<span class="splat-mound"></span>'
           + '<span class="splat-gremlin">👺</span>'
           + `<span class="splat-card">${val}</span>`;
-        hole.addEventListener('click', () => onTapHole(hole, val, answer));
+        hole.addEventListener('click', () => onTapHole(hole, val, answer, i));
         holesWrap.append(hole);
         holeEls.push(hole);
       });
@@ -388,7 +514,7 @@ export default {
       acceptingTaps = true;
     }
 
-    function onTapHole(holeEl, val, answer) {
+    function onTapHole(holeEl, val, answer, holeIndex) {
       if (!acceptingTaps || roundOver || !alive) return;
       acceptingTaps = false;
       const elapsedMs = Math.round(performance.now() - questionShownAt);
@@ -402,30 +528,57 @@ export default {
       if (correct) {
         score += 1;
         streak += 1;
+        const tier = updateToolHud();
+        const tierJustReached = streak === tier.min && tier.min > 0;
         updateScoreHud();
-        updateStreakHud();
-        sfx.pop();
-        holeEl.classList.add('splat-hit');
-        spawnFloat(holeEl, streak >= COMBO_THRESHOLD ? 'MEGA SPLAT!' : 'SPLAT! +1');
-        spawnMallet(holeEl, streak);
-        if (streak >= COMBO_THRESHOLD) { comboFlash(); sfx.sparkle(); }
-        if (rec.justFlushed) celebrateFlush(rec.name);
+
+        const gremlinEl = holeEl.querySelector('.splat-gremlin');
+        const cardEl = holeEl.querySelector('.splat-card');
+        const flight = pickFlight();
+        gremlinEl.style.setProperty('--fly-x', flight.x + 'px');
+        gremlinEl.style.setProperty('--fly-y', flight.y + 'px');
+        gremlinEl.style.setProperty('--fly-rot', flight.rot + 'deg');
+        gremlinEl.classList.add('whack');
+        cardEl.classList.add('whack');
+        spawnFloat(holeEl, streak >= 3 ? (tierJustReached ? `${tier.name} UNLOCKED!` : `${tier.name}!`) : 'SPLAT! +1');
+        spawnMallet(holeEl, tier);
+
+        later(() => {
+          if (!alive) return;
+          sfx.pop();
+          if (tier.cls === 'tier-1') sfx.tick(2);
+          if (tier.cls === 'tier-2') { sfx.tick(3); sfx.sparkle(); }
+          shakeStage();
+          spawnStar(holeEl);
+          splatGoo(holeIndex);
+          if (tierJustReached) {
+            comboFlash(tier.name);
+            const line = pickLine(M.combo);
+            if (line) pier.say(line);
+          }
+          if (rec.justFlushed) celebrateFlush(rec.name);
+        }, IMPACT_DELAY_MS);
+
         later(() => { if (!roundOver) nextQuestion(); }, CORRECT_PAUSE_MS);
       } else {
         streak = 0;
-        updateStreakHud();
+        updateToolHud();
         ctx.audio.sfx('wrong');
-        holeEl.classList.add('splat-miss');
+        const gremlinEl = holeEl.querySelector('.splat-gremlin');
+        gremlinEl.classList.add('duck');
         spawnFloat(holeEl, 'PBBBT!');
         const correctHole = holeEls.find((h) => Number(h.dataset.val) === answer);
-        if (correctHole) correctHole.classList.add('splat-flash-correct');
-        const line = pickLine(pier.content.gremlin.taunt);
+        if (correctHole) correctHole.querySelector('.splat-card').classList.add('flash-correct');
+        const line = pickLine(M.nearMiss);
         if (line) pier.say(line);
         later(() => { if (!roundOver) nextQuestion(); }, WRONG_PAUSE_MS);
       }
     }
 
-    /* ---------- round clock ---------- */
+    /* ---------- round clock — tween() used purely for its rAF-cadence +
+       tab-hide-safe completion guard (Hard Rule ④); the eased value it hands
+       `apply` is ignored in favour of a recomputed true elapsed time, exactly
+       v1's proven technique (see that file's original header note). ---------- */
     function paintRing(remainingMs) {
       const pct = Math.max(0, Math.min(100, (remainingMs / ROUND_MS) * 100));
       ring.style.setProperty('--pct', pct.toFixed(2));
@@ -441,11 +594,6 @@ export default {
     function startRoundTimer() {
       if (mainTweenCancel) { mainTweenCancel(); mainTweenCancel = null; }
       const t0 = performance.now();
-      // NB: the (from,to) pair passed to tween() here is a dummy 0->1 — its
-      // eased value is never read. `apply` recomputes the real elapsed time
-      // itself every frame so the displayed clock is linear/accurate; tween()
-      // is used purely for its rAF-cadence + tab-hide-safe completion guard
-      // (Hard Rule ④ — no bare rAF loop drives this countdown).
       mainTweenCancel = tween(() => {
         const remaining = Math.max(0, ROUND_MS - (performance.now() - t0));
         paintRing(remaining);
@@ -454,15 +602,6 @@ export default {
 
     function onTimeUp() {
       if (!alive) return;
-      // The 60s clock is independent of question boundaries (see file banner),
-      // so it almost always lands mid-question. If a fact is still live and
-      // unanswered at this exact instant (acceptingTaps === true), the clock
-      // itself is this mode's timeout — record it as a miss per PIER_SPEC.md
-      // §5 ("a miss = wrong answer or mode-defined timeout") and the §6
-      // preamble ("every wrong/missed fact silently feeds facts.record").
-      // When acceptingTaps is already false, the displayed fact was already
-      // answered and recorded by onTapHole — recording again here would
-      // double-count it, so this only fires for the genuinely-unanswered case.
       if (acceptingTaps && currentFact) {
         const elapsedMs = Math.round(performance.now() - questionShownAt);
         try {
@@ -471,20 +610,20 @@ export default {
       }
       roundOver = true;
       acceptingTaps = false;
-      holesWrap.classList.add('splat-fade-out');
-      const line = pickLine(pier.content.dave.steal);
+      questionEl.textContent = '';
+      holesWrap.innerHTML = '';
+      const line = pickLine(M.daveTheft);
       if (line) pier.say(line);
       const dave = el('div', 'splat-dave', '🐦🔨');
-      stage.append(dave);
+      daveLayer.append(dave);
       later(() => dave.remove(), DAVE_MS + 150);
       later(() => { if (alive) showEndScreen(score); }, DAVE_MS);
     }
 
     /* ---------- pre-round "GET READY" beat ---------- */
     function runCountdown(cb) {
-      hideVeil();
       const cd = el('div', 'splat-countdown');
-      stage.append(cd);
+      chassis.stage.append(cd);
       const seq = ['3', '2', '1', 'GO!'];
       let i = 0;
       const step = () => {
@@ -504,38 +643,34 @@ export default {
     function startRound() {
       rng = mulberry32((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
       score = 0; streak = 0; lastTickSec = null; roundOver = false;
-      updateScoreHud(); updateStreakHud();
-      const line = pickLine(pier.content.announcer.roundStart);
+      updateScoreHud(); updateToolHud();
+      const line = pickLine(announcer.roundStart);
       if (line) pier.say(line);
       nextQuestion();
       startRoundTimer();
     }
 
-    /* ---------- welcome + end screens ---------- */
+    /* ---------- welcome + end screens — SCREEN-LEVEL overlay (contract §1.4) ---------- */
     function showWelcome() {
-      veil.innerHTML = '';
-      const card = el('div', 'splat-card-panel');
-      const line = pickLine(pier.content.nana.welcome);
-      card.innerHTML = '<div class="splat-title-emoji">🔨</div>'
-        + '<h2 class="splat-title">SPLAT-A-GREMLIN</h2>'
-        + (line ? `<div class="splat-line">${line.text}</div>` : '')
-        + '<p class="splat-blurb">Tap the right number before the gremlin scarpers! Sixty seconds, five holes, as many splats as you can land.</p>'
-        + '<button type="button" class="btn btn-gold splat-start-btn">START 🔨</button>';
-      veil.append(card);
-      veil.classList.add('show');
+      const card = el('div', 'splat-ov');
+      const line = pickLine(M.welcome);
+      card.innerHTML = '<div class="splat-ov-emoji">🔨</div>'
+        + '<h2 class="splat-ov-title">SPLAT-A-GREMLIN</h2>'
+        + (line ? `<div class="splat-ov-line">${line.text}</div>` : '')
+        + '<p class="splat-ov-blurb">Whack the right number — five holes, sixty seconds, as many splats as you can land!</p>'
+        + '<button type="button" class="btn btn-gold splat-ov-btn splat-start-btn">START 🔨</button>';
+      activeOverlay = chassis.overlay(card, { cardClass: 'splat-ov-card', speaks: line || undefined });
       if (line) pier.say(line);
       card.querySelector('.splat-start-btn').addEventListener('click', (ev) => {
         ev.currentTarget.disabled = true;
         sfx.ui();
+        if (activeOverlay) { activeOverlay.close(); activeOverlay = null; }
         runCountdown(startRound);
       });
     }
 
     async function showEndScreen(finalScore) {
       if (!alive) return;
-      questionEl.textContent = '';
-      holesWrap.innerHTML = '';
-
       let bests = {};
       try { bests = (await pier.facts.getBests()) || {}; } catch (e) { bests = {}; }
       if (!alive) return;
@@ -558,27 +693,25 @@ export default {
       const goldSeenAfter = goldAlready || goldJustBeaten;
 
       let lineEntry;
-      if (goldJustBeaten) lineEntry = pickLine(pier.content.nana.goldBeaten);
-      else if (isNewRecord) lineEntry = pickLine(pier.content.announcer.highScore);
-      else lineEntry = pickLine(pier.content.nana.win);
-      if (lineEntry) pier.say(lineEntry);
-      if (isNewRecord || goldJustBeaten) { sfx.win(); party(stage); }
+      if (goldJustBeaten) lineEntry = pickLine(M.goldBeaten);
+      else if (isNewRecord) lineEntry = pickLine(M.newPB);
+      else lineEntry = pickLine(nana.win);
+      if (isNewRecord || goldJustBeaten) { sfx.win(); party(chassis.stage); }
 
-      veil.innerHTML = '';
-      const card = el('div', 'splat-card-panel');
-      card.innerHTML = '<div class="splat-title-emoji">🔨</div>'
-        + '<h2 class="splat-title">TIME\'S UP!</h2>'
-        + (isNewRecord ? '<div class="splat-newrecord">🏆 NEW RECORD! 🏆</div>' : '')
-        + `<div class="splat-end-score">${finalScore}<span> splat${finalScore === 1 ? '' : 's'}</span></div>`
-        + `<div class="pier-tier-row splat-tier-row">${tierChipsHtml(bestValAfter, goldSeenAfter)}</div>`
-        + (lineEntry ? `<div class="splat-line">${lineEntry.text}</div>` : '')
-        + '<button type="button" class="btn btn-gold splat-again-btn">ONE MORE GO 🔨</button>';
-      veil.append(card);
-      veil.classList.add('show');
+      const card = el('div', 'splat-ov');
+      card.innerHTML = '<div class="splat-ov-emoji">🔨</div>'
+        + '<h2 class="splat-ov-title">TIME\'S UP!</h2>'
+        + (isNewRecord ? '<div class="splat-ov-newrecord">🏆 NEW RECORD! 🏆</div>' : '')
+        + `<div class="splat-ov-score">${finalScore}<span> splat${finalScore === 1 ? '' : 's'}</span></div>`
+        + `<div class="pier-tier-row splat-ov-tierrow">${tierChipsHtml(bestValAfter, goldSeenAfter, tiers)}</div>`
+        + (lineEntry ? `<div class="splat-ov-line">${lineEntry.text}</div>` : '')
+        + '<button type="button" class="btn btn-gold splat-ov-btn splat-again-btn">ONE MORE GO 🔨</button>';
+      activeOverlay = chassis.overlay(card, { cardClass: 'splat-ov-card', speaks: lineEntry || undefined });
+      if (lineEntry) pier.say(lineEntry);
       card.querySelector('.splat-again-btn').addEventListener('click', (ev) => {
         ev.currentTarget.disabled = true;
         sfx.ui();
-        hideVeil();
+        if (activeOverlay) { activeOverlay.close(); activeOverlay = null; }
         runCountdown(startRound);
       });
     }
@@ -589,8 +722,9 @@ export default {
       alive = false;
       clearAllTimers();
       if (mainTweenCancel) { mainTweenCancel(); mainTweenCancel = null; }
-      back.remove();
-      stage.remove();
+      if (activeOverlay) { activeOverlay.close(); activeOverlay = null; }
+      // host/screen removal (js/screens/pier.js unmount()) takes the whole
+      // chassis DOM tree with it — nothing else to tear down by hand here.
     };
   },
 };
