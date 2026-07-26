@@ -20,6 +20,30 @@
 //   overlay is already showing verbatim — see padkit.js's
 //   markOnScreen()/isOnScreen() and the §2/#6 comment on `say()` below.
 //
+// PIER REWORK v2, SECOND PASS (F1/F2/F4 fix pass) — landscape chassis +
+// touch-target-safe entrance animation, see css/pier.css's header contract
+// block (rules 1a/1b/3/3a) for the full reasoning; summary:
+// - Every `.pier-chassis` container (this screen for the hub route,
+//   `.pier-mode-host` for a mode route) is now a CSS GRID, not a flex
+//   column — stacked [hud][stage][dock] in portrait/narrow, but a mode
+//   route switches to [hud hud]/[stage][dock] side-by-side once the
+//   viewport is landscape and ≥680px wide (all three proven sizes qualify)
+//   — pure media query, no JS, so it re-evaluates itself on resize/
+//   orientationchange for free. The hub is deliberately NOT part of the
+//   landscape switch (its dock — the DELUXE lever — was never the thing
+//   starving a stage; see the CSS contract for why).
+// - This screen's own entrance is `.pier-enter` (below), not main.css's
+//   shared `.enter-pop` — an `opacity`-only fade, never `scale`/`transform`/
+//   `translate`, so nothing inside it (numpad keys, the mute button, the
+//   HUD back button) can ever render under the 60px floor, clipped, or
+//   offset at any point in — or if frozen mid-way through — its own pop-in.
+//   This is the actual, exact-number-matching root cause of the measured
+//   "54×54 at 1000×540 / 58px at 1024×640" F1 defect: those were the
+//   correct CSS values × the OLD entrance animation's mid-keyframe scale
+//   factor, not a sizing bug (css/pier.css's header contract, rule 3a, also
+//   documents a REJECTED translate-based first fix attempt that traded the
+//   size bug for a smaller clipping bug — read that before changing this).
+//
 // Cross-agent contract notes (read before touching this file):
 // - `js/pier/facts.js` (ENGINE agent) is imported statically — it's already
 //   on disk and its exports are frozen per §5, so this mirrors how the rest
@@ -58,6 +82,13 @@ import tank from '../pier/modes/tank.js';
 
 const MODES = { splat, gunge, ghost, teacups, tank };
 const MODE_ORDER = ['splat', 'gunge', 'ghost', 'teacups', 'tank'];
+
+// The pier's own four CC0 tracks (audio/music/pier-1..4.mp3), played as a
+// shuffled crossfading rotation — Damien picked all four by ear on 26 Jul and
+// asked for them to rotate and blend rather than one looping forever. Full
+// provenance for each is in audio/CREDITS.md. Runtime-cached like all audio,
+// never precached, so the first lap streams and later laps come from cache.
+const PIER_TRACKS = ['pier-1', 'pier-2', 'pier-3', 'pier-4'];
 
 // Supplementary hub-only display metadata for each cabinet. title/blurb are
 // deliberately NOT duplicated here — those come straight off each mode
@@ -274,7 +305,19 @@ async function mountHub(screen, ctx, caption) {
   });
 
   const title = el('div', 'pier-hub-title', '🎡 WHIFF-END PIER');
-  const flushedChip = el('div', 'pier-flushed-chip', `🚽 <b>${flushedCount}</b> gremlin${flushedCount === 1 ? '' : 's'} flushed`);
+  // F4 fix: `.pier-flushed-chip` is `display:flex` (for vertical centring)
+  // with mixed raw-text + `<b>` content directly inside it — CSS flexbox
+  // wraps each maximal run of inline content in its own anonymous flex item,
+  // and (like any inline formatting context) trims LEADING/TRAILING
+  // whitespace at each of THOSE boxes' own edges. That silently ate the
+  // space either side of `<b>`, rendering "🚽0gremlins flushed" despite the
+  // template string having normal single spaces (confirmed: DOM text nodes
+  // measured a real space character but ZERO rendered pixels of gap either
+  // side of <b> — a genuine CSS whitespace-collapse bug, not a font-kerning
+  // illusion). Fix: wrap the whole label in ONE inline `<span>` so it is the
+  // flex container's only child/flex item — ordinary inline whitespace
+  // rules then apply throughout its content, where they behave normally.
+  const flushedChip = el('div', 'pier-flushed-chip', `<span>🚽 <b>${flushedCount}</b> gremlin${flushedCount === 1 ? '' : 's'} flushed</span>`);
   chassis.hud.append(title, flushedChip);
 
   const grid = el('div', 'pier-cabinets');
@@ -296,9 +339,16 @@ export async function mount(root, ctx, params) {
   // — the anim-kit synth is a page-global singleton, so this keeps it honouring
   // a Sounds preference flipped before this session's first anim/pier visit.
   animSfx.setEnabled(ctx.prefs.sfxOn !== false);
-  // Same track keeps playing across every pier route — music() early-returns
-  // when the requested track is already the active one.
-  ctx.audio.music('pier');
+  // The pier runs a SHUFFLED ROTATION of its four tracks, each blending into
+  // the next (Damien's ask, 26 Jul: "randomise the four music choices... one
+  // could blend into the other"). musicPlaylist() stands down any previous
+  // rotation first and routes every track through the normal music() path, so
+  // navigating away (map/lesson/battle music, or stopMusic() for story/exam)
+  // cancels the rotation for free. Re-calling it on every pier route would
+  // restart the rotation mid-track, so only start one if none is live.
+  if (!ctx.audio.isPlaylistLive || !ctx.audio.isPlaylistLive()) {
+    ctx.audio.musicPlaylist(PIER_TRACKS, { crossfadeMs: 3500 });
+  }
 
   try { await facts.load(ctx); } catch (e) { /* pier still renders; bests/gremlins just read as empty */ }
 
@@ -314,7 +364,15 @@ export async function mount(root, ctx, params) {
     return;
   }
 
-  const screen = el('div', 'pier-screen screen enter-pop');
+  // `pier-enter`, not main.css's shared `enter-pop` — an opacity-only fade
+  // (never scale/transform/translate) so this screen's own descendants (the
+  // numpad, the mute button, the HUD back button — everything the 60px
+  // touch-target floor applies to) can never render undersized, clipped, or
+  // offset at any point in, or if frozen mid-way through, its own entrance
+  // animation. See css/pier.css's header contract block, rule 3a (fixes F1)
+  // and the STATIC `translate:0 0` on `.pier-screen.screen` for the full
+  // reasoning and the exact measured numbers this explains.
+  const screen = el('div', 'pier-screen screen pier-enter');
   root.appendChild(screen);
 
   const caption = buildCaptionBar(ctx);

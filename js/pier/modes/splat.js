@@ -94,21 +94,12 @@ function pickFlight() {
 }
 
 const CSS = `
-/* ---------- CHASSIS WORKAROUND ---------- */
-/* css/pier.css's .pier-mode-host rule is missing display:flex;flex-direction:
-   column — without it, mountChassis()'s [hud][stage][dock] children stack by
-   plain block flow instead of flex, so .pier-stage never grows to fill the
-   remaining height (measured: stage collapsed to its own content height,
-   leaving ~220px of dead space below an empty dock at 1000x540). Scoped to
-   the COMPOUND selector .pier-mode-host.pier-chassis — "pier-chassis" is
-   added automatically by mountChassis() itself (js/pier/padkit.js), so this
-   rule only ever touches a host that has actually opted into the chassis,
-   never a legacy mode's own custom layout. The ghost and tank mode files
-   independently landed on this exact same selector/declaration for the same
-   reason — this is a shared chassis gap, not a splat-specific one; it
-   belongs in css/pier.css permanently (out of this agent's file ownership,
-   flagged in the final report rather than edited there). */
-.pier-mode-host.pier-chassis { display: flex; flex-direction: column; }
+/* Local .pier-mode-host.pier-chassis flex-column workaround REMOVED this
+   pass — css/pier.css §1a now owns that rule permanently (a real CSS GRID,
+   with the landscape stage-beside-dock switch, !important-guarded), so this
+   file's old copy would only have fought the cascade for nothing. See
+   css/pier.css's header contract block, "MODE AGENTS: DELETE YOUR LOCAL
+   WORKAROUND", for the full reasoning. */
 
 /* ---------- HUD chips ---------- */
 .splat-chip {
@@ -137,11 +128,22 @@ const CSS = `
 .splat-tool-chip.tier-1 { border-color: rgba(255,159,67,.65); background: linear-gradient(160deg, rgba(255,159,67,.32), rgba(255,159,67,.12)); }
 .splat-tool-chip.tier-2 { border-color: var(--gold); background: linear-gradient(160deg, rgba(244,197,66,.42), rgba(244,197,66,.14)); box-shadow: 0 4px 0 rgba(0,0,0,.3), 0 0 14px rgba(244,197,66,.55); }
 
-/* ---------- stage content ---------- */
+/* ---------- stage content — REWORK v2, F2/F5 pass ---------- */
+/* The chassis now hands this machine a TALL stage (landscape:
+   [hud hud]/[stage dock], stage the near-full-height LEFT column, splat's
+   own dock left empty so it claims almost the full width too — see
+   css/pier.css §1a). The OLD \`.splat-shakewrap\` centred a small fixed-
+   content island (\`min-height:100%\` + \`justify-content:center\`) in that
+   box — measured, pre-fix: a 720x178 arena floating inside a 958x464 stage
+   at 1000x540, a void of ~260px above+below (F5). Fix: shakewrap now takes
+   the stage's FULL height and \`.splat-arena\`/\`.splat-field\` are flex:1
+   children that actually CONSUME the leftover height, so there is no gap
+   left to go dead — see the F5 comment on \`.splat-fivegrid\` below for how
+   the five holes then use all of it. */
 .splat-shakewrap {
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  min-height:100%; width:100%; box-sizing:border-box;
-  gap: clamp(8px,1.8vh,18px); padding: 6px 10px;
+  display:flex; flex-direction:column; align-items:center;
+  height:100%; width:100%; box-sizing:border-box;
+  gap: clamp(6px,1.4vh,16px); padding: clamp(6px,1.2vh,12px) 10px;
 }
 .splat-shakewrap.shake { animation: splatShake .3s ease both; }
 @keyframes splatShake {
@@ -151,20 +153,36 @@ const CSS = `
 }
 
 .splat-question {
+  flex: 0 0 auto;
   font-size:clamp(22px,4.2vh,40px); font-weight:700; color:var(--parchment);
   text-align:center; text-shadow:0 3px 0 rgba(0,0,0,.35); min-height:1.2em; margin:0;
 }
 
-.splat-arena { position:relative; width:min(100%,720px); padding-top: clamp(56px,13vh,100px); }
+/* \`.splat-arena\` fills the height the chassis reclaimed (F2) instead of
+   sizing to its own small content — \`flex:1 1 auto; min-height:0\` is the
+   same "let the growing box actually grow/shrink" pairing THE LAYOUT LAW
+   uses everywhere else in this app. */
+.splat-arena {
+  position:relative; flex:1 1 auto; min-height:0;
+  width:min(96%,980px); display:flex; flex-direction:column; box-sizing:border-box;
+}
+/* \`.splat-field\` is the actual whack-a-mole cabinet floor: everything below
+   the mallet's swing clearance (the old \`.splat-arena\` padding-top, moved
+   here unchanged) — a flex:1 box so the goo layer and the holes can both be
+   \`position:absolute; inset:0\` against ONE shared rect (\`.splat-fivegrid\`,
+   below) and land pixel-identical whatever the real stage height turns out
+   to be at a given viewport. */
+.splat-field {
+  position:relative; flex:1 1 auto; min-height:0; width:100%;
+  margin-top: clamp(56px,13vh,100px);
+}
 
 /* ---------- goo layer — its OWN layer, never recreated by renderHoles(), so
-   a splat outlives that question's holes redrawing on top of it ---------- */
-.splat-goo-layer {
-  position:absolute; left:0; right:0; bottom:0;
-  height: clamp(56px,10vh,90px);
-  display:grid; grid-template-columns:repeat(5,1fr); gap: clamp(8px,1.6vw,18px);
-  pointer-events:none; z-index:1;
-}
+   a splat outlives that question's holes redrawing on top of it. Shares
+   \`.splat-fivegrid\`'s placement rules with \`.splat-holes\` below (same
+   column/row per index) so a goo cell always lands under ITS hole, in
+   either row of the staggered cabinet. ---------- */
+.splat-goo-layer { z-index:1; pointer-events:none; }
 .splat-goo-cell { position:relative; }
 .splat-goo-cell::before {
   content:''; position:absolute; left:50%; bottom:4px;
@@ -181,13 +199,32 @@ const CSS = `
   100% { opacity:0; scale: calc(var(--goo-scale,1) * .86); }
 }
 
-.splat-holes {
-  position:relative; z-index:2; width:100%;
-  display:grid; grid-template-columns:repeat(5,1fr); gap: clamp(8px,1.6vw,18px); align-items:end;
+/* ---------- F5 fix: two STAGGERED rows — a real cabinet, not one thin
+   strip. Back row (holes 2 & 4, smaller/further) alternates with front row
+   (holes 1/3/5, bigger/closer), a classic whack-a-mole zig-zag. Both
+   \`.splat-holes\` and \`.splat-goo-layer\` share \`.splat-fivegrid\`'s grid so
+   the same index always lands in the same cell in both layers. Grid
+   \`stretch\` (the default — nothing overridden here) means every hole/goo
+   cell fills its whole cell, so the two rows use the FULL height
+   \`.splat-field\` was given — nothing left over to read as a void, at any
+   of the three proven sizes. ---------- */
+.splat-fivegrid {
+  position:absolute; inset:0;
+  display:grid;
+  grid-template-columns: repeat(5,1fr);
+  grid-template-rows: 1fr 1.3fr;
+  gap: clamp(6px,1.8vh,20px) clamp(6px,1.4vw,16px);
 }
+.splat-fivegrid > *:nth-child(1) { grid-column:1; grid-row:2; }
+.splat-fivegrid > *:nth-child(2) { grid-column:2; grid-row:1; }
+.splat-fivegrid > *:nth-child(3) { grid-column:3; grid-row:2; }
+.splat-fivegrid > *:nth-child(4) { grid-column:4; grid-row:1; }
+.splat-fivegrid > *:nth-child(5) { grid-column:5; grid-row:2; }
+
+.splat-holes { z-index:2; }
 .splat-hole {
   position:relative; border:none; background:transparent; cursor:pointer; padding:0;
-  width:100%; height:clamp(100px,20vh,160px); min-width:60px; min-height:60px;
+  width:100%; height:100%; min-width:60px; min-height:60px;
   display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
   -webkit-tap-highlight-color:transparent; touch-action:manipulation;
 }
@@ -204,6 +241,10 @@ const CSS = `
 }
 .splat-hole:nth-child(2n) .splat-gremlin { animation-delay:.3s; }
 .splat-hole:nth-child(3n) .splat-gremlin { animation-delay:.6s; }
+/* Back row (the 2 staggered-behind holes) reads slightly smaller — a cheap
+   depth cue for the cabinet. Nothing else about them changes: same bob,
+   same whack/duck animations, same mallet, same goo. */
+.splat-holes > .splat-hole:nth-child(even) .splat-gremlin { font-size:clamp(27px,5.6vh,45px); }
 @keyframes splatBob { 0%,100% { translate:0 0; } 50% { translate:0 -5px; } }
 
 .splat-card {
@@ -213,6 +254,7 @@ const CSS = `
   min-width:46px; padding:5px 10px; border-radius:12px; text-align:center;
   box-shadow: 0 4px 0 var(--gold-deep,#d9a21b); border:2px solid rgba(255,255,255,.5);
 }
+.splat-holes > .splat-hole:nth-child(even) .splat-card { font-size:clamp(14px,2.6vh,19px); padding:4px 8px; }
 
 /* ---------- the whack: gremlin flattens to a pancake, then pings off spinning ---------- */
 .splat-gremlin.whack { animation: splatWhack .9s both; }
@@ -399,17 +441,22 @@ export default {
 
     const questionEl = el('div', 'splat-question', '');
     const arena = el('div', 'splat-arena');
-    const gooLayer = el('div', 'splat-goo-layer');
+    // `.splat-field` (F5 fix) is the cabinet floor below the mallet's swing
+    // clearance — the goo layer and the holes grid are both pinned to its
+    // exact rect (`.splat-fivegrid`, see the CSS), so they always line up.
+    const field = el('div', 'splat-field');
+    const gooLayer = el('div', 'splat-goo-layer splat-fivegrid');
     const gooCells = [];
     for (let i = 0; i < HOLE_COUNT; i += 1) {
       const c = el('div', 'splat-goo-cell');
       gooLayer.append(c);
       gooCells.push(c);
     }
-    const holesWrap = el('div', 'splat-holes');
+    const holesWrap = el('div', 'splat-holes splat-fivegrid');
     const comboEl = el('div', 'splat-combo');
     const daveLayer = el('div', 'splat-dave-layer');
-    arena.append(gooLayer, holesWrap, comboEl, daveLayer);
+    field.append(gooLayer, holesWrap);
+    arena.append(field, comboEl, daveLayer);
 
     const shakeWrap = el('div', 'splat-shakewrap');
     shakeWrap.append(questionEl, arena);

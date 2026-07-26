@@ -29,20 +29,103 @@
            (rule 5 below) rather than `hidden` — a mode that doesn't yet fit
            degrades to SCROLLABLE, never physically unreachable (the exact
            v1 bug this rework fixes).
-      Slot classes, once mounted via mountChassis: `.pier-hud` (flex:none),
-      `.pier-stage` (flex:1 1 auto; min-height:0 — MANDATORY, or flex refuses
-      to shrink and pushes the dock off-screen), `.pier-dock` (flex:none).
+
+   1a. LANDSCAPE CHASSIS — STAGE-BESIDE-DOCK (REWORK v2 pass, fixes F2).
+      Once `mountChassis()` has built `[hud][stage][dock]`, it also stamps
+      the container `.pier-chassis` (padkit.js does this already, always
+      has). THAT class is now a CSS GRID, not a flex column — this is the
+      "container-driven rule… deterministic, re-evaluated on resize/
+      orientationchange" the fix contract calls for, done with a pure media
+      query so the browser re-runs it for free, no JS/ResizeObserver needed:
+
+        .pier-chassis (default — portrait/narrow, or any route not opted
+        into the row layout, see below):
+          grid-template-areas: "hud" "stage" "dock";
+          grid-template-columns: 1fr;
+          grid-template-rows: auto 1fr auto;
+        → identical shape to the old flex column (hud fixed, stage stretches
+          and is the only thing that shrinks via min-height:0, dock never
+          shrinks).
+
+        @media (orientation:landscape) and (min-width:680px) — MODE ROUTES
+        ONLY (selector is `.pier-mode-host.pier-chassis`; the HUB's own
+        `.pier-screen.pier-chassis` is deliberately NOT included, see below):
+          grid-template-areas: "hud hud" "stage dock";
+          grid-template-columns: 1fr auto;
+          grid-template-rows: auto 1fr;
+        → HUD stays a full-width strip on top; STAGE becomes the LEFT/major
+          column at near-full remaining height (this is the extra height F3
+          needs for the ride to stop reading as a progress bar); DOCK becomes
+          a RIGHT-hand column, vertically centred, auto-sized to its own
+          content's natural width (capped `max-width:min(340px,42vw)` so one
+          mode's dock can never eat an unreasonable share of the screen).
+          Auto-sizing means a numpad-driven mode (gunge/ghost/teacups/tank)
+          gets a column just wide enough for the numpad's already-3-wide
+          grid (~230–265px across the three proven sizes, comfortably under
+          the cap); a mode with an EMPTY or near-empty dock (splat — it never
+          appends anything to `chassis.dock`, tap-based, no numpad) gets a
+          near-zero column and the stage claims almost the full width with
+          zero special-casing required from that mode's own file.
+          Breakpoint choice: `orientation:landscape` is the actual signal
+          (a wide-but-short screen, PIER_REWORK.md §0's Ghost Train
+          measurement); `min-width:680px` is a floor so a genuinely narrow
+          landscape phone (e.g. 568×320) stays stacked rather than trying to
+          squeeze a 3-wide numpad column next to a starved stage — all THREE
+          proven sizes (1000×540/1024×640/1180×745) clear this floor easily
+          and land in the row layout, which is the whole point of the fix.
+          WHY THE HUB OPTS OUT: F2's own diagnosis is about a NUMPAD dock
+          (~325px tall at 1000×540) starving a machine's stage — the hub's
+          dock is the compact DELUXE lever (~80px tall) and was never part
+          of that measured problem; forcing the hub's already-comfortable
+          5-card grid into a narrower left column just to match would be a
+          gratuitous regression with no defect behind it. "All five machines
+          benefit" (the fix contract's own wording for F2) means the five
+          MODE files, not the hub.
+
+      *** MODE AGENTS: DELETE YOUR LOCAL WORKAROUND ***
+      splat.js / gunge.js / ghost.js / tank.js each independently carry
+      their own copy of `.pier-mode-host.pier-chassis { display:flex;
+      flex-direction:column; }` (teacups.js's variant:
+      `.tcp-host.pier-mode-host { display:flex; flex-direction:column; }`),
+      added because — at the time each of you wrote it — css/pier.css truly
+      had no rule for `.pier-chassis` at all, and you each flagged it in
+      your own header comment for "the chassis owner" to promote into this
+      file. That promotion is what §1a above IS. Your own copies are now
+      REDUNDANT — worse, because `injectCss()` appends your `<style>` tag to
+      `<head>` at mount time, AFTER this stylesheet's `<link>`, your
+      `display:flex` declaration has equal-or-higher specificity and LATER
+      source order than the grid rule below, so the cascade lets YOUR copy
+      win and silently puts the mode straight back into the single-column
+      flex layout — the landscape side-by-side fix would never actually
+      render for that mode. Delete your local `.pier-mode-host.pier-chassis`
+      (or `.tcp-host.pier-mode-host`) rule; §1a is now the one true version.
+      As a safety net for exactly this handoff window, `display` and every
+      `grid-template-*` property in the rules below carry `!important`, so
+      the row layout still wins even if a cleanup is missed — but please
+      still delete the dead rule, it will read as a lie about the real
+      layout mechanism otherwise.
+
+   1b. Slot classes, once mounted via mountChassis: `.pier-hud` (grid-area:
+      hud), `.pier-stage` (grid-area: stage; min-width:0; min-height:0 —
+      BOTH are mandatory, or the grid track refuses to shrink below its
+      content's natural size and pushes the dock off-screen — the exact
+      grid-flavoured equivalent of the old flex min-height:0 bug), `.pier-
+      dock` (grid-area: dock).
 
    2. THE DOCK NEVER SHRINKS AND IS NEVER CLIPPED (§1.3). Any numpad/primary-
       action control lives in `.pier-dock`. The shared numpad
       (`.pier-numpad-key`, built by padkit.js's `makeNumpad`) sizes its keys
-      with `clamp()` off viewport height via the `--pnk` custom property —
+      with `clamp()` off VIEWPORT HEIGHT via the `--pnk` custom property —
       floor is a hard 60px (both the clamp() floor AND a redundant
       min-width/min-height belt-and-braces) so a key can NEVER render under
       the touch-target minimum, at ANY of the three proven sizes
-      (1000×540 / 1024×640 / 1180×745) or smaller. If a mode's own stage
-      content is too tall to also fit, the STAGE must give up space
-      (min-height:0 lets it shrink to 0) — never the dock.
+      (1000×540 / 1024×640 / 1180×745) or smaller. Being height-based (not
+      width-based), key size is IDENTICAL whether the dock is a bottom strip
+      (stacked/portrait) or a right-hand column (landscape, §1a) — the row
+      layout only changes the numpad's available WIDTH, and the grid's 3-
+      wide-fixed-track-width numpad already fits that column exactly (see
+      §1a). If a mode's own stage content is too tall to also fit, the STAGE
+      gives up space (min-height:0 lets it shrink to 0) — never the dock.
 
    3. OVERLAYS RENDER AT SCREEN LEVEL (§1.4). `mountChassis(...).overlay
       (contentEl, opts)` is THE only sanctioned way to show a welcome/end/
@@ -54,36 +137,94 @@
       254px `overflow-y:hidden` stage at 1000×540 and sliced the START
       button clean in half — screenshot-confirmed, PIER_REWORK.md §0).
 
-      WHY `translate:`, not `transform:` — `.pier-screen` carries
-      `.enter-pop` (css/main.css), an `animation-fill-mode:both` entrance
-      that sets `transform: scale(1) translateY(0)` on completion and NEVER
-      clears it (this is the exact fq-v11 coach-card bug: a fill-mode:both
-      keyframe pins `transform` forever). Two consequences, both handled:
+      WHY `translate:`, not `transform:` — `.pier-screen` carries a STATIC
+      (never animated) `translate:0 0` declaration (see the rule below).
+      Two consequences, both handled:
         - Any element wanting a PERMANENT `translate(-50%,-50%)`-style centre
           offset must use the modern standalone `translate` CSS property
           (independent of `transform`, composited alongside it) so a card's
-          entrance `animation` can still use `transform`/`scale` for its pop-
-          in without fighting the centring. `.pier-overlay-card` does exactly
-          this: `translate:-50% -50%` (static, in the rule below) + a
-          `scale`-based `@keyframes` for the pop-in.
-        - `.pier-screen` having a permanently non-`none` `transform` makes IT
+          entrance `animation` doesn't fight the centring by writing to the
+          SAME property. `.pier-overlay-card` does exactly this:
+          `translate:-50% -50%` (static, in the rule below) is left alone;
+          its entrance `@keyframes` animates `opacity` only (see the rule
+          below for why it is opacity-only, not scale — F1).
+        - `.pier-screen` having a permanently non-`none` `translate` makes IT
           the containing block for any `position:fixed` descendant (CSS
-          spec: a transformed ancestor establishes the fixed containing
-          block). This sounds alarming but is harmless here: `.pier-screen`
-          is itself `position:absolute; inset:0` (css/main.css `.screen`)
-          inside `#app` (`position:fixed; inset:0`), so its rendered box IS
-          pixel-identical to the viewport rect. "Fixed relative to
-          `.pier-screen`" and "fixed relative to the viewport" land in
-          exactly the same place. The standard "position:fixed escapes an
-          `overflow:hidden` ancestor's clipping" behaviour still applies
-          fully — `.pier-overlay-veil`/`.pier-caption-bar`/`.pier-mute-btn`
-          can be mounted arbitrarily deep (even inside a clipped stage) and
-          will still render full-screen/un-clipped, because their containing
-          block (`.pier-screen`) is an ANCESTOR of every clipping container
-          in between. mountChassis's `overlay()` still appends to a
-          dedicated `.pier-overlay-host` that is a direct sibling of
-          hud/stage/dock (never nested inside `.pier-stage`) as belt-and-
-          braces, not because it's strictly required.
+          spec: an element with a non-`none` `translate`/`scale`/`rotate` —
+          same rule as `transform` — establishes the fixed containing block,
+          and a stacking context). This sounds alarming but is harmless
+          here: `.pier-screen` is itself `position:absolute; inset:0`
+          (css/main.css `.screen`) inside `#app` (`position:fixed;
+          inset:0`), so its rendered box IS pixel-identical to the viewport
+          rect. "Fixed relative to `.pier-screen`" and "fixed relative to
+          the viewport" land in exactly the same place. The standard
+          "position:fixed escapes an `overflow:hidden` ancestor's clipping"
+          behaviour still applies fully — `.pier-overlay-veil`/
+          `.pier-caption-bar`/`.pier-mute-btn` can be mounted arbitrarily
+          deep (even inside a clipped stage) and will still render full-
+          screen/un-clipped, because their containing block (`.pier-screen`)
+          is an ANCESTOR of every clipping container in between.
+          mountChassis's `overlay()` still appends to a dedicated
+          `.pier-overlay-host` that is a direct sibling of hud/stage/dock
+          (never nested inside `.pier-stage`) as belt-and-braces, not
+          because it's strictly required. (js/pier/modes/tank.js's own
+          header comment relies on this exact stacking-context behaviour for
+          its confetti-vs-veil z-index fix — that is WHY this `translate:0 0`
+          stays even though F1's fix, below, moved the actual ENTRANCE
+          MOTION to a separate, size-and-position-safe `opacity`-only
+          animation: dropping the static translate too would silently un-do
+          the stacking context tank.js already built against.)
+
+   3a. NO SIZE- OR POSITION-CHANGING ENTRANCE ANIMATION ON A ≥60px-TARGET
+      CONTAINER (fixes F1). Measured fact: `.pier-screen` used to carry
+      css/main.css's shared `.enter-pop` (`transform: scale(.9)
+      translateY(18px) → scale(1) translateY(0)`, 380ms, `fill-mode:both`).
+      A `scale()` mid-keyframe (or, worse, one a starved compositor renders
+      stuck AT that mid-keyframe — exactly what an on-demand-render
+      automated browser does to an un-frozen animation, see
+      fq-verify/pier-layout.html's own comment on this) visually and
+      HIT-TEST-shrinks every descendant, `position:fixed` ones included (a
+      transform/translate-establishing ancestor scales its fixed descendants
+      too, same containing-block mechanism as the rule above) — this is the
+      exact, exact-number-matching explanation for "every .pier-numpad-key/
+      .pier-mute-btn/.pier-hud-back measures 54×54 (=60×.9) at 1000×540,
+      58px (=64.8×.9) at 1024×640" — F1's reported numbers are ALL the
+      correct CSS value × the entrance animation's *from*-keyframe scale
+      factor, not a floor/clamp() bug (those were already correct). FIRST
+      FIX ATTEMPT, ALSO MEASURED AND REJECTED: swapping the animated
+      property from `scale` to `translate` (position only, e.g. `translate:0
+      14px → 0 0`) does stop the SIZE-shrink — but live-measured in the
+      browser, a mid-flight/frozen instance of THAT animation instead
+      offset `.pier-screen` 14px down while it was still exactly 100dvh
+      tall, clipping the bottom ~14px of the dock against `#app`'s
+      `overflow:hidden` — a smaller but real cousin of the same bug. ACTUAL
+      FIX: `.pier-screen` now uses `.pier-enter` (below), animating
+      `opacity` ONLY — the one property that changes neither an element's
+      size NOR its position at any point in, or if frozen at any keyframe
+      of, its own animation, so a container can be fading in at ANY point
+      WITHOUT ever being smaller, clipped, or offset. The permanent
+      containing-block/stacking-context guarantee `.pier-screen` still needs
+      (see the rule above) now comes from a separate, STATIC, never-animated
+      `translate:0 0` — no keyframe, so nothing to ever get stuck in. Same
+      opacity-only reasoning applied to `.pier-overlay-card`'s own pop-in
+      (`translate` there is already spoken for by its static centring, so
+      that one was already simplified to `opacity`-only — welcome/end-card
+      buttons like START get the exact same guarantee). THE RULE FOR EVERY
+      FUTURE ENTRANCE ANIMATION TOUCHING A CONTAINER THAT HOLDS A ≥60px
+      CONTROL: animate `opacity` (safe unconditionally) or `translate`/
+      colour (safe for an ordinary card with slack space around it — NOT for
+      anything sized exactly to its own clipping ancestor, like
+      `.pier-screen` itself against `#app`'s `overflow:hidden`, which is
+      exactly the trap the rejected first-fix-attempt above fell into);
+      never `scale`/`transform`/width/height. (Per-press micro-feedback like
+      `.btn:active{transform:scale(.94)}` is fine — it only ever runs while
+      a finger is already down, i.e. hit-testing has already succeeded; this
+      rule is about animations that run BEFORE a control has ever been
+      successfully tapped. Latent instances of the SAME risk this pass found
+      but could not fix — out of chassis file ownership — flagged in the
+      report: teacups.js's `.tcp-picker`/`.tcp-lap` still use
+      css/main.css's `enter-pop` directly on containers holding real ≥60px
+      cup buttons.)
 
    4. `overflow:hidden` is permitted ONLY on containers holding pure
       decoration (§1.5). Anything that can hold a control gets
@@ -91,15 +232,16 @@
 
    5. CAPTION BAR (`js/screens/pier.js` `pier.say()`) is anchored BELOW the
       HUD (`.pier-caption-bar { top: ... }`), not the bottom — the dock's
-      height varies a lot between a lever (~80px) and a numpad (~330px+ at
-      1000×540), so a fixed bottom offset would sit ON TOP OF a mode's
-      controls on some machines and not others (previously verified against
-      `.pier-dock`'s clamp()-computed minimum in the numbers above); the HUD
-      row's height is fixed/predictable (this file controls it), so anchoring
-      just below it is the one placement that is provably clear of BOTH the
-      dock's controls and the HUD's own back/mute buttons at every proven
-      size. It never shows text a welcome/end card is already displaying —
-      see `js/pier/padkit.js` `markOnScreen()`/`isOnScreen()`.
+      height/position varies a lot between routes (a lever vs a numpad;
+      bottom strip vs right-hand column at landscape, §1a), so a fixed
+      bottom offset would sit on top of a mode's controls on some machines
+      and not others; the HUD row's height is fixed/predictable (this file
+      controls it, and §1a keeps HUD a full-width top strip in BOTH grid
+      shapes) so anchoring just below it is the one placement provably clear
+      of both the dock's controls and the HUD's own back/mute buttons at
+      every proven size, in either layout. It never shows text a welcome/end
+      card is already displaying — see `js/pier/padkit.js`
+      `markOnScreen()`/`isOnScreen()`.
 
    6. MUTE BUTTON (`.pier-mute-btn`, contract §4) is built once per
       `js/screens/pier.js` `mount()` — `position:fixed`, always ≥60px,
@@ -138,13 +280,74 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* STATIC, never animated — a permanent non-`none` translate so this
+     screen keeps establishing a fixed-containing-block/stacking-context for
+     its position:fixed descendants (mute button, caption bar, overlay veil)
+     and so js/pier/modes/tank.js's own documented z-index fix keeps working
+     — see the header contract block (§3) — with ZERO of the timing risk an
+     *animated* transform/translate carries (there is no keyframe here to
+     ever get caught mid-flight, frozen or otherwise: this value never
+     changes). Verified live: an EARLIER version of this fix animated this
+     translate (0 14px -> 0 0) as the entrance motion itself; measured in
+     the browser, a mid-flight/frozen animation offset `.pier-screen`
+     downward while it was ALSO exactly 100dvh tall, clipping the bottom
+     ~14px of the dock against `#app`'s `overflow:hidden` — a smaller but
+     real cousin of the exact F1 bug this pass exists to eliminate. Moving
+     the motion to `.pier-enter`'s `opacity` only (below), which changes
+     neither size NOR position at any point, removes that risk entirely. */
+  translate: 0 0;
+}
+
+/* Screen entrance (replaces css/main.css's shared `.enter-pop` — see the
+   header contract block, rule 3a / F1). OPACITY ONLY — never `scale`/
+   `transform`/`translate`: a container gating ≥60px controls (numpad/mute/
+   back) must never render smaller, clipped, or offset at any point in — or
+   if frozen mid-way through — its own entrance animation, and opacity is
+   the one animatable property that can never do any of those three things
+   regardless of what keyframe it is stuck on. (The permanent stacking-
+   context/containing-block guarantee this screen still needs comes from
+   the STATIC `translate:0 0` above, not from this animation.) */
+.pier-enter { animation: pier-screen-in 260ms ease both; }
+@keyframes pier-screen-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ============================================================
-   CHASSIS SLOTS (js/pier/padkit.js mountChassis)
+   CHASSIS SLOTS (js/pier/padkit.js mountChassis) — CSS GRID, not flex
+   (contract §1a/§1b). `.pier-chassis` is stamped onto the container by
+   mountChassis() itself; `!important` on the grid-defining properties is a
+   deliberate safety net documented in §1a (mode files' own now-redundant
+   `display:flex` workarounds must not be able to silently defeat this).
    ============================================================ */
+.pier-screen.pier-chassis,
+.pier-mode-host.pier-chassis {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  grid-template-rows: auto 1fr auto !important;
+  grid-template-areas: "hud" "stage" "dock" !important;
+  min-height: 0;
+}
+/* Landscape, wide-enough — MODE ROUTES ONLY (hub deliberately excluded,
+   contract §1a "WHY THE HUB OPTS OUT"). Re-evaluated by the browser on
+   every resize/orientationchange for free — no JS involved. */
+@media (orientation: landscape) and (min-width: 680px) {
+  .pier-mode-host.pier-chassis {
+    grid-template-columns: 1fr auto !important;
+    grid-template-rows: auto 1fr !important;
+    grid-template-areas: "hud hud" "stage dock" !important;
+    column-gap: clamp(8px, 1.4vw, 18px);
+  }
+  .pier-mode-host.pier-chassis > .pier-dock {
+    max-width: min(340px, 42vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+}
 .pier-hud {
-  flex: none;
+  grid-area: hud;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -152,7 +355,8 @@
   flex-wrap: wrap;
 }
 .pier-stage {
-  flex: 1 1 auto;
+  grid-area: stage;
+  min-width: 0;
   min-height: 0;
   position: relative;
   overflow-y: auto;
@@ -160,7 +364,7 @@
   -webkit-overflow-scrolling: touch;
 }
 .pier-dock {
-  flex: none;
+  grid-area: dock;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: clamp(6px, 1.4vh, 14px) calc(14px + var(--safe-r)) calc(clamp(6px, 1.4vh, 14px) + var(--safe-b)) calc(14px + var(--safe-l));
@@ -223,12 +427,16 @@
   padding: 26px 24px;
   text-align: center;
   color: var(--parchment);
-  /* Entrance pop uses `scale` (also a standalone property, independent of
-     `transform` and of the static `translate:` above) — animation-fill-mode
-     :both leaves it at scale(1), a no-op, so nothing to "pin" here either. */
-  animation: pier-overlay-in 320ms var(--spring) both;
+  /* Entrance is opacity-ONLY — NOT `scale` (contract §3a / F1): `translate`
+     is already claimed by the static centring value above (animating it too
+     would fight that value the same way `transform` used to), and a card
+     built by a mode agent can hold real ≥60px buttons (START/GO/ONE MORE
+     GO/etc.) that must never render undersized while — or if stuck — mid
+     pop-in. animation-fill-mode:both leaves opacity at 1, a no-op, so
+     nothing to "pin" here either. */
+  animation: pier-overlay-in 260ms ease both;
 }
-@keyframes pier-overlay-in { from { opacity: 0; scale: .9; } to { opacity: 1; scale: 1; } }
+@keyframes pier-overlay-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* ============================================================
    MODE HOST — the container every machine mounts into (§1.2b)
@@ -245,19 +453,12 @@
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
-/* A mode that HAS opted in (mountChassis(host,...) tags `host` with
-   `.pier-chassis` — js/pier/padkit.js) gets the real flex column here, once,
-   centrally: `.pier-mode-host` alone is only ever block-stacked, which makes
-   `flex:none` on hud/dock and `flex:1 1 auto;min-height:0` on stage no-ops.
-   This was independently rediscovered and worked around by all five mode
-   files (each carrying its own copy of this exact selector/declaration) —
-   flagged in a chassis-fixer report as belonging here permanently so a
-   future sixth mode (or an accidental deletion of one mode's own copy)
-   isn't silently left without the skeleton THE LAYOUT LAW requires. */
-.pier-mode-host.pier-chassis {
-  display: flex;
-  flex-direction: column;
-}
+/* The real [hud][stage][dock] grid for a mode route (`.pier-mode-host.
+   pier-chassis`, incl. the landscape stage-beside-dock layout) now lives
+   ABOVE, next to `.pier-hud`/`.pier-stage`/`.pier-dock` — contract §1a/§1b.
+   `.pier-mode-host` here stays only a plain flex ITEM of `.pier-screen`
+   (how it behaves as a CHILD); it says nothing about how IT lays out its
+   OWN children, which is what `.pier-chassis` now governs via CSS Grid. */
 
 /* ============================================================
    BULB SIGN (map landmark reuses this keyframe — kept for that)
@@ -515,4 +716,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pier-overlay-veil, .pier-overlay-card { animation: none !important; opacity: 1 !important; }
+  .pier-enter { animation: none !important; opacity: 1 !important; translate: 0 0 !important; }
 }

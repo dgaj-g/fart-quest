@@ -48,24 +48,89 @@
   unmodified v1 mode file (none currently qualify) so a future regression
   doesn't get silently mislabelled the other way either.
 
+  CHASSIS AGENT'S F1 FOLLOW-UP — "the assertion or its coverage is wrong,
+  find out which": THE >=60px ASSERTION ITSELF WAS ALREADY CORRECT
+  (`bigEnough = minAxis >= 60 - EPS`, below) — it is not what let 54px
+  elements pass. What actually let them pass was TIMING, not coverage of
+  which DOM states get mounted: this file has always frozen every CSS
+  animation/transition (`* { animation:none!important; transition:none!
+  important }`, in the child role below) BEFORE measuring, specifically to
+  avoid a real, separately-diagnosed flakiness (rAF throttling for an
+  off-screen/non-visible iframe — see that freeze's own comment). That
+  freeze is exactly why this harness could never have reproduced F1: F1's
+  root cause (css/pier.css's header contract, rule 3a) was `.pier-screen`'s
+  entrance animation rendering — or, in a live/interactive session,
+  sometimes genuinely getting stuck — AT a mid-keyframe `scale(.9)` instead
+  of its settled `scale(1)`, shrinking every descendant (numpad keys, the
+  mute button, the HUD back button) to exactly 90% of their true CSS size.
+  Freezing the animation before measuring skips straight to the SETTLED
+  end-state, which was always the correct final size — so this harness was
+  PASSING elements that were correctly-sized IN THE STATE IT MEASURED, while
+  a live/interactive/un-frozen render of the exact same screen could still
+  show 54px. The chassis fix (rule 3a: `.pier-screen`'s entrance animates
+  `opacity` only now, never `scale`/`transform`/`translate`) eliminates the
+  underlying risk at the source, which is what makes this harness's freeze-
+  then-measure approach safe/representative again — there is no longer any
+  pier-chassis animation whose stuck-or-mid-flight state could under-report
+  an element's true size. (Latent instances of the SAME class of risk this
+  pass found in mode-owned files it could not edit — teacups.js's
+  `.tcp-picker`/`.tcp-lap` still use css/main.css's `enter-pop` directly on
+  containers holding real cup buttons — are flagged in the chassis agent's
+  report; this harness cannot detect those either, for the identical
+  freeze-before-measure reason, until they are fixed the same way.)
+
   COVERAGE: `mount()` with no simulated input only ever reaches each mode's
   FIRST screen, UNLESS that screen's content branches purely on `ctx.db`
   data read at mount time — in which case a `dbSeed` here can reach it with
   no click simulation at all. Tank's three idle states (fresh / aquarium /
   clean — js/pier/facts.js `gremlins()`/`flushed()`, both pure `ctx.db`
-  reads) are exactly that case and are enumerated below. splat/gunge/ghost/
-  teacups' PLAYING, MID-FEEDBACK, END-CARD and CEREMONY states are reached
-  only through live taps inside each mode's own closures (no seed or query
-  hook exists to jump straight there) — simulating that safely, per mode,
-  is each mode-owning agent's call (their file, their timings), not this
-  shared chassis harness's to bolt on. Full state list this pass DOES and
-  does NOT exercise, for the report:
+  reads) are exactly that case and are enumerated below.
+
+  PLAYING-STATE COVERAGE (this pass adds what's achievable): a state may now
+  carry a `drive: [{click:'<selector>', wait:<ms>}, …]` array — after
+  `mount()` settles, the child role clicks each selector in turn (a real
+  `.click()` against the mounted DOM, no synthetic event needed since every
+  target here is a plain `<button>` with an `addEventListener('click', …)`
+  handler) and waits the given `ms` (a real `setTimeout`, not a
+  requestAnimationFrame — see the CHILD ROLE code below for why rAF timing
+  can't be trusted in this harness's iframe) before the next step, THEN
+  measures. This is genuinely "mount a mode and drive it far enough to
+  render its dock" (not a simulation of the mode's own logic — it presses
+  the mode's OWN real buttons) and is enough to reach: gunge's live numpad
+  (press START), ghost's live numpad+tunnel (press START), tank's live
+  numpad (seed one gremlin, press SPLAT 'EM), teacups' live numpad (press
+  START on the welcome card, pick a cup, press LET'S GO on the lap-change
+  ceremony — three real steps, matching its three real screens), and
+  splat's live holes (press START, then wait through its real 3-2-1-GO!
+  countdown — nominally 4 steps × 560ms plus a final 560ms hold (~2.8s) of
+  `later()`/`setTimeout`-driven game logic, not a CSS animation, so freezing
+  animations does not shorten it — MEASURED LIVE IN THIS HARNESS'S OWN
+  OFF-SCREEN IFRAME: chained `setTimeout` callbacks here run at roughly
+  HALF their requested rate — the same class of scheduler throttling this
+  file's `runChild()` already documents for `requestAnimationFrame`, just
+  showing up on `setTimeout` too for this particular countdown's length —
+  so the real wall-clock time to holes-rendered was ~4.5–5s, not ~2.8s;
+  `splat-playing`'s `drive` wait is set generously (7s) to clear this with
+  margin rather than chase an exact number that may vary run to run). What
+  this STILL does not
+  reach, honestly: MID-FEEDBACK (a correct/wrong flash mid-question),
+  END-CARD (round-complete scorecards), and CEREMONY (gunge's multi-stage
+  death, tank's flush-to-Big-Toilet, any gold-trophy first-time
+  celebration) — each needs either simulating a correct/wrong ANSWER
+  through the numpad (mode-specific scoring/timing logic this shared
+  harness has no business guessing at) or riding out a full round/survival
+  timer (gunge's drain, ghost's 20 facts, splat's 60s), which is far more
+  driving than "far enough to render its dock" — left for whichever
+  mode-owning agent wants to extend their own entry's `drive` array.
+
+  Full state list this pass DOES and does NOT exercise, for the report:
     welcome/idle : hub x2, splat, gunge, ghost, teacups, tank(fresh) — HERE
     empty state  : tank fresh-profile (dbSeed, no gremlins/flushes)  — HERE
     idle variants: tank aquarium (dbSeed: 1 gremlin), tank clean
                    (dbSeed: pierFlushed>0, no gremlins)              — HERE
-    playing      : splat holes, gunge numpad-live, ghost tunnel,
-                   teacups spin, tank round                     — NOT HERE
+    playing      : splat holes, gunge numpad-live, ghost numpad+
+                   tunnel-live, teacups numpad-live, tank numpad-live — HERE
+                   (driven via `drive:[…]`, see above)
     mid-feedback : any mode's correct/wrong flash                — NOT HERE
     end card     : gunge splash+scorecard, ghost photo-finish,
                    splat Dave-steals-mallet, tank round-complete  — NOT HERE
@@ -178,13 +243,60 @@ const STATES = [
     dbSeed: { meta: { pierFlushed: 4 } }, exercisable: 'full',
     note: 'js/pier/modes/tank.js renderClean() (reached via facts.flushed()>0 AND no live gremlins — seeded through ctx.db meta.pierFlushed): SPARKLING CLEAN stamp + confetti. This is the ONE tank idle state that IS allowed to celebrate (REWORK §3).',
   },
+
+  /* ---------------------------------------------------------------------
+   * PLAYING states — real DOM clicks against the mode's own buttons via
+   * `drive:[…]` (see the file-header comment "PLAYING-STATE COVERAGE" for
+   * the mechanism and exactly what this does/doesn't reach). These are the
+   * states that actually exercise a LIVE `.pier-numpad-key` (or, for splat,
+   * live `.splat-hole` buttons) — this is the coverage gap the F1 report
+   * flagged: every state ABOVE only ever measures a numpad that is present
+   * but not yet interactive (gunge/ghost build theirs before their welcome
+   * card closes) or measures no numpad at all (splat/teacups/tank build
+   * theirs only once play actually starts).
+   * --------------------------------------------------------------------- */
+  {
+    id: 'gunge-playing', label: 'GUNGE — playing (numpad live, plank ticking)', params: { mode: 'gunge' },
+    exercisable: 'full', drive: [{ click: '.gg-startbtn', wait: 300 }],
+    note: 'js/pier/modes/gunge.js: welcome card START pressed -> renderRoundShell()-equivalent live state. Numpad in chassis.dock is now the real interactive round, not the pre-round preview.',
+  },
+  {
+    id: 'ghost-playing', label: 'GHOST — playing (numpad + tunnel live)', params: { mode: 'ghost' },
+    exercisable: 'full', drive: [{ click: '.gh-start-btn', wait: 300 }],
+    note: 'js/pier/modes/ghost.js: welcome card START/dare pressed -> the tunnel run begins, numpad enabled for real. This is the state F2/F3 (stage-beside-dock, full-height tunnel) are actually about — the welcome card alone never proved the RUNNING tunnel fits.',
+  },
+  {
+    id: 'teacups-playing', label: 'TEACUPS — playing (numpad live, lap 1)', params: { mode: 'teacups' },
+    exercisable: 'full',
+    drive: [
+      { click: '.tcp-start', wait: 200 },
+      { click: '.tcp-cup', wait: 300 },
+      { click: '.tcp-lap-go', wait: 300 },
+    ],
+    note: 'js/pier/modes/teacups.js: three real screens driven in sequence — welcome card START, then the FIRST cup in the picker grid (table 2), then the lap-change ceremony\'s LET\'S GO — lands on buildLapUI()\'s live numpad.',
+  },
+  {
+    id: 'tank-playing', label: 'TANK — playing (targeted round, numpad live)', params: { mode: 'tank' },
+    dbSeed: { meta: { pierFacts: { families: { '6x7': { history: [{ correct: false, ms: 4000 }, { correct: false, ms: 4200 }], streak: 0, misses: 5, isGremlin: true } } } } },
+    exercisable: 'full', drive: [{ click: '.pt-dock-btn', wait: 300 }],
+    note: 'js/pier/modes/tank.js: aquarium\'s "SPLAT \'EM!" pressed -> renderRoundShell()\'s live numpad in chassis.dock, replacing the gremlin grid in chassis.stage.',
+  },
+  {
+    id: 'splat-playing', label: 'SPLAT — playing (holes live, post-countdown)', params: { mode: 'splat' },
+    exercisable: 'full', drive: [{ click: '.splat-start-btn', wait: 7000 }],
+    note: 'js/pier/modes/splat.js: welcome card START pressed -> runCountdown()\'s real 4-step, 560ms-per-step "3, 2, 1, GO!" (setTimeout-chained game logic, NOT a CSS animation the freeze below shortens) -> renderHoles() mounts five real .splat-hole <button>s. No numpad in this mode (tap-based) — this is the one PLAYING state proving TAP targets, not numpad keys, stay >=60px.',
+  },
 ];
-// NOT exercised by this harness (see the file-header comment above for the
-// full list and why): splat/gunge/ghost/teacups/tank's PLAYING, MID-
-// FEEDBACK, END-CARD and CEREMONY states — none are reachable through
-// `mount()` + `dbSeed` alone; each needs live taps inside that mode's own
-// closures, which is that mode-owning agent's file/timings to simulate, not
-// this shared chassis harness's to invent on their behalf.
+// STILL NOT exercised by this harness even after the PLAYING states above
+// (see the file-header comment's "PLAYING-STATE COVERAGE" for the honest
+// account of why): any mode's MID-FEEDBACK (a correct/wrong flash reached
+// only by answering a live question), END-CARD (round-complete scorecards,
+// reached only by finishing/losing a full round), or CEREMONY (gunge's
+// multi-stage death, tank's flush-to-Big-Toilet, any gold-trophy first-time
+// celebration) state — each needs simulating a real answer (right or wrong)
+// through the numpad and/or riding out a full round or survival timer,
+// which is real per-mode scoring/timing logic this shared chassis harness
+// has no business guessing at on a mode-owning agent's behalf.
 
 const isChild = new URLSearchParams(location.search).has('child');
 
@@ -269,10 +381,21 @@ async function runChild() {
   // This automation environment renders on-demand (no continuous compositor
   // tick unless something — a screenshot, a real user paint — asks for one),
   // so a running CSS animation's timeline can sit frozen at its 0% keyframe
-  // indefinitely: caught for real during development, `.pier-screen`'s
+  // indefinitely: caught for real during development, `.pier-screen`'s OLD
   // `.enter-pop` (css/main.css, 380ms `scale(.9)->scale(1)`) stayed stuck at
   // EXACTLY `matrix(0.9,...)` well past any wall-clock wait, under-reporting
-  // every element inside it by a flat 10%. This mirrors the codebase's own
+  // every element inside it by a flat 10% — THIS is what F1 turned out to
+  // be (chassis agent's report / css/pier.css contract §3a): not a floor/
+  // clamp() bug, but the correct CSS size × a stuck entrance-animation scale
+  // factor, live-reproducible with exactly this same "no real paint tick"
+  // mechanism outside this harness too. `.pier-screen` no longer has any
+  // size-or-position-changing entrance animation at all (opacity-only now)
+  // specifically so that class of bug cannot recur regardless of paint
+  // timing — this freeze is kept for OTHER mode-owned animations (still
+  // useful, still avoids the iframe-throttling flakiness it was original
+  // added for) but is no longer the thing standing between this harness and
+  // catching a real F1. See the file-header comment's "CHASSIS AGENT'S F1
+  // FOLLOW-UP" for the full account. This also mirrors the codebase's own
   // `@media (prefers-reduced-motion: reduce)` handling in css/main.css (same
   // fix, applied unconditionally here since the harness wants the SETTLED
   // end-state, not a mid-animation frame, and can't rely on a real rendering
@@ -294,20 +417,38 @@ async function runChild() {
     try {
       const { mount } = await import('../js/screens/pier.js');
       await mount(rootHost, ctx, state.params || {});
+      // A plain setTimeout, NOT requestAnimationFrame, for the settle-wait:
+      // this document is mounted off-screen (`.rig { left:-20000px }`)
+      // inside the harness's measurement iframe, and Chrome throttles rAF
+      // callbacks for iframes it judges non-visible — almost exactly the
+      // "hidden tab" throttling js/anims/_kit.js's tween() guards against,
+      // and it stalled this harness for real during development (a rAF
+      // chain here could hang tens of seconds per iframe). CSS layout
+      // itself is NOT throttled the same way, so getBoundingClientRect()
+      // below is accurate regardless — only JS's rAF *scheduling* was the
+      // problem.
+      await new Promise((r) => { setTimeout(r, 50); });
+      // PLAYING-STATE COVERAGE (file-header comment) — `drive` is a real
+      // click-then-wait sequence against the mode's OWN buttons, not a
+      // simulation of its logic. `Element.click()` fires a full, trusted
+      // synthetic click a plain `addEventListener('click', …)` handler
+      // reacts to identically to a real pointer tap (every target here IS
+      // exactly that: a plain `<button>` with a click listener — see each
+      // mode file). A missing selector is left to fail loudly at the
+      // measurement stage (fewer elements than expected / an error) rather
+      // than silently — a `drive` step that can't find its target is itself
+      // a signal something upstream broke, not something to swallow.
+      if (Array.isArray(state.drive)) {
+        for (const step of state.drive) {
+          const target = document.querySelector(step.click);
+          if (target) target.click();
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((r) => { setTimeout(r, step.wait || 150); });
+        }
+      }
     } catch (e) {
       error = String((e && e.stack) || e);
     }
-    // A plain setTimeout, NOT requestAnimationFrame, for the settle-wait:
-    // this document is mounted off-screen (`.rig { left:-20000px }`) inside
-    // the harness's measurement iframe, and Chrome throttles rAF callbacks
-    // for iframes it judges non-visible — almost exactly the "hidden tab"
-    // throttling js/anims/_kit.js's tween() guards against, and it stalled
-    // this harness for real during development (a rAF chain here could hang
-    // tens of seconds per iframe). CSS layout itself is NOT throttled the
-    // same way, so getBoundingClientRect() below is accurate regardless —
-    // only JS's rAF *scheduling* was the problem.
-    //
-    await new Promise((r) => { setTimeout(r, 50); });
     const elements = error ? [] : measureInteractive();
     const result = {
       id: state.id, error, elements, vw: window.innerWidth, vh: window.innerHeight,

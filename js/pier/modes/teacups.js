@@ -55,6 +55,54 @@
 //    (a seagull flies past, a gremlin spirals off), not full set pieces —
 //    Teacups stays the calm machine; the spectacle budget for a genuine
 //    ceremony belongs to Tank's "Big Toilet" (§6).
+//
+// REWORK v2, SECOND PASS (F1/F2/F3 fix pass — chassis adopted, not rebuilt) —
+// css/pier.css's `.pier-mode-host.pier-chassis` is now a CSS GRID that puts
+// the dock BESIDE the stage (not under it) on any landscape viewport
+// ≥680px wide — see that file's header contract block §1a. `mountChassis()`
+// itself didn't change shape (still hud/stage/dock), so nothing here needed
+// to change HOW the chassis is built — only how the STAGE'S OWN CONTENTS
+// use the much taller column that layout now hands it (measured: stage
+// height goes from a squashed stacked-mode strip to ~460–670px tall across
+// the three proven sizes, see this file's build report). Changes made:
+//  - `.tcp-host.pier-mode-host { display:flex; flex-direction:column; }`
+//    (this file's OWN chassis workaround, written when css/pier.css had no
+//    `.pier-chassis` rule at all) is DELETED per css/pier.css's own
+//    contract note naming it directly — the real grid rule now ships with
+//    `!important` specifically so a leftover copy of this workaround could
+//    never silently defeat it, but keeping dead CSS that reads as a lie
+//    about the real layout mechanism serves nobody.
+//  - The ring/cup/platform/orbit sizing formulas below are now sized off a
+//    much larger vh budget (previously tuned for a squashed strip) so the
+//    ride actually LOOKS like it is using the reclaimed height rather than
+//    floating in the middle of a mostly-empty tall column (PIER_REWORK.md
+//    §3 "teacups: keep it gentle and untimed, but the cups must VISIBLY
+//    SPIN"). Two purely decorative additions fill that height honestly
+//    rather than just inflating the one cup: a soft radial platform glow
+//    under the ride, and three small satellite cups that ride the SAME
+//    rotating ring (so they revolve AND tumble together, like a real
+//    teacups attraction) — see the CSS block below for how they compose
+//    with the idle-bob animation without fighting it (independent `rotate`
+//    property, not a second `transform` animation on the same element).
+//    The big cup itself now also carries a slow, continuous, direction-
+//    matched spin (not just an idle bob) so "spinning" is the resting
+//    state of the ride, not just a burst on a correct answer — the burst
+//    animation on a correct answer still layers on top of that as an
+//    accelerando flourish, unchanged.
+//  - `.tcp-picker`/`.tcp-lap` no longer use css/main.css's shared
+//    `enter-pop` (`transform: scale(.9) translateY(18px) -> scale(1)
+//    translateY(0)`) — css/pier.css's own contract (rule 3a) flagged this
+//    BY NAME as a latent instance of the exact F1 mechanism (a scale
+//    animation on a container holding real ≥60px controls — `.tcp-picker`
+//    wraps the `.tcp-cup` table buttons — visually AND hit-test shrinks
+//    them at any frozen/mid-flight point of its own entrance). A local
+//    `.tcp-fade-in` (opacity only, matching `.pier-enter`'s own fix one
+//    layer up) was defined for exactly this — this THIRD pass is what
+//    actually swaps both `el(...)` calls below over to it; an earlier pass
+//    added the class but left the two `enter-pop` usages in place, which
+//    would have been a real (if numerically harmless, given `.tcp-cup`'s
+//    72px floor: 72*.9=64.8, still >=60) instance of the exact bug this
+//    rule exists to rule out categorically rather than case-by-case.
 
 import {
   el, sfx, sparkleBurst, party, injectCss,
@@ -73,21 +121,12 @@ const BIG_RIDES = [
 ];
 
 const CSS = `
-/* ---------- CHASSIS WORKAROUND (see mount()'s host.classList.add) ----------
-   css/pier.css's \`.pier-mode-host\` rule (chassis-owned, not this file) sets
-   flex/min-height for how the host behaves AS A CHILD of .pier-screen, but
-   never declares \`display:flex; flex-direction:column\` for how it lays out
-   ITS OWN children — so pier.mountChassis(host,...)'s hud/stage/dock stack
-   as plain blocks instead of a flex column, and the dock (meant to be
-   flex:none/never-shrink) silently adopts whatever height its content wants,
-   pushing past the viewport with zero warning (measured: at 1000×540 with
-   the wrong-answer hint open, GO's bottom sat at 569px, 29px below the
-   fold — THE LAYOUT LAW violation this whole rework exists to fix, now one
-   layer down in the shared chassis rather than in a mode). Flagged for the
-   HUB/CHASSIS agent to fix properly in css/pier.css; scoped here to ONLY
-   this mount's own host element (tagged in mount() below) so it can never
-   affect another mode's .pier-mode-host. */
-.tcp-host.pier-mode-host { display: flex; flex-direction: column; }
+/* ---------- local opacity-only entrance (replaces main.css's enter-pop —
+   see this file's header comment, "SECOND PASS", for why: a scale/translateY
+   entrance on a container holding real >=60px controls is the exact F1
+   mechanism, flagged by name in css/pier.css's own contract). ---------- */
+.tcp-fade-in { animation: tcp-fade-in 260ms ease both; }
+@keyframes tcp-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---------- HUD ---------- */
 .tcp-hud-title {
@@ -123,19 +162,24 @@ const CSS = `
 @keyframes tcp-bob { from { transform: translateY(0); } to { transform: translateY(-6px); } }
 
 /* ---------- table picker (stage) ---------- */
-.tcp-picker { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 6px 16px; max-width: 640px; margin: 0 auto; }
-.tcp-picker h2 { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(18px, 3vh, 24px); color: var(--pier-bulb); margin: 0 0 4px; }
-.tcp-picker-sub { font-size: 13.5px; color: rgba(246, 235, 212, .75); margin: 0 0 14px; }
-.tcp-cupgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 10px; width: 100%; }
+/* height:100% + justify-content:center — the landscape chassis (F2) hands
+   this stage a near-full-height column now, not a squashed strip; without
+   this the picker would just sit at the top of that tall column and leave
+   a dead void below it (the F5 sparseness pattern, avoided proactively). */
+.tcp-picker { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; height: 100%; padding: clamp(4px, 1.6vh, 18px) 16px; max-width: 720px; margin: 0 auto; }
+.tcp-picker-ride { font-size: clamp(28px, 6.4vh, 52px); margin-bottom: 2px; animation: tcp-bob 2.4s ease-in-out infinite alternate; }
+.tcp-picker h2 { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(19px, 3.6vh, 27px); color: var(--pier-bulb); margin: 0 0 5px; }
+.tcp-picker-sub { font-size: clamp(12.5px, 2vh, 15px); color: rgba(246, 235, 212, .75); margin: 0 0 clamp(12px, 2.8vh, 24px); }
+.tcp-cupgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(82px, 1fr)); gap: clamp(9px, 1.8vh, 16px); width: 100%; }
 .tcp-cup {
-  min-height: 68px; border: 3px solid rgba(47, 227, 196, .35); border-radius: 16px; cursor: pointer; padding: 6px 4px;
+  min-height: clamp(72px, 12.6vh, 104px); border: 3px solid rgba(47, 227, 196, .35); border-radius: 18px; cursor: pointer; padding: clamp(5px, 1.2vh, 10px) 4px;
   background: linear-gradient(160deg, #141c44, #0a1230); color: var(--parchment);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   box-shadow: 0 5px 0 rgba(0, 0, 0, .35); transition: transform 140ms var(--spring), box-shadow 140ms var(--spring);
 }
 .tcp-cup:active { transform: scale(.93) translateY(2px); box-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
-.tcp-cup-emoji { font-size: 21px; }
-.tcp-cup-num { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 16px; color: var(--pier-teal); }
+.tcp-cup-emoji { font-size: clamp(20px, 3.8vh, 32px); }
+.tcp-cup-num { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(15px, 2.5vh, 20px); color: var(--pier-teal); }
 
 /* ---------- lap-change ceremony demo (obvious + silly reversal) ---------- */
 .tcp-lap-demo { position: relative; width: 96px; height: 96px; margin: 2px auto 8px; display: flex; align-items: center; justify-content: center; }
@@ -152,13 +196,17 @@ const CSS = `
 @keyframes tcp-demo-back { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
 
 /* ---------- playing (stage) ---------- */
-.tcp-lap { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 1.4vh, 12px); height: 100%; justify-content: center; padding: 4px 12px; }
-.tcp-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; max-width: 300px; }
-.tcp-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, .18); flex: none; }
+/* Gaps/padding are now clamp()ed off vh too — the old fixed 4px/12px values
+   were tuned for a squashed strip; with the landscape chassis handing this
+   stage ~460-670px of real height (F2), a fixed-tiny gap just leaves it as
+   unused dead space rather than an airier, more deliberate composition. */
+.tcp-lap { display: flex; flex-direction: column; align-items: center; gap: clamp(10px, 2.6vh, 26px); height: 100%; justify-content: center; padding: clamp(4px, 1.4vh, 14px) 12px; }
+.tcp-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(5px, .9vh, 8px); max-width: 320px; }
+.tcp-dot { width: clamp(8px, 1.3vh, 11px); height: clamp(8px, 1.3vh, 11px); border-radius: 50%; background: rgba(255, 255, 255, .18); flex: none; }
 .tcp-dot.done { background: var(--correct); }
 .tcp-dot.current { background: var(--pier-bulb); box-shadow: 0 0 0 3px rgba(255, 233, 168, .3); }
 
-.tcp-cuparea { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(2px, .8vh, 6px); }
+.tcp-cuparea { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 1.6vh, 16px); }
 .tcp-cuparea.tcp-flash-correct .tcp-cupwrap::after {
   content: ''; position: absolute; inset: -18px; border-radius: 50%;
   background: radial-gradient(circle, rgba(46, 204, 113, .4), transparent 70%);
@@ -167,18 +215,63 @@ const CSS = `
 @keyframes tcp-correct-pulse { 0% { opacity: 0; scale: .7; } 30% { opacity: 1; scale: 1.05; } 100% { opacity: 0; scale: 1.25; } }
 .tcp-cuparea.tcp-combo-glow .tcp-ring { border-color: var(--gold); box-shadow: 0 0 18px 2px rgba(244, 197, 66, .5); }
 
+/* Soft floor glow — pure ambience, grounds the ride in the reclaimed
+   height instead of leaving the cup floating in a void. Purely decorative
+   (z-index below everything, pointer-events:none), never touched by JS. */
+.tcp-platform {
+  position: absolute; top: 46%; left: 50%; translate: -50% -50%;
+  width: clamp(210px, 42vh, 420px); height: clamp(64px, 10.5vh, 120px);
+  border-radius: 50%; z-index: -2; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 79, 163, .22), transparent 72%);
+}
+
+/* Three small satellite cups riding the SAME rotating ring as the main
+   cup — .tcp-orbit is the thing that spins (via the independent `rotate`
+   property, see below); each .tcp-orbit-cup is placed at a fixed angle+
+   radius with a plain static transform, so the parent's continuous
+   rotation carries them round AND tumbles them together — exactly how a
+   real teacups ride's satellite cups move, no per-child animation needed. */
+.tcp-orbit {
+  position: absolute; top: 46%; left: 50%; translate: -50% -50%;
+  width: clamp(150px, 32vh, 330px); height: clamp(150px, 32vh, 330px);
+  z-index: -1; pointer-events: none;
+  animation: tcp-carousel-fwd 13s linear infinite;
+}
+.tcp-orbit.tcp-orbit-back { animation-name: tcp-carousel-back; }
+.tcp-orbit-cup {
+  position: absolute; top: 50%; left: 50%; opacity: .55;
+  font-size: clamp(15px, 3.2vh, 27px);
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4));
+}
+.tcp-orbit-cup:nth-child(1) { transform: translate(-50%, -50%) rotate(20deg) translateY(calc(-1 * clamp(72px, 16.5vh, 165px))); }
+.tcp-orbit-cup:nth-child(2) { transform: translate(-50%, -50%) rotate(150deg) translateY(calc(-1 * clamp(72px, 16.5vh, 165px))); filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)) hue-rotate(90deg); }
+.tcp-orbit-cup:nth-child(3) { transform: translate(-50%, -50%) rotate(280deg) translateY(calc(-1 * clamp(72px, 16.5vh, 165px))); filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)) hue-rotate(210deg); }
+
 .tcp-ring {
   position: absolute; top: 46%; left: 50%; translate: -50% -50%;
-  width: clamp(78px, 15vh, 128px); height: clamp(78px, 15vh, 128px);
+  width: clamp(150px, 34vh, 340px); height: clamp(150px, 34vh, 340px);
   border-radius: 50%; border: 3px dashed rgba(255, 233, 168, .4);
   animation: tcp-ring-fwd 9s linear infinite; pointer-events: none; z-index: 0;
   transition: border-color 260ms ease, box-shadow 260ms ease;
 }
 .tcp-ring.tcp-ring-back { animation-name: tcp-ring-back; border-color: rgba(47, 227, 196, .5); }
 
-.tcp-cupwrap { position: relative; z-index: 1; animation: tcp-idle-bob 2.6s ease-in-out infinite alternate; }
-.tcp-cup-big { display: block; font-size: clamp(38px, 9vh, 62px); filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .45)); }
+/* The cup itself now spins continuously too (not just an idle bob) —
+   "spinning" is the ride's resting state, lap-direction-matched, escalated
+   further on lap 2's reversal. Bob keeps writing `transform` (unchanged);
+   the continuous turn uses the INDEPENDENT `rotate` CSS property so the two
+   compose instead of fighting over the same `transform` slot — same
+   technique css/pier.css itself uses for `.pier-screen`'s static translate
+   vs its opacity-only entrance (see that file's header contract, rule 3a). */
+.tcp-cupwrap {
+  position: relative; z-index: 1;
+  animation: tcp-idle-bob 2.6s ease-in-out infinite alternate, tcp-carousel-fwd 11s linear infinite;
+}
+.tcp-cupwrap.tcp-cupwrap-back { animation-name: tcp-idle-bob, tcp-carousel-back; }
+.tcp-cup-big { display: block; font-size: clamp(68px, 17vh, 168px); filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .45)); }
 @keyframes tcp-idle-bob { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+@keyframes tcp-carousel-fwd { from { rotate: 0deg; } to { rotate: 360deg; } }
+@keyframes tcp-carousel-back { from { rotate: 0deg; } to { rotate: -360deg; } }
 
 .tcp-cup-big.tcp-spin-fwd { animation: tcp-spin-fwd 420ms cubic-bezier(.34, 1.1, .4, 1) both; }
 .tcp-cup-big.tcp-spin-back { animation: tcp-spin-back 420ms cubic-bezier(.34, 1.1, .4, 1) both; }
@@ -213,9 +306,9 @@ const CSS = `
   100% { transform: translate(-50%, 120%) rotate(540deg) scale(.15); opacity: 0; }
 }
 
-.tcp-stem { font-size: clamp(19px, 4.2vh, 28px); font-weight: 700; color: var(--parchment); text-align: center; min-height: 1.2em; }
+.tcp-stem { font-size: clamp(20px, 5vh, 36px); font-weight: 700; color: var(--parchment); text-align: center; min-height: 1.2em; position: relative; z-index: 1; }
 .tcp-hint {
-  max-width: 380px; text-align: center; font-size: 12.5px; line-height: 1.35; font-weight: 600;
+  max-width: 420px; text-align: center; font-size: clamp(12.5px, 1.9vh, 14.5px); line-height: 1.35; font-weight: 600;
   color: var(--parchment); background: rgba(255, 79, 163, .12); border: 2px solid rgba(255, 79, 163, .4);
   border-radius: 12px; padding: 0; opacity: 0; max-height: 0; overflow: hidden;
   transition: opacity 200ms ease, padding 200ms ease, max-height 200ms ease;
@@ -366,7 +459,7 @@ export default {
       const deluxe = pier.facts.deluxeOn();
       const max = deluxe ? 12 : 10;
 
-      const wrap = el('div', 'tcp-picker enter-pop');
+      const wrap = el('div', 'tcp-picker tcp-fade-in');
       wrap.innerHTML = `
         <h2>PICK YOUR CUP</h2>
         <p class="tcp-picker-sub">${deluxe ? 'Deluxe’s on — even 11 and 12 fancy a spin today!' : 'Which table fancies a spin today?'}</p>
@@ -422,7 +515,7 @@ export default {
       chassis.stage.innerHTML = '';
       setHudChip();
       busy = false;
-      const wrap = el('div', 'tcp-lap enter-pop');
+      const wrap = el('div', 'tcp-lap tcp-fade-in');
 
       dotsEl = el('div', 'tcp-dots');
       for (let i = 0; i < queue.length; i += 1) dotsEl.append(el('span', 'tcp-dot'));

@@ -22,6 +22,16 @@ let musicFailedTracks = new Set(); // track names we've tried & failed to load �
 let musicBaseVolume = 1;         // user-set music volume (0..1) before ducking
 let duckActive = false;
 
+// shuffled-rotation state for musicPlaylist() (see "public: music playlist" below)
+let playlistGen = 0;              // this rotation's own generation token (separate from musicGen)
+let playlistPollIv = null;        // the single clock-poll interval for the live rotation, if any
+let playlistTracksSrc = [];        // original (unshuffled) track list passed to musicPlaylist()
+let playlistOrder = [];            // current shuffled rotation order
+let playlistIndex = 0;             // index into playlistOrder currently playing
+let playlistCrossfadeMs = 3000;    // how early (before track end) to start blending, and how long the blend takes
+let playlistAdvancing = false;     // guards against the poller firing a second advance while one is in flight
+let playlistLive = false;          // true while a rotation owns the music layer (see isPlaylistLive())
+
 let volumes = { music: 1, sfx: 1, vo: 1 };
 let fartOMeter = 2; // 0 = off/soft, 1 = silly, 2 = very silly (default mid)
 
@@ -107,6 +117,16 @@ function realFartSampleNames() {
 function pickRandom(arr) {
   if (!arr || arr.length === 0) return undefined;
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Fisher-Yates. Returns a new array — never mutates the input.
+function shuffleFisherYates(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
 }
 
 // ---------- synth parp ----------
@@ -463,11 +483,24 @@ function cancelMusicFade() {
   if (musicFadeIv) { clearInterval(musicFadeIv); musicFadeIv = null; }
 }
 
-async function music(track) {
+// `_plGen` and `_fadeMs` are internal-only params used by musicPlaylist()'s own
+// advance/start step — external callers (screens) always call music(track) with
+// one argument and get exactly the old behaviour (800ms fade, no playlist ties).
+async function music(track, _plGen, _fadeMs) {
   try {
     if (!track) return;
     track = TRACK_ALIASES[track] || track;
     if (track === currentTrackName) return; // already playing
+
+    // A genuine track switch. If a playlist rotation is live and this call is
+    // NOT that rotation's own advance/start step (tagged with its playlistGen),
+    // the screen changed under it — stand the rotation down so it can't keep
+    // silently overriding whatever plays next. (Never touches anything when no
+    // rotation is running: playlistPollIv is null in that case.)
+    if (playlistPollIv && (_plGen === undefined || _plGen !== playlistGen)) {
+      cancelPlaylist();
+    }
+
     if (musicFailedTracks.has(track)) return; // remembered failure, stay silent
 
     const gen = ++musicGen;
@@ -501,9 +534,12 @@ async function music(track) {
     activeMusicSlot = nextSlot;
     cancelMusicFade();
 
-    // 800ms JS crossfade
+    // JS crossfade. 800ms by default; musicPlaylist() passes its own crossfadeMs
+    // here so the blend actually spans the requested length (kept as the one
+    // and only fade implementation rather than a second one for playlists).
+    const totalFadeMs = (typeof _fadeMs === 'number' && _fadeMs > 0) ? _fadeMs : 800;
     const steps = 16;
-    const stepMs = 800 / steps;
+    const stepMs = totalFadeMs / steps;
     const prevStart = prevEl ? clamp01(prevEl.volume) : 0; // continue from wherever an interrupted fade left it
     let i = 0;
 
@@ -544,6 +580,7 @@ async function music(track) {
 // cleanly instead of being swallowed by the "already playing" early-return in
 // music() above. Safe no-op when nothing is playing.
 function stopMusic(fadeMs = 600) {
+  cancelPlaylist(); // a live rotation must not resurrect a track after this stops it
   const gen = ++musicGen; // supersede any in-flight music() call and its fade
   cancelMusicFade();
   // cleared immediately (not at fade end) so a music() call issued during the
@@ -579,6 +616,157 @@ function stopMusic(fadeMs = 600) {
     }
   }, stepMs);
   musicFadeIv = iv;
+}
+
+// ---------- public: music playlist (shuffled rotation with crossfade) ----------
+// Whiff-End Pier wants FOUR tracks in shuffled rotation, each blending into the
+// next, instead of one track looping forever. This layers on TOP of music() —
+// every actual play/crossfade still goes through music() (so musicGen, the
+// canplaythrough load-guard, musicFailedTracks, the VO-duck-aware fade, and the
+// visibilitychange pause/resume all apply for free) — this block only decides
+// WHICH track to hand to music() and WHEN, by polling the audio clock.
+
+// Cancels the live rotation (if any): bumps playlistGen so any in-flight
+// advance/poll-tick bails at its next check, and clears the single poll
+// interval. Called from musicPlaylist() (new rotation replacing an old one),
+// stopMusic() (explicit stop), and from inside music() itself when a plain
+// call for a different track supersedes the rotation (see there). Safe to
+// call when no rotation is live.
+function cancelPlaylist() {
+  playlistGen += 1;
+  if (playlistPollIv) { clearInterval(playlistPollIv); playlistPollIv = null; }
+  playlistAdvancing = false;
+  playlistLive = false;
+}
+
+// True while a rotation owns the music layer. Callers that mount repeatedly
+// (the pier screen mounts again for every machine route) use this to avoid
+// restarting the rotation — and so restarting the current TRACK — on each
+// mount. Anything that supersedes the rotation (a plain music() for another
+// track, stopMusic(), a new musicPlaylist()) routes through cancelPlaylist(),
+// so this can never report a rotation that has already been stood down.
+function isPlaylistLive() {
+  return playlistLive;
+}
+
+// Reshuffles `tracks` (Fisher-Yates), re-rolling if the new first entry would
+// repeat `avoidTrack` — used at each wrap of the rotation so the last track of
+// one lap can never immediately replay as the first track of the next lap.
+// `guard` caps the re-roll loop; with 4 tracks the odds of needing more than a
+// couple of re-rolls are negligible, but a hard cap keeps this from ever being
+// an infinite loop. The swap fallback guarantees the invariant even in the
+// pathological case.
+function reshuffleAvoidingRepeat(tracks, avoidTrack) {
+  let order = shuffleFisherYates(tracks);
+  if (tracks.length > 1 && avoidTrack) {
+    let guard = 0;
+    while (order[0] === avoidTrack && guard < 20) {
+      order = shuffleFisherYates(tracks);
+      guard += 1;
+    }
+    if (order[0] === avoidTrack) {
+      const tmp = order[0]; order[0] = order[1]; order[1] = tmp;
+    }
+  }
+  return order;
+}
+
+// Starts the single clock-poll for a live rotation. No-op if one is already
+// running — this is the only place an interval is created for the playlist,
+// and it is guarded so there is never more than one at a time.
+function startPlaylistPoll(gen) {
+  if (playlistPollIv) return;
+  playlistPollIv = setInterval(() => playlistPollTick(gen), 500);
+}
+
+// Ticks ~2x/second watching the CURRENTLY ACTIVE music element's own clock —
+// deliberately not a wall-clock setTimeout, which would fire while the tab is
+// hidden and the element paused (see visibilitychange handler above) and could
+// fire an advance against audio that isn't actually progressing. `loop` stays
+// true on both elements throughout, so if a tick is ever missed (tab hidden
+// right through the window, a slow device, etc.) the track just loops again
+// rather than going silent.
+function playlistPollTick(gen) {
+  if (gen !== playlistGen) {
+    // superseded since this tick was scheduled — stop polling immediately
+    if (playlistPollIv) { clearInterval(playlistPollIv); playlistPollIv = null; }
+    return;
+  }
+  if (playlistAdvancing) return; // an advance is already in flight — don't double-fire
+  const el = musicEls[activeMusicSlot];
+  if (!el) return;
+  const dur = el.duration;
+  if (!Number.isFinite(dur) || dur <= 0) return; // metadata not loaded yet — nothing to measure
+  const remaining = dur - el.currentTime;
+  if (remaining > playlistCrossfadeMs / 1000) return; // not yet time to blend into the next track
+
+  playlistAdvancing = true;
+  advancePlaylistTo(gen, false).finally(() => { playlistAdvancing = false; });
+}
+
+// Moves the rotation forward (or, on the very first call from musicPlaylist(),
+// tries the current index) and hands the chosen track to the EXISTING music()
+// function, tagged with this rotation's gen so music() recognises the call as
+// its own advance step rather than an external switch. If a track fails to
+// load, music() records it in musicFailedTracks and leaves currentTrackName
+// unchanged — this loop notices that and tries the next track in the rotation
+// instead of stalling. If every track in the rotation fails, it gives up
+// silently (matches music()'s own "stay silent" convention for bad tracks).
+async function advancePlaylistTo(gen, useCurrentIndex) {
+  let first = useCurrentIndex;
+  let attempts = 0;
+  const maxAttempts = playlistTracksSrc.length + 2; // one full lap, plus slack for a wrap-reshuffle
+  while (attempts < maxAttempts) {
+    if (gen !== playlistGen) return; // superseded — bail without touching anything
+
+    if (!first) {
+      playlistIndex += 1;
+      if (playlistIndex >= playlistOrder.length) {
+        // wrap: reshuffle, never repeating the track that just finished
+        playlistOrder = reshuffleAvoidingRepeat(playlistTracksSrc, playlistOrder[playlistOrder.length - 1]);
+        playlistIndex = 0;
+      }
+    }
+    first = false;
+    attempts += 1;
+
+    const candidate = playlistOrder[playlistIndex];
+    if (musicFailedTracks.has(candidate)) continue; // known-bad — skip without a network round trip
+
+    await music(candidate, gen, playlistCrossfadeMs);
+    if (gen !== playlistGen) return; // superseded while loading/starting
+
+    if (currentTrackName === candidate) {
+      startPlaylistPoll(gen); // no-op if already running (true on every advance after the first)
+      return;
+    }
+    // else music() couldn't load/play it (now in musicFailedTracks) — loop tries the next one
+  }
+  // every track in the rotation failed to load/play — stop silently, nothing to poll
+  cancelPlaylist();
+}
+
+// Shuffles `tracks` and plays them in rotation, each crossfading into the next
+// as it nears its end, reshuffling (without repeating the last track) on every
+// wrap. Routes all playback through music() — see comment above the block.
+// opts.crossfadeMs (default 3000) is both how early before a track's natural
+// end the blend into the next track starts, AND how long that blend takes —
+// the two use the same number so the fade exactly spans the old track's
+// remaining runtime instead of over- or under-shooting it.
+function musicPlaylist(tracks, opts) {
+  if (!Array.isArray(tracks) || tracks.length === 0) return;
+
+  cancelPlaylist(); // stand down any previous rotation + its poller/gen first
+  const gen = playlistGen; // this rotation's own identity for its whole lifetime
+
+  const requested = (opts && typeof opts.crossfadeMs === 'number' && opts.crossfadeMs > 0) ? opts.crossfadeMs : 3000;
+  playlistCrossfadeMs = Math.max(100, requested); // floor so a bad opts value can't spin the poller
+  playlistTracksSrc = tracks.slice();
+  playlistOrder = shuffleFisherYates(playlistTracksSrc);
+  playlistIndex = 0;
+  playlistLive = true;
+
+  advancePlaylistTo(gen, true); // fire-and-forget, same style as startTitleMusic()'s music() call
 }
 
 // ---------- page visibility: never play music from a hidden tab ----------
@@ -651,6 +839,8 @@ export default {
   vo,
   preloadVo,
   music,
+  musicPlaylist,
+  isPlaylistLive,
   stopMusic,
   duck,
   setVolumes,

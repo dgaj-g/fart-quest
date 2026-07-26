@@ -1,10 +1,9 @@
 // FART QUEST — js/pier/modes/ghost.js (GHOST agent)
-// WHIFF-END PIER — THE GHOST TRAIN, rebuilt per docs/PIER_REWORK.md §1 (THE
-// LAYOUT LAW) and §3 "ghost" (feel overhaul). Mechanic (20-fact time trial vs
-// your own stored PB "ghost") is UNCHANGED from docs/PIER_SPEC.md §6 — this
-// pass rebuilds the chassis (mountChassis/overlay, not an in-stage veil) and
-// the whole feel (parallax tunnel, physical set-dressing reactions, a real
-// photo-finish, tail-tension escalation).
+// WHIFF-END PIER — THE GHOST TRAIN. Mechanic (20-fact time trial vs your own
+// stored PB "ghost", splits/PB atomicity, first-run Nana's Dare framing) is
+// UNCHANGED from docs/PIER_SPEC.md §6 across every pass. See docs/
+// PIER_REWORK.md §1 (THE LAYOUT LAW) and §3 "ghost" for the chassis + feel
+// contract this file implements.
 //
 // CHASSIS: uses `pier.mountChassis(opts)` (js/pier/padkit.js, HUB/CHASSIS
 // agent) for the [hud][stage][dock] skeleton and its screen-level
@@ -14,21 +13,33 @@
 // clipped `.pier-mode-host`, and would have sliced controls the same way
 // splat's `.splat-veil` did).
 //
-// FLEX-CONTAINER GAP (flagged for the chassis owner, see final report):
-// `mountChassis()` adds a `.pier-chassis` class to whatever container it's
-// given (padkit.js), but css/pier.css never defines `display:flex;
-// flex-direction:column` for that class — only `.pier-screen.screen` (the
-// HUB route) gets that treatt via a different selector. A MODE route's
-// container is `.pier-mode-host`, which is styled as a flex ITEM (flex:1 1
-// auto) but never declared to be a flex CONTAINER for its own children — so
-// without this, `.pier-hud`/`.pier-stage`/`.pier-dock`'s `flex:none` /
-// `flex:1 1 auto` rules would have zero effect (they'd just stack as plain
-// blocks, stage would grow to content height, and the dock could be pushed
-// off-screen — THE EXACT v1 BUG). Fixed here, scoped to this mode only, via
-// the ALREADY-applied `.pier-chassis` hook (no chassis file touched):
-//   `.pier-mode-host.pier-chassis { display:flex; flex-direction:column; }`
-// See this file's final report for the recommendation to promote this one
-// rule to css/pier.css so every future mode gets it for free.
+// REWORK v2, THIRD PASS (F2/F3 fix pass, THIS pass) — the chassis owner has
+// rewritten `.pier-mode-host.pier-chassis` into a CSS GRID (css/pier.css
+// §1a): on landscape ≥680px (all three proven sizes clear this) the stage
+// becomes a TALL LEFT COLUMN at near-full height and the dock becomes a
+// compact right-hand numpad column, instead of the old squashed
+// stage-on-top-of-a-tall-numpad stack that starved the tunnel to a 92-148px
+// sliver. This file's own former workaround — `.pier-mode-host.pier-chassis
+// { display:flex; flex-direction:column; }`, added back when css/pier.css
+// had no rule for `.pier-chassis` at all — is now DELETED (css/pier.css's
+// own header comment calls this exact rule out by name): keeping it would
+// re-impose the old single-column flex stack and silently defeat the new
+// grid, even though the grid rules carry `!important` as a safety net for
+// exactly this handoff window.
+//
+// F3 (this pass's PRIMARY target): with a genuinely tall stage now available
+// (measured ~400-620px at the three proven sizes, vs v1's 92-148px sliver),
+// `.gh-tunnel` is rebuilt into a real full-height scene instead of a thin
+// decorated strip — three background layers scroll continuously at three
+// different speeds (far wall slowest+dimmest, mid arches medium, sleeper
+// floor fastest+nearest — genuine parallax depth, each with its OWN
+// loop-distance so none of them stutters, not one shared scroll rate), the
+// PB ghost cart's lantern-glow escalates (colour + pulse + scale) the moment
+// the live split gap closes to one station (checkTailTension()), a
+// skeleton recites a flavour-only times-table snippet on a miss (never the
+// live fact — no hint leak), and a checkered finish-line strip spans the
+// full tunnel height at the far end so the closing photo-finish reads as a
+// real line being crossed, not an emoji sitting in a progress bar.
 import {
   el, sfx, tween, toast, sparkleBurst, party, injectCss,
 } from '../../anims/_kit.js';
@@ -51,10 +62,19 @@ const TOTAL = 20;
 const TAIL_GAP = 1; // stations — "within one station" per the rework brief
 const TAIL_RESET_GAP = 2.5; // hysteresis so the tension beat doesn't spam
 
-const CSS = `
-/* ---------- flex-container fix for the mode-route chassis (see header) ---------- */
-.pier-mode-host.pier-chassis { display: flex; flex-direction: column; }
+// The skeleton's "reciting a times table" set-dressing beat (F3) — pure
+// flavour text, deliberately NOT drawn from the live fact/answer (that would
+// be a hint leak on a miss, rule ②). Just a silly, unrelated recitation.
+const SKEL_RECITALS = [
+  '…seven eights are fifty-six…',
+  '…nine nines are eighty-one…',
+  '…six sevens are forty-two…',
+  '…four twelves are forty-eight…',
+  '…three elevens are thirty-three…',
+  '…eight fours are thirty-two…',
+];
 
+const CSS = `
 /* ---------- HUD ---------- */
 .gh-hud { row-gap: 8px; }
 .gh-chip {
@@ -67,17 +87,30 @@ const CSS = `
 .gh-fact-n { color: var(--pier-pink, #ff4fa3); }
 
 /* ---------- STAGE ---------- */
+/* F3: no align-items:center override here any more — the default
+   align-items:stretch on a flex COLUMN lets .gh-tunnel (width:100%
+   below) fill the stage's full width automatically, while .gh-stem opts
+   itself back OUT of that stretch with its own align-self:center (right
+   below) so the question card stays a compact centred pill, not a
+   full-width stretched banner. This is what turns the stage from "a narrow
+   centred column with dead space either side" into the tall, wide scene F3
+   asks for. NOTE: this CSS lives inside a JS template literal (the CSS
+   const, below) — never use backtick characters in these comments, they
+   close the string early and corrupt the whole module (measured:
+   "SyntaxError: Unexpected identifier 'align'" the first time this rule was
+   broken). */
 .gh-stage {
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-  gap: clamp(3px, 1vh, 8px);
-  padding: clamp(4px, 1vh, 10px) clamp(8px, 2vw, 16px) clamp(2px, .6vh, 6px);
+  display: flex; flex-direction: column;
+  gap: clamp(6px, 1.4vh, 14px);
+  padding: clamp(6px, 1.4vh, 14px) clamp(10px, 1.8vw, 20px) clamp(6px, 1.2vh, 12px);
 }
 .gh-stem {
+  flex: none; align-self: center;
   background: var(--card); color: var(--ink); border-radius: 14px;
   box-shadow: 0 4px 0 rgba(0, 0, 0, .25), 0 8px 16px rgba(0, 0, 0, .3);
-  padding: clamp(3px, .9vh, 9px) clamp(14px, 3vw, 24px);
-  font-weight: 700; font-size: clamp(16px, 3.4vh, 27px); text-align: center;
-  min-width: 150px;
+  padding: clamp(4px, 1.1vh, 11px) clamp(16px, 3vw, 26px);
+  font-weight: 700; font-size: clamp(17px, 3.6vh, 29px); text-align: center;
+  min-width: 160px;
 }
 .gh-stem.gh-flash-correct { animation: gh-flash-green .55s ease; }
 .gh-stem.gh-flash-wrong { animation: gh-shake-card .45s ease; }
@@ -91,45 +124,87 @@ const CSS = `
   60% { translate: -4px 0; } 80% { translate: 3px 0; }
 }
 
-/* ---------- TUNNEL ---------- */
+/* ---------- TUNNEL (F3: a genuine full-height scene, see header) ---------- */
 .gh-tunnel {
-  position: relative; width: min(680px, 100%); border-radius: 20px;
-  height: clamp(66px, 17vh, 148px);
+  position: relative; width: 100%; flex: 1 1 auto; min-height: 0;
+  border-radius: 20px;
+  display: flex; flex-direction: column; justify-content: space-around;
+  padding: clamp(10px, 3vh, 26px) 0;
   overflow: hidden; /* pure decoration inside (rule §1.5) — no controls ever live here */
-  box-shadow: inset 0 0 26px rgba(0, 0, 0, .55), 0 6px 0 rgba(0, 0, 0, .3);
-  background: linear-gradient(180deg, #241a3c, #140f26);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, .6), 0 6px 0 rgba(0, 0, 0, .3);
+  background: linear-gradient(180deg, #241a3c 0%, #1b1430 55%, #100c1e 100%);
 }
-.gh-wall, .gh-sleepers {
-  position: absolute; inset: 0; opacity: .5; pointer-events: none;
-  background-repeat: repeat-x; background-size: 46px 100%;
-  animation: gh-scroll 2.6s linear infinite; animation-play-state: paused;
+
+/* Three depth bands at three speeds — the actual parallax (F3's core ask):
+   far wall slowest+dimmest, mid arches medium, sleeper floor fastest+
+   nearest underfoot. Each layer gets its OWN keyframe (not a shared one) so
+   its loop restart lands on an exact multiple of ITS OWN background-size —
+   a shared scroll distance would visibly stutter for whichever layer's tile
+   width didn't divide it evenly. */
+.gh-wall, .gh-arches, .gh-sleepers {
+  position: absolute; inset: 0; pointer-events: none;
+  background-repeat: repeat-x; animation-play-state: paused;
 }
-.gh-tunnel.gh-running .gh-wall, .gh-tunnel.gh-running .gh-sleepers { animation-play-state: running; }
-.gh-wall { background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 2px, transparent 2px 46px); animation-duration: 3.6s; }
+.gh-tunnel.gh-running .gh-wall,
+.gh-tunnel.gh-running .gh-arches,
+.gh-tunnel.gh-running .gh-sleepers { animation-play-state: running; }
+.gh-wall {
+  opacity: .4; background-size: 56px 100%;
+  background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.07) 0 2px, transparent 2px 56px);
+  animation: gh-scroll-wall 3.8s linear infinite;
+}
+@keyframes gh-scroll-wall { from { background-position: 0 0; } to { background-position: -56px 0; } }
+.gh-arches {
+  top: 4%; bottom: 22%; opacity: .5; background-size: 148px 100%;
+  background-image: radial-gradient(ellipse 56px 130% at 50% -18%, transparent 82%, rgba(8, 5, 20, .78) 85%, transparent 100%);
+  animation: gh-scroll-arch 2.4s linear infinite;
+}
+@keyframes gh-scroll-arch { from { background-position: 0 0; } to { background-position: -148px 0; } }
 .gh-sleepers {
-  bottom: 0; top: auto; height: 26%;
-  background-image: repeating-linear-gradient(90deg, rgba(0,0,0,.35) 0 8px, transparent 8px 26px);
-  animation-duration: 1.4s; opacity: .8;
+  top: auto; bottom: 0; height: 16%; opacity: .85; background-size: 32px 100%;
+  background-image: repeating-linear-gradient(90deg, rgba(0,0,0,.42) 0 8px, rgba(120,90,60,.3) 8px 10px, transparent 10px 32px);
+  animation: gh-scroll-floor 1.05s linear infinite;
 }
-@keyframes gh-scroll { from { background-position: 0 0; } to { background-position: -46px 0; } }
+@keyframes gh-scroll-floor { from { background-position: 0 0; } to { background-position: -32px 0; } }
+
+/* Soft edge vignette on top — reads as "looking down a tunnel", not a flat
+   stack of layered rectangles. z-index:2, same tier as the finish assets/
+   fly-tag/skel-bubble below — appended last so it sits over them (their
+   own alpha is high enough near the (mostly-transparent) centre that this
+   doesn't hurt legibility); the carts stay at z-index:3, above the
+   vignette, so gameplay is never dimmed. */
+.gh-vignette {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: radial-gradient(130% 90% at 50% 42%, transparent 58%, rgba(0, 0, 0, .55) 100%);
+}
 
 .gh-lantern-glow {
-  position: absolute; inset: -20% -10% auto -10%; height: 70%;
-  background: radial-gradient(60% 100% at 50% 0%, rgba(255, 233, 168, .28), transparent 70%);
+  position: absolute; inset: -20% -10% auto -10%; height: 62%;
+  background: radial-gradient(60% 100% at 50% 0%, rgba(255, 233, 168, .3), transparent 72%);
   animation: gh-lantern-wobble 2.2s ease-in-out infinite; pointer-events: none;
 }
 @keyframes gh-lantern-wobble { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 .gh-lamprow { position: absolute; top: 5px; left: 0; right: 0; display: flex; justify-content: space-around; z-index: 1; }
 .gh-lamp { width: 6px; height: 6px; border-radius: 50%; background: var(--pier-bulb, #ffe9a8); box-shadow: 0 0 8px 2px var(--pier-bulb, #ffe9a8); animation: pier-bulb-flicker 1.6s ease-in-out infinite; }
 
-.gh-web { position: absolute; font-size: 16px; opacity: .4; z-index: 1; }
-.gh-web-l { top: -4px; left: -2px; } .gh-web-r { top: -4px; right: -2px; transform: scaleX(-1); }
-.gh-bat { position: absolute; top: 12%; font-size: 13px; opacity: .55; pointer-events: none; z-index: 1; animation: gh-drift 8s ease-in-out infinite; }
-.gh-bat-b { top: 30%; font-size: 11px; animation-duration: 11s; animation-delay: 1.8s; }
+/* Near-foreground cobwebs — the spec's "near cobwebs" layer deliberately
+   does NOT scroll with the far/mid layers (they're corner-fixed framing,
+   closest to the "camera"); a gentle continuous sway keeps them feeling
+   alive rather than static wallpaper. */
+.gh-web {
+  position: absolute; font-size: 20px; opacity: .45; z-index: 1;
+  animation: gh-web-sway 3.2s ease-in-out infinite;
+}
+.gh-web-l { top: -6px; left: -2px; transform-origin: 20% 0%; }
+.gh-web-r { top: -6px; right: -2px; transform: scaleX(-1); transform-origin: 80% 0%; }
+@keyframes gh-web-sway { 0%, 100% { rotate: -2deg; } 50% { rotate: 2deg; } }
+
+.gh-bat { position: absolute; top: 14%; font-size: 14px; opacity: .55; pointer-events: none; z-index: 1; animation: gh-drift 8s ease-in-out infinite; }
+.gh-bat-b { top: 36%; font-size: 12px; animation-duration: 11s; animation-delay: 1.8s; }
 @keyframes gh-drift { 0% { left: -6%; } 50% { left: 96%; transform: translateY(-6px); } 100% { left: -6%; } }
 
 .gh-sheet {
-  position: absolute; top: 8%; right: 8%; font-size: 18px; opacity: 0; z-index: 1;
+  position: absolute; top: 10%; right: 8%; font-size: 20px; opacity: 0; z-index: 1;
   transform-origin: 50% 0%;
 }
 .gh-sheet.gh-react { animation: gh-flap .65s ease; }
@@ -140,7 +215,7 @@ const CSS = `
   100% { opacity: 0; rotate: 0deg; scale: .8; }
 }
 .gh-skel {
-  position: absolute; top: 10%; left: 6%; font-size: 17px; opacity: 0; z-index: 1;
+  position: absolute; top: 58%; left: 6%; font-size: 19px; opacity: 0; z-index: 1;
 }
 .gh-skel.gh-react { animation: gh-rattle .65s ease; }
 @keyframes gh-rattle {
@@ -148,6 +223,21 @@ const CSS = `
   15% { opacity: 1; translate: 0 0; }
   30% { rotate: -10deg; } 50% { rotate: 10deg; } 70% { rotate: -6deg; } 85% { rotate: 4deg; }
   100% { opacity: 0; rotate: 0deg; }
+}
+/* The skeleton's "reciting a times table" beat — flavour text ONLY, picked
+   from SKEL_RECITALS (never the live fact/answer — no hint leak, rule ②). */
+.gh-skel-bubble {
+  position: absolute; top: 46%; left: 13%; z-index: 2; opacity: 0;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 9.5px; letter-spacing: .01em;
+  color: #e4ffe6; background: rgba(20, 45, 22, .68); border-radius: 8px; padding: 3px 7px;
+  white-space: nowrap; pointer-events: none;
+}
+.gh-skel-bubble.gh-react { animation: gh-skel-bubble-pop .9s ease; }
+@keyframes gh-skel-bubble-pop {
+  0% { opacity: 0; translate: 0 4px; }
+  18% { opacity: 1; translate: 0 0; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .gh-fly-tag {
@@ -165,35 +255,55 @@ const CSS = `
 @keyframes gh-speed-burst { 0% { opacity: 0; translate: 40px 0; } 30% { opacity: 1; } 100% { opacity: 0; translate: -40px 0; } }
 
 .gh-track {
-  position: relative; z-index: 2; height: clamp(24px, 6vh, 42px);
-  border-radius: 12px; margin: clamp(2px, .6vh, 6px) 8px;
-  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.28));
-  box-shadow: inset 0 2px 5px rgba(0,0,0,.5);
+  position: relative; z-index: 3; height: clamp(30px, 8.5vh, 60px);
+  border-radius: 14px; margin: clamp(2px, .8vh, 8px) clamp(8px, 2vw, 22px);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.3));
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.5);
 }
 .gh-track-tag {
-  position: absolute; top: -14px; left: 2px; font-family: 'Fredoka', sans-serif; font-weight: 700;
-  font-size: 9px; letter-spacing: .06em; color: rgba(246, 235, 212, .7);
+  position: absolute; top: -15px; left: 2px; font-family: 'Fredoka', sans-serif; font-weight: 700;
+  font-size: 9.5px; letter-spacing: .06em; color: rgba(246, 235, 212, .7);
 }
 .gh-cart {
   position: absolute; top: 50%; left: 4%; translate: -50% -50%;
-  font-size: clamp(16px, 4vh, 26px); z-index: 3; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+  font-size: clamp(19px, 5.5vh, 34px); z-index: 3; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
 }
-.gh-cart-ghost { opacity: .65; filter: drop-shadow(0 0 8px rgba(47,227,196,.75)); }
+.gh-cart-ghost { opacity: .8; filter: drop-shadow(0 0 10px rgba(47,227,196,.85)) drop-shadow(0 0 22px rgba(47,227,196,.5)); }
+/* Escalation, F3: when checkTailTension() flags the gap has closed to one
+   station, the ghost's lantern doesn't just sit there glowing — it flips to
+   an urgent pink pulse-and-grow so "IT'S ON YOUR TAIL" is legible at a
+   glance, not just read in a caption. */
+.gh-cart-ghost.gh-tension-cart { animation: gh-lantern-pulse .7s ease-in-out infinite; }
+@keyframes gh-lantern-pulse {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(255,79,163,.9)) drop-shadow(0 0 24px rgba(255,79,163,.6)); scale: 1; }
+  50% { filter: drop-shadow(0 0 18px rgba(255,79,163,1)) drop-shadow(0 0 34px rgba(255,79,163,.9)); scale: 1.28; }
+}
 .gh-cart.gh-wobble { animation: gh-wobble .45s ease; }
 @keyframes gh-wobble {
   0%, 100% { rotate: 0deg; } 25% { rotate: -10deg; translate: calc(-50% - 3px) -50%; }
   50% { rotate: 9deg; translate: calc(-50% + 3px) -50%; } 75% { rotate: -6deg; }
 }
 .gh-track-ghost.gh-tension { animation: gh-tension-pulse .9s ease-in-out infinite; }
-@keyframes gh-tension-pulse { 0%, 100% { box-shadow: inset 0 2px 5px rgba(0,0,0,.5); } 50% { box-shadow: inset 0 2px 5px rgba(0,0,0,.5), 0 0 14px 3px rgba(255,79,163,.55); } }
+@keyframes gh-tension-pulse { 0%, 100% { box-shadow: inset 0 2px 6px rgba(0,0,0,.5); } 50% { box-shadow: inset 0 2px 6px rgba(0,0,0,.5), 0 0 16px 4px rgba(255,79,163,.55); } }
 .gh-dare-pill {
   position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
   text-align: center; font-family: 'Fredoka', sans-serif; font-weight: 700;
-  font-size: 10.5px; color: var(--pier-bulb, #ffe9a8); padding: 0 10px; letter-spacing: .02em;
+  font-size: 11px; color: var(--pier-bulb, #ffe9a8); padding: 0 10px; letter-spacing: .02em;
 }
 .gh-track-ghost.gh-no-ghost .gh-cart-ghost { opacity: 0; }
 .gh-track-ghost.gh-no-ghost .gh-dare-pill { display: flex; }
-.gh-finish { position: absolute; right: 2px; top: 50%; translate: 0 -50%; font-size: 15px; z-index: 2; }
+
+/* Checkered finish-line STRIP spans the whole tunnel height (a real line to
+   cross, not an emoji sitting in a bar) plus the flag itself above it. */
+.gh-finish {
+  position: absolute; right: 3%; top: 4%; bottom: 4%; width: clamp(8px, 1.4vw, 14px);
+  background: repeating-linear-gradient(180deg, #f4f4f4 0 9px, #1a1a1a 9px 18px);
+  border-radius: 4px; box-shadow: 0 0 10px rgba(255,255,255,.35); z-index: 2;
+}
+.gh-finish-flag {
+  position: absolute; right: calc(3% + clamp(8px, 1.4vw, 14px) + 6px); top: 4%;
+  font-size: clamp(16px, 3.4vh, 26px); z-index: 2;
+}
 
 /* ---------- DOCK ---------- */
 .gh-numpad-wrap { display: flex; justify-content: center; }
@@ -236,9 +346,10 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gh-wall, .gh-sleepers, .gh-lantern-glow, .gh-bat, .gh-lamp, .gh-track-ghost.gh-tension,
+  .gh-wall, .gh-arches, .gh-sleepers, .gh-lantern-glow, .gh-web, .gh-bat, .gh-lamp,
+  .gh-track-ghost.gh-tension, .gh-cart-ghost.gh-tension-cart,
   .gh-trophy, .gh-photo-veil, .gh-photo-card { animation: none !important; }
-  .gh-wall, .gh-sleepers { animation-play-state: paused !important; }
+  .gh-wall, .gh-arches, .gh-sleepers { animation-play-state: paused !important; }
 }
 `;
 
@@ -323,6 +434,7 @@ export default {
     const tunnel = el('div', 'gh-tunnel');
     tunnel.append(
       el('div', 'gh-wall'),
+      el('div', 'gh-arches'),
       el('div', 'gh-sleepers'),
       el('div', 'gh-lantern-glow'),
     );
@@ -335,12 +447,13 @@ export default {
     const speedlines = el('div', 'gh-speedlines');
     const sheet = el('span', 'gh-sheet', '🫥');
     const skel = el('span', 'gh-skel', '💀');
+    const skelBubble = el('span', 'gh-skel-bubble', '');
     tunnel.append(
       el('span', 'gh-web gh-web-l', '🕸️'),
       el('span', 'gh-web gh-web-r', '🕸️'),
       el('span', 'gh-bat gh-bat-a', '🦇'),
       el('span', 'gh-bat gh-bat-b', '🦇'),
-      sheet, skel, speedlines, lampRow,
+      sheet, skel, skelBubble, speedlines, lampRow,
     );
 
     const trackPlayer = el('div', 'gh-track gh-track-player');
@@ -355,8 +468,13 @@ export default {
     );
     const cartGhost = trackGhost.querySelector('.gh-cart-ghost');
 
-    const finishFlag = el('div', 'gh-finish', '🏁');
-    tunnel.append(trackPlayer, trackGhost, finishFlag);
+    // F3: a real finish LINE (checkered strip, full tunnel height) behind the
+    // flag emoji, not just the flag sitting alone in a bar — plus the
+    // vignette last so it sits over the background layers/decor (see its
+    // own CSS comment for the stacking-order reasoning).
+    const finishStrip = el('div', 'gh-finish');
+    const finishFlagEmoji = el('div', 'gh-finish-flag', '🏁');
+    tunnel.append(trackPlayer, trackGhost, finishStrip, finishFlagEmoji, el('div', 'gh-vignette'));
 
     chassis.stage.append(stemCard, tunnel);
 
@@ -381,11 +499,16 @@ export default {
       if (!tailActive && gap <= TAIL_GAP) {
         tailActive = true;
         trackGhost.classList.add('gh-tension');
+        // The lantern itself escalates (colour + pulse + scale), not just
+        // the track's box-shadow — "IT'S ON YOUR TAIL" needs to be legible
+        // at a glance on the cart a child is actually watching.
+        cartGhost.classList.add('gh-tension-cart');
         const line = pick(rng, LINES.nearMiss);
         if (line) pier.say(line);
       } else if (tailActive && gap > TAIL_RESET_GAP) {
         tailActive = false;
         trackGhost.classList.remove('gh-tension');
+        cartGhost.classList.remove('gh-tension-cart');
       }
     }
 
@@ -449,9 +572,12 @@ export default {
         const line = pick(rng, LINES.daveTheft);
         if (line) pier.say(line);
       } else {
+        skelBubble.textContent = pick(rng, SKEL_RECITALS);
         skel.classList.remove('gh-react');
+        skelBubble.classList.remove('gh-react');
         void skel.offsetWidth;
         skel.classList.add('gh-react');
+        skelBubble.classList.add('gh-react');
         const line = pick(rng, GREMLIN_LINES.taunt);
         if (line) pier.say(line);
       }
@@ -614,6 +740,7 @@ export default {
       cartPlayer.classList.remove('gh-wobble');
       stemCard.classList.remove('gh-flash-correct', 'gh-flash-wrong');
       trackGhost.classList.remove('gh-tension');
+      cartGhost.classList.remove('gh-tension-cart');
       tunnel.classList.add('gh-running');
 
       trackGhost.classList.toggle('gh-no-ghost', !usableSplits);

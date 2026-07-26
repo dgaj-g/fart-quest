@@ -20,43 +20,71 @@
 //
 // *** CHASSIS: uses pier.mountChassis(), never an in-stage veil ***
 // hud/stage/dock via `pier.mountChassis(opts)` (js/pier/padkit.js). The
-// numpad and every primary-action button live in `dock` (flex:none, never
-// shrinks/clips — THE LAYOUT LAW §1.3); only decorative/informational
-// content (the tank glass, the gremlin grid, the question card) lives in
-// `stage` (flex:1; min-height:0 — the one thing allowed to shrink). The
-// round-complete SCORECARD goes through `chassis.overlay()` (screen-level,
-// `translate:`-centred, `max-height:calc(100dvh-32px)`) per §1.4's explicit
-// "scorecards" listing — v1 rendered that card loose inside the stage,
-// which is exactly the pattern §1.4 forbids.
+// numpad and every primary-action button live in `dock` (never shrinks/
+// clips — THE LAYOUT LAW §1.3); only decorative/informational content (the
+// tank glass, the gremlin grid, the question card) lives in `stage` (the one
+// thing allowed to shrink/grow). The round-complete SCORECARD goes through
+// `chassis.overlay()` (screen-level, `translate:`-centred,
+// `max-height:calc(100dvh-32px)`) per §1.4's explicit "scorecards" listing.
 //
-// *** CHASSIS GAP, independently re-found + worked around here too ***
-// `mountChassis(container, opts)` tags `container` with a `.pier-chassis`
-// class expecting it to already BE (or become) a flex column, but
-// `css/pier.css` has no rule for `.pier-chassis` and `.pier-mode-host`
-// itself is only a flex ITEM (`flex:1 1 auto`), never a flex CONTAINER for
-// its own hud/stage/dock children — without a fix, THIS file's dock could
-// be pushed off-screen exactly like v1's bug. The GHOST and GUNGE agents
-// hit and flagged the identical gap in their own files (their headers cite
-// the same grep-confirmed absence in css/pier.css); this file applies the
-// SAME one-line, same-selector fix for consistency (idempotent with theirs
-// — identical declarations, so no cascade fight regardless of mount order):
-//   .pier-mode-host.pier-chassis { display:flex; flex-direction:column; }
-// See the final report for the recommendation to promote this single rule
-// into css/pier.css so no future mode has to rediscover it.
+// *** REWORK v2, SECOND PASS (F1/F2/F4/F5) — adopt the landscape chassis,
+// stop wasting the taller stage, fix the chip-text spacing bug ***
+// The chassis (js/screens/pier.js / css/pier.css / js/pier/padkit.js) has
+// just been rewritten so a mode route is a CSS GRID: stacked [hud][stage]
+// [dock] on portrait/narrow, but `[hud hud]`/`[stage dock]` SIDE BY SIDE once
+// the viewport is landscape and >=680px wide (all three proven sizes
+// qualify) — the stage becomes a TALL LEFT COLUMN, not a squashed horizontal
+// band, and css/pier.css's own `.pier-chassis` rule now owns that grid
+// directly (with `!important` on the grid-defining properties) — a mode's
+// own local `.pier-mode-host.pier-chassis { display:flex; … }` workaround
+// (this file used to carry one) is now REDUNDANT and has been deleted per
+// that file's explicit "MODE AGENTS: DELETE YOUR LOCAL WORKAROUND" note.
+// F1 (touch targets >=60px) is now satisfied for free by the shared numpad
+// (`.pier-numpad-key`, css/pier.css, clamp()-floored at 60px) and this
+// file's own dock buttons (`.pt-dock-btn`/`.pt-complete-btn`,
+// min-height:60px) — nothing in this file overrides that downward.
+// F5 (this file's own defect: "~200px of dead gap between the tank art and
+// the buttons" on the fresh-profile state) turned out to be the SAME root
+// cause as F2 wearing a different hat: `.pt-tank-glass` was a hardcoded
+// 92px tall regardless of how much real vertical room the (now correctly-
+// sized, grid-stretched) stage actually had. FIX: `.pt-empty-wrap`/
+// `.pt-tank-glass` now `flex:1 1 auto; min-height:0` inside a `.pt-body`
+// that is itself a real-height flex column (the stage's grid-stretched
+// height, not a guess) — the glass grows to consume whatever vertical room
+// the stage has, at ANY of the three proven sizes or the old stacked
+// layout, with zero magic-number tuning per size. The SAME `.pt-empty-wrap`
+// container is reused for FRESH, CLEAN *and* AQUARIUM (previously aquarium
+// had no tank-glass backdrop at all and was just as prone to the identical
+// dead-space problem) — see `buildTankGlass()` below.
+// F4 (chip text losing its spaces: "🚽0gremlins flushed") — this file's own
+// `paintFlushChip()`/`paintProgress()` had the EXACT bug js/screens/pier.js
+// found and fixed on the hub's flushed-counter chip: `.pier-flushed-chip`/
+// `.pt-progress-chip` are `display:flex`, and mixing a raw text run with a
+// `<b>` element directly as siblings makes flexbox wrap each maximal run of
+// inline content in its own anonymous flex item — which TRIMS that item's
+// own leading/trailing whitespace, silently eating the space either side of
+// `<b>`. Fix (identical to the hub's): wrap the WHOLE label in one inline
+// `<span>` so it's the flex container's only child/flex item, where ordinary
+// inline whitespace rules apply throughout its content.
+// "Gremlins swim with personality" — each aquarium card now gets its own
+// drift/bob amplitude, duration and delay (hashed off its index, set as CSS
+// custom properties) so several gremlins in the same tank never move in
+// visual lockstep, on top of the tank itself finally being a proper
+// aquarium backdrop (gravel, swaying weed, rising bubbles) instead of a bare
+// card grid floating in empty stage space.
 //
 // *** OVERLAY CONFETTI GOTCHA (found + worked around) ***
 // `chassis.overlay()`'s veil is `position:fixed; z-index:200` on
-// `.pier-screen` — an ancestor with a permanently pinned `transform`
-// (css/pier.css's own header comment explains why: `.enter-pop`'s
-// `animation-fill-mode:both`), which makes `.pier-screen` a stacking
-// context. `party()`/`sparkleBurst()` append particles as children of
-// whatever element they're given; calling them on `chassis.stage` while
-// the round-complete veil is showing would render the confetti UNDER the
-// veil (z-index 24 vs 200) — invisible. Fixed by targeting the overlay's
-// OWN veil element (`ov.el`, returned by `chassis.overlay()`) for any
-// celebration fired at round-complete time, and reserving `chassis.stage`
-// for celebrations fired while no veil is up (the CLEAN state's own
-// sparkle, which renders directly with nothing covering it).
+// `.pier-screen` — an ancestor that establishes a stacking context (see
+// css/pier.css's header comment §3). `party()`/`sparkleBurst()` append
+// particles as children of whatever element they're given; calling them on
+// `chassis.stage` while the round-complete veil is showing would render the
+// confetti UNDER the veil (z-index 24 vs 200) — invisible. Fixed by
+// targeting the overlay's OWN veil element (`ov.el`, returned by
+// `chassis.overlay()`) for any celebration fired at round-complete time, and
+// reserving `chassis.stage` for celebrations fired while no veil is up (the
+// CLEAN state's own sparkle, which renders directly with nothing covering
+// it).
 //
 // *** DELIBERATE DEVIATION: no separate "welcome overlay to dismiss" ***
 // PIER_SPEC §6's common preamble describes every machine opening with a
@@ -76,8 +104,9 @@
 // flight is the only state-driven motion in this file, and it goes through
 // kit `tween()` — everything else is either a discrete DOM swap or an
 // ambient CSS @keyframes loop, which is the established codebase norm for
-// idle/decorative motion, not the "no bare rAF" rule's target); cleanup
-// cancels every timer/tween/numpad/on-screen-text registration it made.
+// idle/decorative motion — net sway, rising bubbles, swaying weed, gremlins
+// swimming — not the "no bare rAF" rule's target); cleanup cancels every
+// timer/tween/numpad/on-screen-text registration it made.
 
 import {
   el, sfx, tween, sparkleBurst, party, injectCss,
@@ -139,10 +168,7 @@ function gremlinInfo(family, fallbackName) {
 
 /* ---------- styles ---------- */
 const CSS = `
-/* ---- chassis flex-container fix (see header block) ---- */
-.pier-mode-host.pier-chassis { display: flex; flex-direction: column; }
-
-.pt-body { display:flex; flex-direction:column; }
+.pt-body { display:flex; flex-direction:column; width:100%; height:100%; box-sizing:border-box; padding:clamp(4px,1vh,10px) clamp(8px,1.6vw,16px); }
 
 /* ---- HUD chips ---- */
 .pt-title-chip, .pt-progress-chip {
@@ -162,54 +188,105 @@ const CSS = `
 .pt-dock-row { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center; width:100%; }
 .pt-dock-btn { min-height:60px; padding:0 20px; font-size:14.5px; }
 
-/* ---- fresh / clean: the tank shell ---- */
-.pt-empty-wrap { display:flex; flex-direction:column; align-items:center; gap:10px; padding:10px 14px; text-align:center; max-width:420px; margin:0 auto; }
+/* ---- fresh / clean / aquarium: the tank shell — F5/F2 fix. .pt-empty-wrap
+   is flex:1 1 auto; min-height:0 inside .pt-body (a real-height flex
+   column, courtesy of the chassis grid stretching .pier-stage to the
+   actual "stage" grid-row height — no vh guessing needed), and
+   .pt-tank-glass is in turn flex:1 1 auto inside THAT — the glass grows
+   to consume whatever vertical room the (now genuinely tall, on landscape)
+   stage has, rather than sitting at a hardcoded 92px with ~200px of dead air
+   below it. Reused identically by all three idle states so the fix applies
+   everywhere at once, not just the fresh state it was measured on. ---- */
+.pt-empty-wrap {
+  display:flex; flex-direction:column; align-items:center; gap:clamp(8px,1.6vh,16px);
+  flex:1 1 auto; min-height:0; width:100%; max-width:680px; margin:0 auto;
+  padding:4px 14px; box-sizing:border-box; text-align:center;
+}
 .pt-tank-glass {
-  position:relative; width:min(210px,58vw); height:92px; border-radius:var(--r-md); overflow:hidden;
-  background:linear-gradient(180deg, rgba(47,227,196,.12), rgba(10,18,48,.55) 70%);
-  border:3px solid rgba(47,227,196,.28); box-shadow:inset 0 0 28px rgba(47,227,196,.1), 0 6px 0 rgba(0,0,0,.3);
+  position:relative; flex:1 1 auto; min-height:110px; width:100%; max-width:640px;
+  border-radius:var(--r-lg); overflow:hidden; box-sizing:border-box;
+  background:linear-gradient(180deg, rgba(47,227,196,.16), rgba(10,18,48,.6) 74%);
+  border:4px solid rgba(47,227,196,.3);
+  box-shadow:inset 0 0 40px rgba(47,227,196,.12), inset 0 -20px 32px rgba(6,10,26,.5), 0 8px 0 rgba(0,0,0,.3);
   display:flex; align-items:center; justify-content:center;
 }
-.pt-tank-glass::before, .pt-tank-glass::after {
-  content:''; position:absolute; width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.3);
-  bottom:-10px; animation:pt-bubble-rise 4.6s linear infinite;
+/* Aquarium variant: gremlin cards start near the top (not vertically
+   centred as a block) so a tank with several gremlins scrolls internally
+   (defensive fallback, §1.5 — never clipped) instead of squashing. */
+.pt-glass-aquarium { align-items:flex-start; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
+
+/* ---- ambient tank decor: gravel bed, swaying weed, rising bubbles.
+   All position:absolute (removed from flow) so, by normal painting order,
+   they'd otherwise render ABOVE static in-flow content (net/stamp/grid) —
+   those all get position:relative;z-index:1 below specifically to win
+   that stacking fight and stay legible on top of the decor. ---- */
+.pt-gravel {
+  position:absolute; left:0; right:0; bottom:0; height:15%; z-index:0;
+  background:linear-gradient(180deg, rgba(199,158,92,.4), rgba(94,68,30,.62));
+  border-top:2px solid rgba(255,255,255,.08);
 }
-.pt-tank-glass::before { left:22%; animation-delay:.2s; }
-.pt-tank-glass::after { left:68%; width:6px; height:6px; animation-delay:1.6s; }
-@keyframes pt-bubble-rise { 0% { translate:0 0; opacity:.7; } 90% { opacity:.4; } 100% { translate:0 -104px; opacity:0; } }
-.pt-net { font-size:34px; rotate:-12deg; animation:pt-net-sway 2.4s ease-in-out infinite; filter:drop-shadow(0 3px 4px rgba(0,0,0,.4)); }
-@keyframes pt-net-sway { 0%,100% { rotate:-14deg; } 50% { rotate:-4deg; } }
+.pt-plant {
+  position:absolute; bottom:11%; z-index:0; font-size:clamp(22px,5vh,40px);
+  filter:drop-shadow(0 3px 4px rgba(0,0,0,.35)); transform-origin:bottom center;
+  animation:pt-plant-sway 3.4s ease-in-out infinite;
+}
+.pt-plant-a { left:7%; animation-delay:0s; }
+.pt-plant-b { right:8%; animation-delay:1.1s; font-size:clamp(18px,4.2vh,32px); }
+@keyframes pt-plant-sway { 0%,100% { rotate:-6deg; } 50% { rotate:6deg; } }
+.pt-bubble {
+  position:absolute; bottom:6%; z-index:0; width:8px; height:8px; border-radius:50%;
+  background:rgba(255,255,255,.32); animation:pt-bubble-rise 4.6s linear infinite;
+}
+.pt-bub-1 { left:16%; animation-delay:.2s; }
+.pt-bub-2 { left:32%; width:6px; height:6px; animation-delay:1.7s; }
+.pt-bub-3 { left:50%; animation-delay:.9s; }
+.pt-bub-4 { left:68%; width:6px; height:6px; animation-delay:2.4s; }
+.pt-bub-5 { left:84%; animation-delay:1.3s; }
+@keyframes pt-bubble-rise { 0% { translate:0 0; opacity:.7; } 90% { opacity:.4; } 100% { translate:0 -540px; opacity:0; } }
+
+.pt-net { position:relative; z-index:1; font-size:clamp(46px,9vh,92px); rotate:-12deg; animation:pt-net-sway 2.6s ease-in-out infinite; filter:drop-shadow(0 4px 6px rgba(0,0,0,.4)); }
+@keyframes pt-net-sway { 0%,100% { rotate:-15deg; } 50% { rotate:-3deg; } }
 .pt-stamp {
-  font-family:'Fredoka',sans-serif; font-weight:700; font-size:14px; color:#1d8f4e;
+  position:relative; z-index:1;
+  font-family:'Fredoka',sans-serif; font-weight:700; font-size:clamp(16px,3vh,26px); color:#1d8f4e;
   background:linear-gradient(180deg,#E9FBEF,#D3F3DF); border:3px solid var(--correct);
-  border-radius:12px; padding:6px 14px; rotate:-6deg; animation:pt-stamp-in 460ms var(--spring) both;
+  border-radius:14px; padding:clamp(8px,1.6vh,14px) clamp(16px,3vw,26px); rotate:-6deg; animation:pt-stamp-in 460ms var(--spring) both;
 }
 @keyframes pt-stamp-in { from { scale:.4; opacity:0; } to { scale:1; opacity:1; } }
-.pt-empty-copy { color:rgba(246,235,212,.88); font-size:13.5px; line-height:1.4; margin:0; }
+.pt-empty-copy { flex:none; color:rgba(246,235,212,.88); font-size:clamp(12.5px,2vh,15px); line-height:1.4; margin:0; max-width:520px; }
 
 /* ---- aquarium grid ---- */
-.pt-grid { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; width:100%; padding:6px 10px; }
+.pt-grid { position:relative; z-index:1; display:flex; flex-wrap:wrap; justify-content:center; gap:12px; width:100%; padding:10px 10px 30px; }
 .pt-gremlin-card {
-  width:148px; background:linear-gradient(160deg,#131c3e,#0c1330); border:3px solid rgba(255,79,163,.3);
+  width:168px; background:linear-gradient(160deg,#131c3e,#0c1330); border:3px solid rgba(255,79,163,.3);
   border-radius:var(--r-md); box-shadow:0 5px 0 rgba(0,0,0,.3), 0 10px 18px rgba(0,0,0,.3);
   padding:12px 10px; text-align:center;
-  animation: enter-pop 380ms var(--spring) both, pt-swim-bob 2.6s ease-in-out infinite alternate, pt-swim-rock 3.6s ease-in-out infinite;
+  animation: enter-pop 380ms var(--spring) both, pt-swim var(--pt-swim-dur,4s) ease-in-out infinite;
 }
-@keyframes pt-swim-bob { from { translate:0 0; } to { translate:0 -6px; } }
-@keyframes pt-swim-rock { 0%,100% { rotate:-2.5deg; } 50% { rotate:2.5deg; } }
-.pt-g-emoji { font-size:32px; filter:drop-shadow(0 3px 5px rgba(0,0,0,.4)); }
-.pt-g-name { font-family:'Fredoka',sans-serif; font-weight:700; color:var(--pier-bulb,#ffe9a8); font-size:13px; margin-top:4px; }
-.pt-g-oneliner { font-size:10.5px; color:rgba(246,235,212,.7); line-height:1.3; margin-top:5px; min-height:38px; }
-.pt-g-fact { font-family:'Fredoka',sans-serif; font-weight:700; color:var(--pier-teal,#2fe3c4); font-size:14px; margin-top:5px; }
-.pt-g-tally { font-size:10.5px; color:rgba(255,150,150,.95); margin-top:3px; font-weight:600; }
+/* Per-card swim personality — --pt-drift/--pt-bob/--pt-swim-dur are set
+   inline per card (buildGremlinCard(), hashed off its index) so several
+   gremlins in the same tank never move in visual lockstep. */
+@keyframes pt-swim {
+  0%   { translate: 0 0; rotate: -2.5deg; }
+  25%  { translate: var(--pt-drift,10px) calc(var(--pt-bob,8px) * -1); rotate: 2deg; }
+  50%  { translate: 0 calc(var(--pt-bob,8px) * -1.3); rotate: -1.5deg; }
+  75%  { translate: calc(var(--pt-drift,10px) * -1) calc(var(--pt-bob,8px) * -0.6); rotate: 2.5deg; }
+  100% { translate: 0 0; rotate: -2.5deg; }
+}
+.pt-g-emoji { font-size:34px; filter:drop-shadow(0 3px 5px rgba(0,0,0,.4)); }
+.pt-g-name { font-family:'Fredoka',sans-serif; font-weight:700; color:var(--pier-bulb,#ffe9a8); font-size:13.5px; margin-top:4px; }
+.pt-g-oneliner { font-size:11px; color:rgba(246,235,212,.7); line-height:1.3; margin-top:5px; min-height:38px; }
+.pt-g-fact { font-family:'Fredoka',sans-serif; font-weight:700; color:var(--pier-teal,#2fe3c4); font-size:15px; margin-top:5px; }
+.pt-g-tally { font-size:11px; color:rgba(255,150,150,.95); margin-top:3px; font-weight:600; }
 
 /* ---- round: the play card ---- */
-.pt-play-wrap { position:relative; width:100%; max-width:340px; margin:auto; padding-top:30px; display:flex; justify-content:center; }
+.pt-play-wrap { position:relative; flex:1 1 auto; min-height:0; width:100%; display:flex; align-items:center; justify-content:center; padding:6px 4px; }
 .pt-play-card {
-  width:100%; background:linear-gradient(160deg,#131c3e,#0c1330); border:3px solid rgba(255,233,168,.45);
-  border-radius:var(--r-md); box-shadow:0 6px 0 rgba(0,0,0,.3); padding:10px 16px 12px; text-align:center;
-  animation: pt-swim-bob 2.8s ease-in-out infinite alternate;
+  width:100%; max-width:400px; background:linear-gradient(160deg,#131c3e,#0c1330); border:3px solid rgba(255,233,168,.45);
+  border-radius:var(--r-md); box-shadow:0 6px 0 rgba(0,0,0,.3); padding:clamp(10px,2vh,16px) 18px clamp(12px,2.2vh,18px); text-align:center;
+  animation: pt-play-bob 2.8s ease-in-out infinite alternate;
 }
+@keyframes pt-play-bob { from { translate:0 0; } to { translate:0 -6px; } }
 .pt-play-card.pt-wiggle { animation: pt-card-wiggle .42s ease-in-out; }
 @keyframes pt-card-wiggle { 0%,100% { translate:0 0; } 25% { translate:-5px 0; } 50% { translate:5px 0; } 75% { translate:-3px 0; } }
 .pt-play-card.pt-flushing { animation: pt-flush-spiral .9s cubic-bezier(.5,0,.75,0) forwards; }
@@ -223,7 +300,7 @@ const CSS = `
 .pt-flavor-name { font-family:'Fredoka',sans-serif; font-weight:700; font-size:12px; color:var(--pier-bulb,#ffe9a8); }
 .pt-stem-text {
   font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-weight:600;
-  font-size:clamp(20px,4.4vw,28px); color:var(--parchment);
+  font-size:clamp(22px,4.2vh,32px); color:var(--parchment);
 }
 .pt-stem-text.pt-flash-correct { text-shadow:0 0 12px rgba(46,204,113,.75); }
 .pt-stem-text.pt-flash-wrong { text-shadow:0 0 12px rgba(231,76,60,.6); }
@@ -283,7 +360,7 @@ const CSS = `
 .pt-complete-btn { min-height:60px; padding:0 18px; font-size:13.5px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pt-tank-glass::before, .pt-tank-glass::after, .pt-net, .pt-gremlin-card,
+  .pt-bubble, .pt-plant, .pt-net, .pt-gremlin-card,
   .pt-play-card, .pt-swirl, .pt-dave, .pt-stamp { animation: none !important; }
 }
 `;
@@ -328,7 +405,13 @@ export default {
 
     function paintFlushChip() {
       const n = pier.facts.flushed();
-      flushChip.innerHTML = `🚽 <b>${n}</b> flushed forever`;
+      // F4 fix: wrap the WHOLE label in one inline <span> so it is
+      // `.pier-flushed-chip`'s (display:flex) only child/flex item —
+      // otherwise flexbox wraps the raw-text-before-<b> and raw-text-after-
+      // <b> runs in their OWN anonymous flex items and trims each one's
+      // edge whitespace, silently eating the space either side of <b> (the
+      // exact "🚽0flushed forever" bug — see this file's header comment).
+      flushChip.innerHTML = `<span>🚽 <b>${n}</b> flushed forever</span>`;
     }
     function bumpFlushChip() {
       paintFlushChip();
@@ -365,6 +448,26 @@ export default {
       return 'fresh';
     }
 
+    /* ---------- shared tank-glass backdrop (F5 fix — see header) ----------
+       Builds the aquarium shell (gravel bed, swaying weed, rising bubbles)
+       reused identically by fresh/clean/aquarium so the "flex:1, fill the
+       stage" sizing fix applies everywhere at once. Caller appends whatever
+       goes IN the tank (net / stamp / gremlin grid) afterwards. */
+    function buildTankGlass(extraClass) {
+      const glass = el('div', 'pt-tank-glass' + (extraClass ? ' ' + extraClass : ''));
+      glass.innerHTML = `
+        <div class="pt-gravel"></div>
+        <span class="pt-plant pt-plant-a">🌿</span>
+        <span class="pt-plant pt-plant-b">🌱</span>
+        <span class="pt-bubble pt-bub-1"></span>
+        <span class="pt-bubble pt-bub-2"></span>
+        <span class="pt-bubble pt-bub-3"></span>
+        <span class="pt-bubble pt-bub-4"></span>
+        <span class="pt-bubble pt-bub-5"></span>
+      `;
+      return glass;
+    }
+
     /* ---------- idle states: fresh / aquarium / clean ---------- */
     function renderIdle() {
       if (numpad) { numpad.destroy(); numpad = null; }
@@ -383,10 +486,10 @@ export default {
     function renderFresh() {
       titleChip.textContent = '🫧 THE GREMLIN TANK';
       const wrap = el('div', 'pt-empty-wrap');
-      wrap.innerHTML = `
-        <div class="pt-tank-glass"><div class="pt-net">🎣</div></div>
-        <p class="pt-empty-copy"></p>
-      `;
+      const glass = buildTankGlass();
+      glass.insertAdjacentHTML('beforeend', '<div class="pt-net">🎣</div>');
+      const copy = el('p', 'pt-empty-copy');
+      wrap.append(glass, copy);
       chassis.stage.append(wrap);
       // machine.tank.welcome has 3 entries; only index 2 ("The tank fills
       // itself the more sums you play. Go on.") is true of an EMPTY tank —
@@ -394,7 +497,7 @@ export default {
       // only be shown while the display matches it), so this pick is
       // deliberately fixed, not random, unlike every other pool use below.
       const line = LINES.welcome[2];
-      wrap.querySelector('.pt-empty-copy').textContent = line.text;
+      copy.textContent = line.text;
       registerCardLine(line);
       pier.say(line);
 
@@ -410,18 +513,17 @@ export default {
     function renderClean() {
       titleChip.textContent = '🫧 TANK STATUS';
       const wrap = el('div', 'pt-empty-wrap');
-      wrap.innerHTML = `
-        <div class="pt-tank-glass"><div class="pt-stamp">SPARKLING CLEAN!</div></div>
-        <p class="pt-empty-copy"></p>
-      `;
+      const glass = buildTankGlass();
+      glass.insertAdjacentHTML('beforeend', '<div class="pt-stamp">SPARKLING CLEAN!</div>');
+      const copy = el('p', 'pt-empty-copy');
+      wrap.append(glass, copy);
       chassis.stage.append(wrap);
       const line = pick(rng, nana.tankClean);
-      wrap.querySelector('.pt-empty-copy').textContent = line.text;
+      copy.textContent = line.text;
       registerCardLine(line);
       pier.say(line);
       later(() => {
         if (!alive || !wrap.isConnected) return;
-        const glass = wrap.querySelector('.pt-tank-glass');
         const r = glass.getBoundingClientRect();
         const stageR = chassis.stage.getBoundingClientRect();
         party(chassis.stage);
@@ -441,7 +543,15 @@ export default {
     function buildGremlinCard(g, i) {
       const info = gremlinInfo(g.family, g.name);
       const card = el('div', 'pt-gremlin-card');
-      card.style.animationDelay = `${(i * 0.1).toFixed(2)}s, ${(i * 0.15).toFixed(2)}s, ${(i * 0.22).toFixed(2)}s`;
+      // Per-card swim personality (see header comment): unique drift/bob
+      // amplitude, duration and delay hashed off the card's index, so a
+      // tank with several gremlins never moves in visual lockstep.
+      const driftPx = 8 + (i % 3) * 7;
+      const bobPx = 7 + (i % 4) * 3;
+      card.style.setProperty('--pt-drift', driftPx + 'px');
+      card.style.setProperty('--pt-bob', bobPx + 'px');
+      card.style.setProperty('--pt-swim-dur', `${(3.4 + (i % 5) * 0.45).toFixed(2)}s`);
+      card.style.animationDelay = `${(i * 0.08).toFixed(2)}s, ${(i * 0.37).toFixed(2)}s`;
       card.innerHTML = `
         <div class="pt-g-emoji">${emojiForFamily(g.family)}</div>
         <div class="pt-g-name">${info.name}</div>
@@ -455,9 +565,13 @@ export default {
     function renderAquarium() {
       titleChip.textContent = '🫧 THE GREMLIN TANK';
       const gremlinsNow = pier.facts.gremlins();
+      const wrap = el('div', 'pt-empty-wrap');
+      const glass = buildTankGlass('pt-glass-aquarium');
       const grid = el('div', 'pt-grid');
       gremlinsNow.forEach((g, i) => grid.append(buildGremlinCard(g, i)));
-      chassis.stage.append(grid);
+      glass.append(grid);
+      wrap.append(glass);
+      chassis.stage.append(wrap);
 
       const dockRow = el('div', 'pt-dock-row');
       const cta = el('button', 'btn btn-gold pt-dock-btn', "SPLAT 'EM! 🔨");
@@ -474,7 +588,11 @@ export default {
 
     /* ---------- SPLAT 'EM / free-practice round ---------- */
     function paintProgress() {
-      progressChip.innerHTML = `🎯 <b>${roundState.index}</b>/${roundState.total}`;
+      // F4 fix (same reasoning as paintFlushChip() above): one inline
+      // <span> wrapping the whole label so `.pt-progress-chip`'s
+      // (display:flex) whitespace-trimming can't eat the gap either side
+      // of <b>.
+      progressChip.innerHTML = `<span>🎯 <b>${roundState.index}</b>/${roundState.total}</span>`;
     }
 
     function renderRoundShell() {
@@ -706,8 +824,8 @@ export default {
       if (headlineLine) pier.say(headlineLine);
       if (summary.correct > 0) sfx.win();
       // Celebrate on the VEIL, not the stage — the veil is z-index:200 above
-      // .pier-screen's pinned-transform stacking context; stage-level confetti
-      // would render invisibly UNDER it (see header block for the full why).
+      // .pier-screen's stacking context; stage-level confetti would render
+      // invisibly UNDER it (see header block for the full why).
       if (summary.flawless || summary.flushed.length) party(ov.el);
 
       againBtn.addEventListener('click', () => {

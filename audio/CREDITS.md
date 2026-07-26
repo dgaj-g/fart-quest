@@ -73,7 +73,19 @@ All three tracks were selected by title/licence/description only (no audio playb
 this environment); each was `afinfo`-verified to decode as valid audio of a sensible loop length
 (47–72s) before being placed in the repo.
 
-### Whiff-End Pier (audio/music/pier.mp3)
+### Whiff-End Pier (audio/music/pier.mp3) — CHOSEN BY DAMIEN, 26 Jul 2026
+
+Damien auditioned four CC0 candidates by ear (the v1 track had been picked from a text
+description by an agent that could not listen — that mistake is not repeated) and selected
+candidate 4. The three unselected candidates and the audition page have been removed.
+
+| File | Track | Source | Licence evidence |
+| --- | --- | --- | --- |
+| pier.mp3 | "Bouncy Hamster Dancing (Menu Music?)" by cynicmusic | https://opengameart.org/content/bouncy-hamster-dancing-menu-music | Page "License(s):" field shows CC0 only; also filed in the site's "CC0 Upbeat / Electronic Music" and "Music - Platform & Background" collections. Author describes it as a "ridiculously infectious theme" deliberately reminiscent of the Hamster Dance — exactly the daft arcade energy the pier wanted. Source loop 65s, looped x2 with a 1s crossfade to 2:09; re-encoded libmp3lame 160kbps CBR 44.1kHz stereo. **Selected by Damien on listening, 26 Jul 2026.** |
+
+<!-- superseded candidate notes below (kept for provenance) -->
+
+
 
 FreePD.com (the spec's suggested default source) remains permanently closed — see note above —
 so this track was sourced from OpenGameArt.org, same as the other three.
