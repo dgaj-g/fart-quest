@@ -212,7 +212,7 @@ const CSS = `
 .pt-complete-flushed { font-size:13.5px; color:rgba(246,235,212,.85); margin-bottom:14px; line-height:1.4; }
 .pt-complete-flushed b { color:var(--pier-bulb,#ffe9a8); }
 .pt-complete-btns { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
-.pt-complete-btns .btn { min-height:56px; padding:0 20px; font-size:14.5px; }
+.pt-complete-btns .btn { min-height:60px; padding:0 20px; font-size:14.5px; }
 `;
 
 export default {

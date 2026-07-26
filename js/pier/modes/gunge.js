@@ -39,12 +39,22 @@ const PLANK_TRAVEL_PCT = 56;        // % of vatwrap height the plank travels
 const STAMP_WORDS = ['GLOOOOOP!', 'SPLOOSH!', 'GUNGED!', 'KERSPLAT!'];
 
 /* ---------- tiny pure helpers ---------- */
-// Recomputed independently from the family key every time — never trusted
-// off a stored/guessed value (rule ②: only show numbers the state truly is).
+// Recomputed directly from the exact fact the player was just asked — NEVER
+// from the family key's canonical lo/hi order. facts.js's buildFact() picks
+// EITHER factor as the divisor with 50/50 chance for a division draw, so
+// reconstructing purely from the sorted family (as this used to) silently
+// swaps in the OTHER division fact half the time — a live rule-② breach
+// (feedback must only quote the number/state exactly on screen). Anchoring
+// on fact.a/fact.b/fact.answer keeps this locked to what was actually shown.
 function familyFlashText(fact) {
-  const [lo, hi] = fact.family.split('x').map(Number);
-  const product = lo * hi;
-  return `${lo} × ${hi} = ${product}, so ${product} ÷ ${hi} = ${lo}`;
+  if (fact.dir === 'div') {
+    // fact.a = the divisor shown in the stem, fact.b = the quotient = the
+    // answer the player just saw asked for. dividend = divisor × quotient.
+    const dividend = fact.a * fact.b;
+    return `${fact.a} × ${fact.b} = ${dividend}, so ${dividend} ÷ ${fact.a} = ${fact.b}`;
+  }
+  // fact.a × fact.b = fact.answer, in the exact order the stem displayed.
+  return `${fact.a} × ${fact.b} = ${fact.answer}, so ${fact.answer} ÷ ${fact.b} = ${fact.a}`;
 }
 function liveSecondsText(ms) { return `${Math.floor(Math.max(0, ms) / 1000)}s`; }
 
@@ -105,7 +115,7 @@ const CSS = `
 .gg-card h2 { font-family:'Fredoka',sans-serif; font-weight:700; color:var(--pier-bulb); margin:0 0 10px; letter-spacing:.02em; }
 .gg-card-line { font-size:14.5px; font-weight:600; color:var(--parchment); line-height:1.4; margin:0 0 8px; }
 .gg-card-sub { font-size:13px; color:rgba(246,235,212,.7); line-height:1.4; margin:0 0 18px; }
-.gg-startbtn, .gg-onemorebtn { min-height:60px; padding:0 30px; font-size:17px; touch-action:manipulation; }
+.gg-startbtn, .gg-onemorebtn, .gg-pierbtn { min-height:60px; padding:0 30px; font-size:17px; touch-action:manipulation; }
 
 .gg-dave-row { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px; }
 .gg-dave-tag { font-family:'Fredoka',sans-serif; font-weight:700; font-size:10.5px; letter-spacing:.03em; color:#dceeff; background:rgba(255,255,255,.08); border-radius:8px; padding:5px 9px; }
@@ -226,6 +236,11 @@ export default {
     let streak = 0;
     let ended = true; // true until the first round begins
     let numpad = null;
+    let roundToken = 0;  // guards the end-screen's delayed caption (line ~1300ms
+                          // later()) against firing after a fresh "ONE MORE GO"
+                          // has already started a new round — mirrors ghost.js's
+                          // runToken for the identical hazard.
+    let hiddenSince = null; // performance.now() when the tab went hidden mid-round
 
     function cancelGauge() { if (gaugeCancel) { gaugeCancel(); gaugeCancel = null; } }
 
@@ -383,7 +398,41 @@ export default {
       }, 200);
     }
 
+    // Hidden tabs throttle rAF to zero (see _kit.js tween's own comment), so
+    // the drain chain (scheduleTick's self-reschedule) stalls the instant the
+    // tab backgrounds — but runStart/factStart are fixed wall-clock anchors
+    // that keep counting regardless. Left alone, a kid who locks the iPad or
+    // app-switches mid-round comes back to a barely-drained plank while the
+    // persisted survival time (and this run's "slow answer" check) has kept
+    // counting the whole real-world gap. Pausing everything on hidden and
+    // shifting every wall-clock anchor forward by exactly the hidden gap on
+    // resume keeps the drain, the displayed/persisted score, and the current
+    // fact's timing all honestly describing only time the plank was actually
+    // draining in front of the player.
+    function handleVisibilityChange() {
+      if (!alive) return;
+      if (document.hidden) {
+        if (!ended && hiddenSince == null) {
+          hiddenSince = performance.now();
+          cancelGauge();       // snaps to the current value — no mid-flight tween left dangling
+          clearRampTimer();
+          clearSurvivalTimer();
+        }
+      } else if (hiddenSince != null) {
+        const hiddenMs = performance.now() - hiddenSince;
+        hiddenSince = null;
+        if (!ended) {
+          runStart += hiddenMs;
+          factStart += hiddenMs;
+          scheduleRampTimer();
+          startSurvivalDisplay();
+          scheduleTick();
+        }
+      }
+    }
+
     function beginRound() {
+      roundToken += 1;
       welcomeOverlay.classList.remove('show');
       endOverlay.classList.remove('show');
       ended = false;
@@ -466,6 +515,7 @@ export default {
 
     async function showEndScreen(rawSeconds) {
       if (!alive) return;
+      const myRoundToken = roundToken; // snapshot: see the later() guard below
       const roundedSeconds = Math.round(rawSeconds);
       let bests = {};
       try { bests = (await pier.facts.getBests()) || {}; } catch (e) { bests = {}; }
@@ -522,6 +572,9 @@ export default {
 
       later(() => {
         if (!alive) return;
+        if (roundToken !== myRoundToken) return; // a fresh round began (ONE MORE GO
+        // tapped fast) before this fired — the finished round's caption would
+        // now be describing a plank/vat state the board no longer shows.
         if (firstTimeGold) {
           sayFrom(pier, rng, pier.content.nana && pier.content.nana.goldBeaten);
           sfx.win();
@@ -545,6 +598,8 @@ export default {
     }
     startBtn.addEventListener('click', () => { sfx.ui(); beginRound(); });
 
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return function cleanup() {
       alive = false;
       ended = true;
@@ -553,6 +608,7 @@ export default {
       clearSurvivalTimer();
       timers.forEach((id) => { clearTimeout(id); clearInterval(id); });
       timers.clear();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (numpad) numpad.destroy();
       stage.remove();
       back.remove();

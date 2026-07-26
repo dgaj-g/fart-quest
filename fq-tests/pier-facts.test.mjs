@@ -157,6 +157,15 @@ async function run() {
     facts.record(FAM2, { correct: true, ms: 7100, mode: 'ghost' });
     ok(!beforeSlow && facts.isGremlin(FAM2), 'family becomes a gremlin once median of last 4 correct times exceeds 6000ms');
 
+    // Regression guard: the slow-response route into gremlin status leaves
+    // fam.streak already sitting at 4 (four correct-but-slow answers) the
+    // instant isGremlin flips true. That inherited streak must NOT count
+    // towards the "3 consecutive correct" flush — otherwise a single further
+    // correct answer satisfies streak>=3 and flushes a family that has only
+    // ever proven itself once, not three times, since being flagged weak.
+    const rAfterFormation = facts.record(FAM2, { correct: true, ms: 100, mode: 'ghost' });
+    ok(!rAfterFormation.justFlushed && facts.isGremlin(FAM2), 'one correct answer straight after slow-response gremlin formation does NOT prematurely flush it (fam.streak re-anchors at formation, not inherited)');
+
     // Persistence: everything above should already be reflected in the fake db
     // (facts.js persists fire-and-forget, but the mock's put() body runs
     // synchronously, so no extra tick is needed).
@@ -170,7 +179,22 @@ async function run() {
   {
     const ctx = { db: makeFakeDb() };
     await facts.load(ctx);
-    const gremlinFamilies = ['1x2', '2x3', '3x5', '4x9', '5x8'];
+    // 16 (of 55) core families flagged as gremlins. This is deliberately a
+    // LOT — with the 3x gremlin weight, the natural/uncapped weighted share
+    // for 16 gremlins works out to 3*16/(55+2*16) ~= 55%, comfortably past
+    // the 40% ceiling. That matters: with only the previous 5 families (a
+    // natural ~23% share, already under the cap on its own) this assertion
+    // would pass whether or not the cap-enforcement branch in drawFromPool()
+    // did anything at all — verified by disabling that branch entirely and
+    // re-running this exact scenario, which still passed at 22.1%. With 16
+    // families driving the natural share well past 40%, the <=0.42 assertion
+    // genuinely depends on the cap logic: the same disable-the-cap probe
+    // against this scenario measures ~54% and fails the assertion below.
+    const gremlinFamilies = [
+      '1x2', '1x3', '1x4', '1x5', '1x6', '1x7',
+      '2x3', '2x4', '2x5', '3x4', '3x5',
+      '4x9', '5x8', '6x9', '7x8', '8x10',
+    ];
     gremlinFamilies.forEach((fam) => {
       facts.record(fam, { correct: false, ms: 4000 });
       facts.record(fam, { correct: false, ms: 4000 });
@@ -186,8 +210,9 @@ async function run() {
     }
     const gremlinFrac = gremlinDraws / capTotal;
     const baselineShare = (gremlinFamilies.length / 55) * 100;
-    ok(gremlinFrac <= 0.42, `gremlin-family draws stay capped near <=40% of draws (got ${(gremlinFrac * 100).toFixed(1)}%)`);
-    ok(gremlinFrac * 100 > baselineShare, `gremlin families ARE over-weighted vs their ${baselineShare.toFixed(1)}% share of the pool (got ${(gremlinFrac * 100).toFixed(1)}%)`);
+    const uncappedShare = (3 * gremlinFamilies.length) / (55 + 2 * gremlinFamilies.length) * 100;
+    ok(gremlinFrac <= 0.42, `gremlin-family draws stay capped near <=40% of draws (got ${(gremlinFrac * 100).toFixed(1)}%, natural/uncapped weighted share would be ~${uncappedShare.toFixed(1)}%)`);
+    ok(gremlinFrac * 100 > baselineShare, `gremlin families ARE over-weighted vs their ${baselineShare.toFixed(1)}% flat share of the pool (got ${(gremlinFrac * 100).toFixed(1)}%)`);
   }
 
   /* =====================================================================

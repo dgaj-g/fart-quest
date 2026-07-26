@@ -1,5 +1,5 @@
 // FART QUEST — sw.js (UI agent)
-const CACHE_V = 'fq-v16';
+const CACHE_V = 'fq-v17';
 
 const PRECACHE_URLS = [
   './',
@@ -143,6 +143,7 @@ const PRECACHE_URLS = [
   'css/lesson.css',
   'css/main.css',
   'css/passage.css',
+  'css/pier.css',
   'css/story.css',
   'data/creatures.js',
   'data/map.js',
@@ -301,6 +302,14 @@ const PRECACHE_URLS = [
   'js/gen/turnscompass.js',
   'js/gen/writtenmethods.js',
   'js/main.js',
+  'js/pier/content.js',
+  'js/pier/facts.js',
+  'js/pier/modes/ghost.js',
+  'js/pier/modes/gunge.js',
+  'js/pier/modes/splat.js',
+  'js/pier/modes/tank.js',
+  'js/pier/modes/teacups.js',
+  'js/pier/padkit.js',
   'js/rng.js',
   'js/router.js',
   'js/screens/armoury.js',
@@ -310,6 +319,7 @@ const PRECACHE_URLS = [
   'js/screens/lesson.js',
   'js/screens/map.js',
   'js/screens/parent.js',
+  'js/screens/pier.js',
   'js/screens/settings.js',
   'js/screens/story.js',
   'js/screens/title.js',

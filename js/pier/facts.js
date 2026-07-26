@@ -144,18 +144,29 @@ function buildFact(rng, p, q) {
   };
 }
 
-function drawFromPool(rng, pairs) {
+function drawFromPool(rng, pairs, opts = {}) {
+  // §5's <=40% gremlin-draw cap is specified under facts.draw()'s mixed-pool
+  // weighting — it has no sensible meaning for drawFrom()'s Tank rounds,
+  // which are BY CONSTRUCTION restricted to (near-)100% gremlin families on
+  // purpose. Sharing the running ratio across both would let a single Tank
+  // round inflate state.drawTotals enough to suppress gremlin-weighted picks
+  // in draw() for a long stretch of subsequent splat/gunge/ghost/teacups
+  // play — so only draw() reads/updates the cap counters; drawFrom() opts out.
+  const trackCap = opts.trackCap !== false;
+
   let candidates = pairs.filter(([a, b]) => canonicalFamily(a, b) !== state.lastFamily);
   if (candidates.length === 0) candidates = pairs.slice(); // only one family available — allow repeat
 
   // Gremlin-draw ratio cap (<=40% of draws, §5): if drawing a gremlin family
   // NOW would push the running ratio over 0.4, exclude gremlins from this
   // particular draw — unless that would leave nothing to draw from.
-  const predictedRatioIfGremlin = (state.drawTotals.gremlin + 1) / (state.drawTotals.total + 1);
   let pool = candidates;
-  if (predictedRatioIfGremlin > 0.4) {
-    const nonGremlin = candidates.filter((p) => !isGremlinPair(p));
-    if (nonGremlin.length > 0) pool = nonGremlin;
+  if (trackCap) {
+    const predictedRatioIfGremlin = (state.drawTotals.gremlin + 1) / (state.drawTotals.total + 1);
+    if (predictedRatioIfGremlin > 0.4) {
+      const nonGremlin = candidates.filter((p) => !isGremlinPair(p));
+      if (nonGremlin.length > 0) pool = nonGremlin;
+    }
   }
 
   const weights = pool.map((p) => (isGremlinPair(p) ? 3 : 1));
@@ -163,8 +174,10 @@ function drawFromPool(rng, pairs) {
   const family = canonicalFamily(picked[0], picked[1]);
 
   state.lastFamily = family;
-  state.drawTotals.total += 1;
-  if (isGremlinPair(picked)) state.drawTotals.gremlin += 1;
+  if (trackCap) {
+    state.drawTotals.total += 1;
+    if (isGremlinPair(picked)) state.drawTotals.gremlin += 1;
+  }
 
   return buildFact(rng, picked[0], picked[1]);
 }
@@ -211,14 +224,17 @@ export async function load(appCtx) {
  */
 export function draw(rng, opts = {}) {
   const pool = opts.deluxe ? POOL_ALL : POOL_CORE;
-  return drawFromPool(rng, pool);
+  return drawFromPool(rng, pool, { trackCap: true });
 }
 
 /** facts.drawFrom(rng, families) — draw restricted to a given family list (Tank mode). */
 export function drawFrom(rng, families) {
   const pairs = (families || []).map(parseFamily).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
   if (pairs.length === 0) return null;
-  return drawFromPool(rng, pairs);
+  // Tank's targeted rounds don't participate in draw()'s <=40% cap bookkeeping
+  // (see the comment in drawFromPool) — they're a deliberately gremlin-only
+  // pool, not part of the mixed-draw ratio that cap is protecting.
+  return drawFromPool(rng, pairs, { trackCap: false });
 }
 
 /** facts.distractors(fact, rng, n) — n unique plausible wrong answers, never the real answer, all >=1. */
@@ -271,7 +287,19 @@ export function record(family, opts = {}) {
     state.flushedCount += 1;
     persistFlushed();
   } else {
-    fam.isGremlin = computeGremlin(fam);
+    const isNowGremlin = computeGremlin(fam);
+    // Anchor fam.streak to the MOMENT a family becomes a gremlin. Without
+    // this, the slow-response-time route into gremlin status (4 CORRECT but
+    // slow answers) leaves fam.streak already at 3+ the instant isGremlin
+    // flips true, so a single further correct answer would satisfy the
+    // ">=3" check above and flush it straight back out — despite the family
+    // never having demonstrated 3 fresh correct answers since it was flagged
+    // weak. (The miss-count route is unaffected: missCount can only ever
+    // reach its threshold on a record that is itself a miss, which already
+    // resets fam.streak to 0 — see final report for the proof — so this is
+    // a no-op there and only changes behaviour for the slow-response route.)
+    if (!wasGremlin && isNowGremlin) fam.streak = 0;
+    fam.isGremlin = isNowGremlin;
   }
 
   persistFacts();

@@ -6,7 +6,8 @@
 //   2. All gremlin names are unique.
 //   3. Every digit-string in a gremlin name/oneliner is either that family's
 //      true product (a*b, recomputed from the family key — not trusted from
-//      prose) or an operand reference (<=12).
+//      prose) or one of the family's two actual operands (a or b) — matching
+//      content.js's own CRITICAL CORRECTNESS RULE (lines 138-143) exactly.
 //   4. All VO_MANIFEST ids are unique (and match their source pools 1:1).
 
 import { nana, announcer, dave, gremlin, GREMLIN_NAMES, VO_MANIFEST } from '../js/pier/content.js';
@@ -48,7 +49,7 @@ if (nameSet.size !== names.length) {
   }
 }
 
-// ---------- 3. digit correctness: every digit-string is product or operand(<=12) ----------
+// ---------- 3. digit correctness: every digit-string is the product or THIS family's a/b ----------
 for (const key of actualKeys) {
   const [aStr, bStr] = key.split('x');
   const a = parseInt(aStr, 10);
@@ -59,8 +60,8 @@ for (const key of actualKeys) {
   const digitStrings = text.match(/\b\d+\b/g) || [];
   for (const ds of digitStrings) {
     const n = parseInt(ds, 10);
-    const ok = n === product || n <= 12;
-    check(ok, `family ${key} (product ${product}): digit "${ds}" in "${entry.name}" / "${entry.oneliner}" is neither the product nor an operand reference (<=12)`);
+    const ok = n === product || n === a || n === b;
+    check(ok, `family ${key} (a=${a}, b=${b}, product ${product}): digit "${ds}" in "${entry.name}" / "${entry.oneliner}" is neither the product nor one of this family's two operands (${a}, ${b})`);
   }
   // Require the true product itself to appear at least once, digit-form —
   // keeps every entry mechanically checkable, not just "vibes-correct".

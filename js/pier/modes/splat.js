@@ -454,6 +454,21 @@ export default {
 
     function onTimeUp() {
       if (!alive) return;
+      // The 60s clock is independent of question boundaries (see file banner),
+      // so it almost always lands mid-question. If a fact is still live and
+      // unanswered at this exact instant (acceptingTaps === true), the clock
+      // itself is this mode's timeout — record it as a miss per PIER_SPEC.md
+      // §5 ("a miss = wrong answer or mode-defined timeout") and the §6
+      // preamble ("every wrong/missed fact silently feeds facts.record").
+      // When acceptingTaps is already false, the displayed fact was already
+      // answered and recorded by onTapHole — recording again here would
+      // double-count it, so this only fires for the genuinely-unanswered case.
+      if (acceptingTaps && currentFact) {
+        const elapsedMs = Math.round(performance.now() - questionShownAt);
+        try {
+          pier.facts.record(currentFact.family, { correct: false, ms: elapsedMs, mode: 'splat' });
+        } catch (e) { /* a stats hiccup must never freeze the game */ }
+      }
       roundOver = true;
       acceptingTaps = false;
       holesWrap.classList.add('splat-fade-out');

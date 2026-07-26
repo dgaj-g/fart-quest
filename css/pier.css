@@ -58,7 +58,7 @@
   padding: 6px calc(16px + var(--safe-r)) 10px calc(16px + var(--safe-l));
   flex-wrap: wrap; gap: 10px;
 }
-.pier-back-map { min-height: 52px; padding: 0 18px; font-size: 15px; }
+.pier-back-map { min-height: 60px; padding: 0 18px; font-size: 15px; }
 .pier-flushed-chip {
   background: rgba(10, 18, 48, .7); border: 2px solid rgba(255, 233, 168, .3);
   color: var(--parchment); padding: 8px 16px; border-radius: 999px;
@@ -122,7 +122,7 @@
   0%, 100% { transform: rotate(-6deg) scale(1); }
   50% { transform: rotate(6deg) scale(1.12); }
 }
-.pier-cab-play { min-height: 52px; padding: 0 30px; font-size: 16px; margin-top: auto; }
+.pier-cab-play { min-height: 60px; padding: 0 30px; font-size: 16px; margin-top: auto; }
 
 /* ============================================================
    DELUXE BRASS LEVER
@@ -142,7 +142,13 @@
 }
 .pier-lever-label span { font-size: 10px; font-weight: 500; color: rgba(246, 235, 212, .65); }
 .pier-lever {
-  border: none; cursor: pointer; background: transparent; padding: 0; width: 62px; height: 32px;
+  /* Visual brass switch is 62x32 (track, below); the button itself is padded
+     out to a 60px-tall hit target (§1 touch targets >=60px) via flex-centring
+     so the switch's look and the knob's position: relative to the track are
+     both untouched. */
+  border: none; cursor: pointer; background: transparent; padding: 0;
+  width: 62px; height: 60px;
+  display: flex; align-items: center; justify-content: center;
 }
 .pier-lever-track {
   display: block; width: 62px; height: 32px; border-radius: 999px; position: relative;
