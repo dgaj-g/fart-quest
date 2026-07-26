@@ -277,8 +277,8 @@ export async function mount(root, ctx) {
 
   hud.innerHTML = `
     <div class="hud-left">
-      <div class="hud-chip">🛡️</div>
-      <div class="hud-chip">💩 ${capturedCount}/${totalCollectible}</div>
+      <button class="hud-chip hud-btn" id="map-armoury-btn" aria-label="Armoury — your Secret Weapons">🛡️ Weapons</button>
+      <button class="hud-chip hud-btn" id="map-collection-btn" aria-label="Collection — the monsters you have captured">💩 Monsters ${capturedCount}/${totalCollectible}</button>
     </div>
     <div class="hud-right">
       <button class="hud-chip hud-btn" id="map-next-quest-btn">📍 Next quest</button>
@@ -382,6 +382,24 @@ export async function mount(root, ctx) {
   hud.querySelector('#map-settings-btn').addEventListener('click', () => {
     ctx.audio.sfx('click');
     ctx.go('#/settings');
+  });
+
+  // Damien's report (26 Jul): from the map there was NO way to see Jarlath's
+  // captured monsters — he tapped the shield expecting exactly that and nothing
+  // happened, because both left-hand chips were plain <div>s with no handler.
+  // (Same class of bug as the fq-v13 castle gate.) The audit that followed also
+  // found #/armoury had ZERO inbound links anywhere in the app — the Secret
+  // Weapon pegboard, i.e. Jarlath's revision notes, was unreachable since it
+  // was built. Both chips are now real buttons and both carry a word, not just
+  // an emoji, so what they open is obvious without tapping to find out.
+  hud.querySelector('#map-collection-btn').addEventListener('click', () => {
+    ctx.audio.sfx('click');
+    ctx.go('#/collection');
+  });
+
+  hud.querySelector('#map-armoury-btn').addEventListener('click', () => {
+    ctx.audio.sfx('click');
+    ctx.go('#/armoury');
   });
 
   // Permanent pier shortcut, always enabled, in the fixed (non-scrolling) HUD
