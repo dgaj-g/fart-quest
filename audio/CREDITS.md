@@ -73,7 +73,23 @@ All three tracks were selected by title/licence/description only (no audio playb
 this environment); each was `afinfo`-verified to decode as valid audio of a sensible loop length
 (47–72s) before being placed in the repo.
 
+### Whiff-End Pier (audio/music/pier.mp3)
+
+FreePD.com (the spec's suggested default source) remains permanently closed — see note above —
+so this track was sourced from OpenGameArt.org, same as the other three.
+
+| File | Track | Source | Licence evidence |
+|---|---|---|---|
+| pier.mp3 | "Carnival Rides" by Écrivain | https://opengameart.org/content/carnival-rides — file: carnivalrides.ogg | Page shows "License(s): CC0" only (single licence, no CC-BY/SA alternative); also listed in the site's own "CC0 Music" and "Truly Truly Public Domain" collections. Tagged Carnival/Fantasy/Kids — picked for Whiff-End Pier (times-tables arcade world) as the closest CC0 match to a fast, daft seaside-fairground energy. Selected by title/tag/description only, same no-playback caveat as above. |
+
+Source loop is short (25.5s, author's own words: "a short loop"). Built up to spec-required 1–3
+minute length with `ffmpeg`: the OGG was looped 4× with 1-second triangular `acrossfade` crossfades
+at each seam (so no hard click at the repeat boundary), then encoded to MP3 (libmp3lame, 160kbps
+CBR, 44.1kHz stereo). Verified with `ffprobe`/`ffmpeg -f null -` (clean full decode, no errors):
+**98.99s, 1.98MB**, well inside the 1–3 min / ≤5MB spec bounds.
+
 ## Verification
 
 Every file below was checked with `afinfo` on macOS to confirm it decodes as valid audio, with the
-reported duration noted. Total combined payload of audio/sfx + audio/music = **2.7 MB**.
+reported duration noted. Total combined payload of audio/sfx + audio/music = **4.6 MB** (2.7 MB
+pre-Pier + pier.mp3's 1.98 MB).

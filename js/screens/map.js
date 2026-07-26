@@ -12,6 +12,7 @@ const PAD_CELL = 250;   // pad width (210) + its 2x20px margins
 const BOSS_CELL = 260;
 const LOCKED_W = 280;
 const GATE_W = 340;
+const PIER_W = 260;
 const REGION_GAP = 64;
 const START_X = 40;
 
@@ -203,6 +204,29 @@ function buildLockedBlock(region, ctx, byId) {
   return { el: wrap, width: LOCKED_W };
 }
 
+// Whiff-End Pier (docs/PIER_SPEC.md §8): a standalone times-tables practice
+// world, always unlocked, placed "on the panorama coast near Chance Cliffs" —
+// concretely, immediately after that region's band in the REGIONS.forEach
+// loop below (surgical insertion, same absolute-positioning/cursor pattern as
+// buildCastleGate). Styling lives in css/pier.css (HUB agent's file), NOT
+// css/main.css, since this is pier-owned chrome that happens to render on
+// the map screen.
+function buildPierLandmark(ctx) {
+  const wrap = document.createElement('button');
+  wrap.className = 'map-pier-landmark';
+  wrap.style.width = `${PIER_W}px`;
+  wrap.innerHTML = `
+    <div class="pier-landmark-bulbs"><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="pier-landmark-sign">WHIFF-END PIER</div>
+    <div class="pier-landmark-boardwalk"></div>
+  `;
+  wrap.addEventListener('click', () => {
+    ctx.audio.sfx('confirm');
+    ctx.go('#/pier');
+  });
+  return { el: wrap, width: PIER_W };
+}
+
 function buildCastleGate(ctx) {
   const wrap = document.createElement('div');
   wrap.className = 'map-region-locked map-castle-gate';
@@ -305,6 +329,16 @@ export async function mount(root, ctx) {
     built.el.style.left = `${cursor}px`;
     stage.appendChild(built.el);
     cursor += built.width + REGION_GAP;
+
+    // "near Chance Cliffs" (§8) — drop the pier landmark immediately after
+    // that region's band, before the English track begins.
+    if (region.id === 'chance-cliffs') {
+      const pier = buildPierLandmark(ctx);
+      pier.el.style.position = 'absolute';
+      pier.el.style.left = `${cursor}px`;
+      stage.appendChild(pier.el);
+      cursor += pier.width + REGION_GAP;
+    }
   });
 
   const gate = buildCastleGate(ctx);

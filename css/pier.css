@@ -1,0 +1,275 @@
+/* FART QUEST — css/pier.css (HUB agent)
+   WHIFF-END PIER: the hub screen + chrome shared by every machine (caption
+   bar, numpad, mode-host frame). Deliberate art direction — a neon seaside
+   night (pinks/teals/gold bulbs on deep navy), never the swamp's green/purple.
+   Individual machines (splat/gunge/ghost/teacups/tank) self-inject their OWN
+   CSS via injectCss('pier-<mode>', …) — nothing mode-specific belongs here. */
+
+.pier-screen {
+  --pier-navy-deep: #050914;
+  --pier-navy: #0a1230;
+  --pier-navy-mid: #141c44;
+  --pier-teal: #2fe3c4;
+  --pier-pink: #ff4fa3;
+  --pier-violet: #9b6bf0;
+  --pier-bulb: #ffe9a8;
+  background:
+    radial-gradient(120% 55% at 50% -8%, rgba(255, 79, 163, .16), transparent 62%),
+    radial-gradient(90% 45% at 85% 15%, rgba(47, 227, 196, .12), transparent 60%),
+    linear-gradient(180deg, var(--pier-navy-deep) 0%, var(--pier-navy) 46%, var(--pier-navy-mid) 100%);
+  color: var(--parchment);
+}
+
+/* ============================================================
+   BULB SIGN
+   ============================================================ */
+.pier-sign {
+  padding: calc(18px + var(--safe-t)) 16px 6px;
+  text-align: center;
+}
+.pier-bulbrow { display: flex; justify-content: center; gap: 9px; margin: 4px 0; }
+.pier-bulb {
+  width: 11px; height: 11px; border-radius: 50%;
+  box-shadow: 0 0 8px 2px currentColor;
+  animation: pier-bulb-flicker 1.6s ease-in-out infinite;
+  animation-delay: var(--bd, 0s);
+}
+.pier-bulb.pb-gold { background: var(--pier-bulb); color: var(--pier-bulb); }
+.pier-bulb.pb-pink { background: var(--pier-pink); color: var(--pier-pink); }
+.pier-bulb.pb-teal { background: var(--pier-teal); color: var(--pier-teal); }
+@keyframes pier-bulb-flicker {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  45% { opacity: .55; transform: scale(.88); }
+  55% { opacity: .85; transform: scale(1.02); }
+}
+.pier-sign-text {
+  font-family: 'Fredoka', sans-serif; font-weight: 700;
+  font-size: clamp(28px, 5.2vw, 46px); letter-spacing: .03em;
+  color: var(--pier-bulb);
+  text-shadow: 0 0 10px rgba(255, 233, 168, .55), 0 0 26px rgba(255, 79, 163, .35), 0 4px 0 rgba(0, 0, 0, .4);
+  margin: 2px 0;
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.pier-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px calc(16px + var(--safe-r)) 10px calc(16px + var(--safe-l));
+  flex-wrap: wrap; gap: 10px;
+}
+.pier-back-map { min-height: 52px; padding: 0 18px; font-size: 15px; }
+.pier-flushed-chip {
+  background: rgba(10, 18, 48, .7); border: 2px solid rgba(255, 233, 168, .3);
+  color: var(--parchment); padding: 8px 16px; border-radius: 999px;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 15px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .3);
+}
+.pier-flushed-chip b { color: var(--pier-bulb); }
+
+/* ============================================================
+   NANA'S CORNER — a fixed sprite presence, separate from the
+   rotating caption line she also speaks via pier.say()
+   ============================================================ */
+.pier-nana-corner {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  margin: 4px auto 6px;
+}
+.pier-nana-sprite {
+  font-size: 46px;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45));
+}
+.pier-nana-name {
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 12.5px;
+  letter-spacing: .08em; color: var(--pier-pink);
+}
+
+/* ============================================================
+   CABINET GRID
+   ============================================================ */
+.pier-cabinets {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px; max-width: 1080px; margin: 0 auto; padding: 6px 20px 10px;
+}
+.pier-cab {
+  position: relative;
+  background: linear-gradient(160deg, #131c3e, #0c1330);
+  border: 3px solid rgba(255, 79, 163, .28);
+  border-radius: var(--r-lg);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, .35), 0 16px 30px rgba(0, 0, 0, .4), inset 0 0 24px rgba(47, 227, 196, .06);
+  padding: 18px 16px 20px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.pier-cab-plain { border-color: rgba(47, 227, 196, .28); }
+.pier-cab-emoji { font-size: 40px; margin-bottom: 4px; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)); }
+.pier-cab h3 {
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 17px;
+  margin: 2px 0 6px; color: var(--pier-bulb); letter-spacing: .01em;
+}
+.pier-cab-blurb { font-size: 13.5px; line-height: 1.4; color: rgba(246, 235, 212, .78); margin: 0 0 10px; min-height: 36px; }
+.pier-cab-pb {
+  font-weight: 700; font-size: 13px; color: var(--pier-teal);
+  background: rgba(47, 227, 196, .1); border-radius: 999px; padding: 5px 12px; margin-bottom: 8px;
+}
+.pier-cab-note {
+  font-size: 12px; font-weight: 600; color: rgba(246, 235, 212, .65); margin-bottom: 8px;
+}
+.pier-tier-row { display: flex; align-items: center; gap: 4px; margin-bottom: 10px; min-height: 22px; }
+.pier-tier-chip { font-size: 19px; opacity: .28; filter: grayscale(1); }
+.pier-tier-chip.achieved { opacity: 1; filter: none; }
+.pier-trophy { font-size: 19px; margin-left: 4px; animation: pier-trophy-spin 2.6s ease-in-out infinite; }
+@keyframes pier-trophy-spin {
+  0%, 100% { transform: rotate(-6deg) scale(1); }
+  50% { transform: rotate(6deg) scale(1.12); }
+}
+.pier-cab-play { min-height: 52px; padding: 0 30px; font-size: 16px; margin-top: auto; }
+
+/* ============================================================
+   DELUXE BRASS LEVER
+   ============================================================ */
+.pier-lever-dock {
+  display: flex; justify-content: center; padding: 6px 20px calc(24px + var(--safe-b));
+}
+.pier-lever-wrap {
+  display: flex; align-items: center; gap: 14px;
+  background: rgba(10, 18, 48, .65); border: 2px solid rgba(255, 209, 102, .35);
+  border-radius: 999px; padding: 10px 18px 10px 20px;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .3);
+}
+.pier-lever-label {
+  display: flex; flex-direction: column; font-family: 'Fredoka', sans-serif;
+  font-weight: 700; font-size: 14px; color: var(--gold); line-height: 1.2;
+}
+.pier-lever-label span { font-size: 10px; font-weight: 500; color: rgba(246, 235, 212, .65); }
+.pier-lever {
+  border: none; cursor: pointer; background: transparent; padding: 0; width: 62px; height: 32px;
+}
+.pier-lever-track {
+  display: block; width: 62px; height: 32px; border-radius: 999px; position: relative;
+  background: linear-gradient(180deg, #3a2a10, #1c1408);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, .6), inset 0 0 0 2px rgba(217, 162, 27, .4);
+  transition: background 200ms ease;
+}
+.pier-lever.on .pier-lever-track { background: linear-gradient(180deg, var(--gold), var(--gold-deep)); }
+.pier-lever-knob {
+  position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3ce, #b9862a);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .4);
+  transition: transform 220ms var(--spring);
+}
+.pier-lever.on .pier-lever-knob { transform: translateX(30px); }
+.pier-lever-state {
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px; min-width: 28px; color: var(--parchment);
+}
+
+/* ============================================================
+   CAPTION BAR (§9) — shared by hub + every machine mount
+   ============================================================ */
+.pier-caption-bar {
+  /* Sits clear of css/main.css's .toast band (bottom:30px, ~48px tall) so the
+     rare moment both appear at once (e.g. the unknown-mode fallback toast)
+     doesn't visually collide with a character line. */
+  position: fixed; left: 50%; bottom: calc(96px + var(--safe-b));
+  transform: translate(-50%, 130%);
+  display: flex; align-items: center; gap: 12px;
+  width: min(560px, calc(100vw - 32px));
+  max-width: min(560px, calc(100vw - 32px));
+  background: rgba(6, 11, 26, .92); border: 2px solid rgba(255, 255, 255, .12);
+  border-radius: 18px; padding: 10px 18px 10px 12px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .5);
+  z-index: 40; pointer-events: none;
+  transition: transform 340ms var(--spring), opacity 340ms var(--spring);
+  opacity: 0;
+}
+.pier-caption-bar.show { transform: translate(-50%, 0); opacity: 1; }
+.pier-caption-avatar {
+  flex: 0 0 auto; font-size: 30px; width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .18);
+}
+.pier-caption-body { min-width: 0; }
+.pier-caption-tag {
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: .08em;
+  margin-bottom: 2px;
+}
+.pier-caption-bar.ct-nana .pier-caption-tag { color: var(--pier-pink); }
+.pier-caption-bar.ct-announcer .pier-caption-tag { color: var(--pier-teal); }
+.pier-caption-bar.ct-dave .pier-caption-tag { color: #dceeff; }
+.pier-caption-bar.ct-gremlin .pier-caption-tag { color: #9be15d; }
+.pier-caption-text { font-size: 14.5px; font-weight: 500; line-height: 1.3; color: var(--parchment); }
+
+/* ============================================================
+   MODE HOST — the full-space container every machine mounts into
+   ============================================================ */
+.pier-mode-host { position: relative; min-height: 100%; }
+
+/* ============================================================
+   SHARED NUMPAD (js/pier/padkit.js) — used by gunge/ghost/teacups/tank
+   ============================================================ */
+.pier-numpad { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.pier-numpad-readout {
+  background: #0a0f22; border: 3px solid rgba(255, 255, 255, .14); border-radius: 14px;
+  min-width: 140px; min-height: 52px; padding: 6px 20px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, .6);
+}
+.pnr-value {
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 28px;
+  color: var(--pier-teal); letter-spacing: .05em; text-shadow: 0 0 10px rgba(47, 227, 196, .4);
+}
+.pnr-cursor {
+  width: 3px; height: 26px; background: var(--pier-teal); margin-left: 2px;
+  animation: pier-cursor-blink 1s step-end infinite;
+}
+@keyframes pier-cursor-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.pier-numpad-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(280px, 78vw);
+}
+.pier-numpad-key {
+  min-width: 64px; min-height: 64px; border: none; border-radius: 15px; cursor: pointer;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 22px;
+  background: rgba(255, 255, 255, .1); color: var(--parchment);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .35);
+  transition: transform 120ms var(--spring), box-shadow 120ms var(--spring);
+}
+.pier-numpad-key:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+.pier-numpad-key.pnk-back { background: rgba(231, 76, 60, .22); }
+.pier-numpad-key.pnk-go { background: var(--gold); color: var(--ink); box-shadow: 0 4px 0 var(--gold-deep); font-size: 18px; }
+.pier-numpad.pnp-disabled .pier-numpad-key { opacity: .4; pointer-events: none; }
+
+/* ============================================================
+   MAP LANDMARK (js/screens/map.js) — the always-unlocked pier entry
+   point on the world map, dropped immediately after the Chance Cliffs
+   region band (§8 "near Chance Cliffs"). Lives here, not css/main.css,
+   because this chrome belongs to the Pier build even though it renders
+   on the map screen.
+   ============================================================ */
+.map-pier-landmark {
+  --pt: #2fe3c4; --pp: #ff4fa3; --pb: #ffe9a8;
+  position: absolute; bottom: 14%; z-index: 3;
+  border: none; cursor: pointer; padding: 0; background: transparent;
+  display: flex; flex-direction: column; align-items: center;
+}
+.pier-landmark-bulbs { display: flex; gap: 8px; margin-bottom: 4px; }
+.pier-landmark-bulbs span {
+  width: 9px; height: 9px; border-radius: 50%;
+  animation: pier-bulb-flicker 1.6s ease-in-out infinite;
+}
+.pier-landmark-bulbs span:nth-child(1) { background: var(--pb); box-shadow: 0 0 7px 2px var(--pb); animation-delay: 0s; }
+.pier-landmark-bulbs span:nth-child(2) { background: var(--pp); box-shadow: 0 0 7px 2px var(--pp); animation-delay: .16s; }
+.pier-landmark-bulbs span:nth-child(3) { background: var(--pt); box-shadow: 0 0 7px 2px var(--pt); animation-delay: .32s; }
+.pier-landmark-bulbs span:nth-child(4) { background: var(--pp); box-shadow: 0 0 7px 2px var(--pp); animation-delay: .48s; }
+.pier-landmark-bulbs span:nth-child(5) { background: var(--pb); box-shadow: 0 0 7px 2px var(--pb); animation-delay: .64s; }
+.pier-landmark-sign {
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: .02em;
+  color: var(--pb); text-shadow: 0 0 8px rgba(255, 233, 168, .6), 0 0 18px rgba(255, 79, 163, .4);
+  background: linear-gradient(180deg, #0a1230, #050914);
+  border: 2px solid rgba(255, 233, 168, .4); border-radius: 8px;
+  padding: 7px 14px; box-shadow: 0 4px 0 rgba(0, 0, 0, .35);
+  white-space: nowrap;
+}
+.pier-landmark-boardwalk {
+  width: 160px; height: 52px; margin-top: 8px; border-radius: 6px;
+  background: repeating-linear-gradient(90deg, #6b5236 0 14px, #4a3722 14px 18px);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, .35), inset 0 -4px 8px rgba(0, 0, 0, .35);
+}

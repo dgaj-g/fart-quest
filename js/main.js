@@ -19,6 +19,7 @@ import * as collectionScreen from './screens/collection.js';
 import * as armouryScreen from './screens/armoury.js';
 import * as parentScreen from './screens/parent.js';
 import * as settingsScreen from './screens/settings.js';
+import * as pierScreen from './screens/pier.js';
 
 export { TOPICS };
 
@@ -156,6 +157,8 @@ async function boot() {
   router.register('/armoury', armouryScreen);
   router.register('/parent', parentScreen);
   router.register('/settings', settingsScreen);
+  router.register('/pier', pierScreen);
+  router.register('/pier/:mode', pierScreen);
   router.register('/story', storyMod || comingSoonScreen("The kingdom's tale arrives soon!", '#/map'));
   router.register('/exam', examMod || comingSoonScreen('Castle Clench opens once more of the kingdom is clean!', '#/map'));
   // '/patrol' is deliberately NOT registered: the battle engine has no 'patrol'
