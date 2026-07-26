@@ -352,6 +352,7 @@ export default {
       const startBtn = el('button', 'btn btn-gold tcp-start', 'START 🍵');
       card.append(startBtn);
       openOverlay(card, { cardClass: 'tcp-ov-welcome', speaks: line });
+      if (line) pier.say(line); // VO attempts even though the bubble self-suppresses (isOnScreen)
       startBtn.addEventListener('click', () => { ctx.audio.sfx('confirm'); sfx.ui(); closeOverlay(); });
     }
 
@@ -623,6 +624,7 @@ export default {
 
       card.append(rideChip, btnRow);
       openOverlay(card, { cardClass: 'tcp-ov-end', speaks: line });
+      if (line) pier.say(line); // VO attempts even though the bubble self-suppresses (isOnScreen)
 
       sfx.sparkle();
       party(chassis.stage, flawless ? 22 : 14);

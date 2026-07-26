@@ -465,9 +465,21 @@ export default {
       if (activeOverlayClose) { activeOverlayClose(); activeOverlayClose = null; }
     }
 
-    function showWelcome() {
-      usableSplits = currentBest && Array.isArray(currentBest.splits) && currentBest.splits.length === TOTAL
+    // Recomputed from currentBest every time a run is about to start (both
+    // from the welcome card's START button AND from the end card's ONE MORE
+    // GO button) — NOT just once at mount. currentBest is refreshed by
+    // finishRun()'s atomic putBest() before the end card's button even
+    // exists, so re-deriving here (rather than trusting a variable only
+    // showWelcome() ever wrote) is what makes a freshly-set PB show up as a
+    // ghost on the very next run instead of only after leaving and
+    // re-entering the mode.
+    function computeUsableSplits() {
+      return currentBest && Array.isArray(currentBest.splits) && currentBest.splits.length === TOTAL
         ? currentBest.splits : null;
+    }
+
+    function showWelcome() {
+      usableSplits = computeUsableSplits();
       const havePb = !!usableSplits;
       const goldStr = tiers ? formatMs(tiers.gold) : '—';
       const silverStr = tiers ? formatMs(tiers.silver) : '—';
@@ -584,6 +596,12 @@ export default {
       stopGhostChain();
       stopCartTween();
       stopClock();
+
+      // Re-derive fresh every run start (see computeUsableSplits() note) —
+      // this is the fix for ONE MORE GO never refreshing the ghost after a
+      // just-set PB: that button calls startRun() directly, not
+      // showWelcome(), so this variable must not rely on showWelcome() alone.
+      usableSplits = computeUsableSplits();
 
       recordedSplits = [];
       factIndex = 0;

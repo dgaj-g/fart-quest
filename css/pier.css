@@ -245,6 +245,19 @@
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
+/* A mode that HAS opted in (mountChassis(host,...) tags `host` with
+   `.pier-chassis` — js/pier/padkit.js) gets the real flex column here, once,
+   centrally: `.pier-mode-host` alone is only ever block-stacked, which makes
+   `flex:none` on hud/dock and `flex:1 1 auto;min-height:0` on stage no-ops.
+   This was independently rediscovered and worked around by all five mode
+   files (each carrying its own copy of this exact selector/declaration) —
+   flagged in a chassis-fixer report as belonging here permanently so a
+   future sixth mode (or an accidental deletion of one mode's own copy)
+   isn't silently left without the skeleton THE LAYOUT LAW requires. */
+.pier-mode-host.pier-chassis {
+  display: flex;
+  flex-direction: column;
+}
 
 /* ============================================================
    BULB SIGN (map landmark reuses this keyframe — kept for that)
@@ -278,11 +291,22 @@
 /* ============================================================
    HUB STAGE — the 5-cabinet grid, single row at every proven size
    ============================================================ */
-.pier-hub-stage { display: flex; align-items: flex-start; justify-content: center; padding: 4px 14px; }
+/* align-items:center (not the old flex-start) so the grid sits in the
+   MIDDLE of whatever vertical room the stage has, rather than huddling at
+   the top with every last pixel of slack dumped below it as one dead void
+   above the lever — chassis-fixer measured this live: at 1000x540 the old
+   flex-start left a 211px gap (39% of the viewport) between the grid and
+   the DELUXE lever; at 1180x745 (more headroom, same fixed-px card sizes)
+   that grew to 414px (56%). Centring alone can only redistribute the gap,
+   not remove it, so the card internals below are also given clamp()-based
+   (viewport-height-relative) sizing — modest at 1000x540, visibly bigger at
+   1180x745 — so the grid itself claims more of the extra room on taller
+   screens instead of leaving it as a bigger void every time. */
+.pier-hub-stage { display: flex; align-items: center; justify-content: center; padding: clamp(4px, 3vh, 26px) 14px; }
 .pier-cabinets {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: clamp(10px, 1.8vh, 20px);
   width: 100%;
   max-width: 1140px;
   margin: 0 auto;
@@ -293,37 +317,37 @@
   border: 2px solid rgba(255, 79, 163, .28);
   border-radius: var(--r-sm);
   box-shadow: 0 5px 0 rgba(0, 0, 0, .35), 0 10px 18px rgba(0, 0, 0, .35);
-  padding: 8px 8px 9px;
+  padding: clamp(8px, 1.8vh, 18px) 8px clamp(9px, 2vh, 20px);
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  gap: 4px;
+  gap: clamp(4px, 1vh, 10px);
 }
 .pier-cab-plain { border-color: rgba(47, 227, 196, .28); }
 .pier-cab-head { display: flex; align-items: center; justify-content: center; gap: 5px; }
-.pier-cab-emoji { font-size: 18px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .4)); }
+.pier-cab-emoji { font-size: clamp(18px, 3.4vh, 30px); filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .4)); }
 .pier-cab h3 {
-  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(13px, 2.2vh, 17px);
   margin: 0; color: var(--pier-bulb); letter-spacing: .01em;
 }
 .pier-cab-blurb {
-  font-size: 10px; line-height: 1.25; color: rgba(246, 235, 212, .72);
+  font-size: clamp(10px, 1.6vh, 12.5px); line-height: 1.25; color: rgba(246, 235, 212, .72);
   margin: 0; width: 100%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .pier-cab-sub { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; }
 .pier-cab-pb {
-  font-weight: 700; font-size: 10px; color: var(--pier-teal);
+  font-weight: 700; font-size: clamp(10px, 1.6vh, 12px); color: var(--pier-teal);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
-.pier-cab-note { font-size: 10px; font-weight: 600; color: rgba(246, 235, 212, .65); }
+.pier-cab-note { font-size: clamp(10px, 1.6vh, 12px); font-weight: 600; color: rgba(246, 235, 212, .65); }
 .pier-tier-row { display: flex; align-items: center; justify-content: center; gap: 3px; }
-.pier-tier-chip { font-size: 14px; opacity: .28; filter: grayscale(1); }
+.pier-tier-chip { font-size: clamp(14px, 2.2vh, 17px); opacity: .28; filter: grayscale(1); }
 .pier-tier-chip.achieved { opacity: 1; filter: none; }
-.pier-trophy { font-size: 14px; margin-left: 2px; animation: pier-trophy-spin 2.6s ease-in-out infinite; }
+.pier-trophy { font-size: clamp(14px, 2.2vh, 17px); margin-left: 2px; animation: pier-trophy-spin 2.6s ease-in-out infinite; }
 @keyframes pier-trophy-spin {
   0%, 100% { transform: rotate(-6deg) scale(1); }
   50% { transform: rotate(6deg) scale(1.12); }
 }
-.pier-cab-play { min-height: 60px; width: 100%; padding: 0 4px; font-size: 13px; margin-top: auto; }
+.pier-cab-play { min-height: 60px; width: 100%; padding: 0 4px; font-size: clamp(13px, 2vh, 15px); margin-top: auto; }
 
 /* ============================================================
    HUB DOCK — the DELUXE brass lever (must be on screen, §1/§3 "hub")

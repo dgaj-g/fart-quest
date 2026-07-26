@@ -48,16 +48,28 @@
 // rework exists to fix. Verified live in the browser (see report) before
 // writing a single pixel of vat art on top of it.
 // FIX (scoped to THIS file only — does not touch css/pier.css, does not
-// affect any other mode): `host.classList.add('gg-root')` below, then this
-// file's own injected CSS carries `.pier-mode-host.gg-root { display:flex;
-// flex-direction:column; overflow:hidden; }`. `.gg-root` is a class only
-// THIS module ever adds, only to its OWN host, so the rule can never leak
-// onto another mode's host even though `injectCss()` styles persist for the
-// page's lifetime. This is a workaround, not a fix — css/pier.css needs a
-// real `.pier-chassis { display:flex; flex-direction:column; overflow:
-// hidden; }` rule so every future mode gets this for free instead of each
-// one re-discovering and re-patching the same gap. Flagged loudly for
-// reviewers / the chassis agent, per the task brief.
+// affect any other mode; identical in spirit and selector to the SAME
+// gap independently found+worked-around in splat.js/ghost.js/tank.js):
+// this file's own injected CSS carries
+// `.pier-mode-host.pier-chassis { display:flex; flex-direction:column; }`
+// — using the `.pier-chassis` class `mountChassis()` ALREADY auto-adds to
+// `host` (padkit.js), rather than a bespoke class, so the rule is byte-
+// identical to the other three modes' own workaround (idempotent — no
+// cascade fight regardless of mount order, per their own comments). Earlier
+// in this build this rule also carried `overflow:hidden`, which — because
+// this compound selector targets `.pier-mode-host` itself, the SAME element
+// that holds hud/stage/DOCK (the numpad) — silently deleted THE LAYOUT LAW's
+// mandatory scroll-rescue fallback (`.pier-mode-host`'s own `overflow-y:auto`,
+// css/pier.css's explicit "degrades to scrollable, never physically
+// unreachable" contract, §1.5). Dropped: this rule only ever needs to turn
+// the host into a flex COLUMN so hud/stage/dock size correctly; nothing in
+// this file's scene depends on the host itself clipping (the vat splash etc.
+// live inside `chassis.stage`, which already owns its own
+// `overflow-y:auto;overflow-x:hidden` from css/pier.css). css/pier.css still
+// needs a real `.pier-chassis { display:flex; flex-direction:column; }` rule
+// so every future mode gets this for free instead of each one re-discovering
+// the same gap. Flagged loudly for reviewers / the chassis agent, per the
+// task brief.
 
 import {
   el, sfx, tween, party, injectCss,
@@ -92,6 +104,14 @@ const FLASH_MS = 1700;              // how long the fact-family flash holds —
                                      // carries meaning under 250ms" floor.
 const RESET_RISE_MS = 550;          // plank hoist-back-up animation on (re)start
 const STREAK_FOR_FLOURISH = 5;
+const FLUSH_COMBO_STAGGER_MS = 1800; // see handleCorrect(): when a gremlin flush
+                                     // and the 5th-streak combo land on the SAME
+                                     // submit, the combo caption waits this long
+                                     // behind the flush caption so pier.js's
+                                     // shared caption bar (no queue, immediate
+                                     // replace) shows both lines in sequence
+                                     // instead of the combo silently discarding
+                                     // the flush ceremony line at 0ms.
 
 // Plank/vat geometry — all percentages of `.gg-vatwrap`'s own box, so the
 // whole scene scales with however much room the flex STAGE actually has
@@ -143,9 +163,11 @@ function sayFrom(pier, rng, pool) {
 
 /* ---------- self-contained styles ---------- */
 const CSS = `
-/* --- chassis workaround, see header comment: scoped to THIS mode's own
-   host element only via .gg-root, never leaks onto another mode's host --- */
-.pier-mode-host.gg-root { display:flex; flex-direction:column; overflow:hidden; }
+/* --- chassis workaround, see header comment: same idempotent selector as
+   splat.js/ghost.js/tank.js's own fix, deliberately NO overflow override so
+   .pier-mode-host's defensive overflow-y:auto scroll-rescue (css/pier.css
+   §1.5) survives --- */
+.pier-mode-host.pier-chassis { display:flex; flex-direction:column; }
 
 /* ============================================================
    HUD — survival timer chip
@@ -361,8 +383,10 @@ export default {
     // navigation" convention elsewhere in this file).
     const beats = (machine && machine.gunge) || {};
 
-    /* ---------- chassis (see header note re: the .pier-chassis CSS gap) ---------- */
-    host.classList.add('gg-root');
+    /* ---------- chassis (see header note re: the .pier-chassis CSS gap;
+       mountChassis() below auto-adds the .pier-chassis class to `host`
+       itself, which this file's injected CSS rule above targets — no
+       bespoke class needed) ---------- */
     const chassis = pier.mountChassis({
       onBack: () => { ctx.audio.sfx('back'); ctx.go('#/pier'); },
       backLabel: '← PIER',
@@ -598,20 +622,42 @@ export default {
       later(() => { sfx.blip(520, 0.05, 0.1); }, 260);
     }
 
+    // Returns true when a flush ceremony line was actually shown, so
+    // handleCorrect() (called right after, same tick, on the same correct
+    // submit — see onSubmit()) knows to stagger its OWN caption rather than
+    // stomping this one before it ever paints (see FLUSH_COMBO_STAGGER_MS).
     function handleFlush(rec) {
-      if (!rec || !rec.justFlushed) return;
-      sayFrom(pier, rng, beats.gremlinFlush);
+      if (!rec || !rec.justFlushed) return false;
+      const said = sayFrom(pier, rng, beats.gremlinFlush);
       later(() => { sfx.whoosh(); }, 0);
       later(() => sfx.drop(), 260);
+      return !!said;
     }
 
-    function handleCorrect() {
+    function handleCorrect(justFlushed) {
       streak += 1;
       crankWinch();
       floatPlus();
       if (streak > 0 && streak % STREAK_FOR_FLOURISH === 0) {
         comboFlourish();
-        sayFrom(pier, rng, beats.combo);
+        // pier.js's shared caption bar (js/screens/pier.js say()) replaces
+        // text immediately with no queue — a flush ceremony line and a
+        // combo line landing on the SAME submit (an ordinary occurrence: any
+        // 3rd-consecutive-correct-for-a-gremlin that also happens to be the
+        // 5th answer of a streak) would otherwise have the combo line
+        // silently discard the flush line at 0ms of display time. Stagger
+        // the combo caption behind the flush caption's own read window so
+        // both are actually seen, in sequence; roundToken guards against
+        // firing after the round has already ended or a fresh one began.
+        if (justFlushed) {
+          const myRoundToken = roundToken;
+          later(() => {
+            if (ended || roundToken !== myRoundToken) return;
+            sayFrom(pier, rng, beats.combo);
+          }, FLUSH_COMBO_STAGGER_MS);
+        } else {
+          sayFrom(pier, rng, beats.combo);
+        }
       }
       drawNextFact(); // snappy — the next question shows immediately
       numpad.clear();
@@ -667,10 +713,13 @@ export default {
       try {
         rec = pier.facts.record(answeredFact.family, { correct: isCorrect, ms: Math.round(elapsed), mode: 'gunge' }) || rec;
       } catch (e) { /* the plank must never freeze because a persist call hiccupped */ }
-      if (isCorrect) handleFlush(rec);
-      if (isCorrect && elapsed <= SLOW_MS) handleCorrect();
-      else if (isCorrect) handleSlowCorrect(answeredFact);
-      else handleWrong(answeredFact);
+      if (isCorrect) {
+        const flushed = handleFlush(rec);
+        if (elapsed <= SLOW_MS) handleCorrect(flushed);
+        else handleSlowCorrect(answeredFact);
+      } else {
+        handleWrong(answeredFact);
+      }
     }
 
     function scheduleRampTimer() {

@@ -37,14 +37,40 @@
   calls need a real origin) — `python3 -m http.server` from the repo root and
   open `http://localhost:<port>/fq-verify/pier-layout.html`.
 
-  STATES is a small ARRAY OF PLAIN OBJECTS at the top of the script below —
-  machine agents can append their own entries (playing/mid-feedback/end-card/
-  ceremony/empty-state) once their mode calls `pier.mountChassis(...)` and
-  exposes a way to reach that state without live input (e.g. a `?debugState=`
-  hook, or simply accept that only the WELCOME state is reachable through a
-  fresh `mount()` with no simulated taps — see this file's own STATES list
-  for exactly which ones this pass could and could not exercise, and the
-  final report for why).
+  STATES is a small ARRAY OF PLAIN OBJECTS at the top of the script below.
+
+  CHASSIS-FIXER UPDATE (see git history — this file was previously stale):
+  all five machine mode files (splat/gunge/ghost/teacups/tank.js) now call
+  `pier.mountChassis(...)` / `chassis.overlay(...)` — none of them still own
+  an in-stage v1 veil. Every entry below that mounts a REAL screen (not a
+  placeholder) is therefore `exercisable: 'full'` and counts toward the
+  pass/fail banner. `'legacy'` remains a valid tag for a genuinely
+  unmodified v1 mode file (none currently qualify) so a future regression
+  doesn't get silently mislabelled the other way either.
+
+  COVERAGE: `mount()` with no simulated input only ever reaches each mode's
+  FIRST screen, UNLESS that screen's content branches purely on `ctx.db`
+  data read at mount time — in which case a `dbSeed` here can reach it with
+  no click simulation at all. Tank's three idle states (fresh / aquarium /
+  clean — js/pier/facts.js `gremlins()`/`flushed()`, both pure `ctx.db`
+  reads) are exactly that case and are enumerated below. splat/gunge/ghost/
+  teacups' PLAYING, MID-FEEDBACK, END-CARD and CEREMONY states are reached
+  only through live taps inside each mode's own closures (no seed or query
+  hook exists to jump straight there) — simulating that safely, per mode,
+  is each mode-owning agent's call (their file, their timings), not this
+  shared chassis harness's to bolt on. Full state list this pass DOES and
+  does NOT exercise, for the report:
+    welcome/idle : hub x2, splat, gunge, ghost, teacups, tank(fresh) — HERE
+    empty state  : tank fresh-profile (dbSeed, no gremlins/flushes)  — HERE
+    idle variants: tank aquarium (dbSeed: 1 gremlin), tank clean
+                   (dbSeed: pierFlushed>0, no gremlins)              — HERE
+    playing      : splat holes, gunge numpad-live, ghost tunnel,
+                   teacups spin, tank round                     — NOT HERE
+    mid-feedback : any mode's correct/wrong flash                — NOT HERE
+    end card     : gunge splash+scorecard, ghost photo-finish,
+                   splat Dave-steals-mallet, tank round-complete  — NOT HERE
+    ceremony     : gunge multi-stage death, tank flush-to-Big-
+                   Toilet, any gold-trophy first-time celebration — NOT HERE
 -->
 <style>
   :root { color-scheme: light dark; }
@@ -94,14 +120,22 @@ const SIZES = [
   { w: 1180, h: 745, label: '1180×745' },
 ];
 
-// exercisable: 'full'   — a state this rework's chassis fully controls (hub).
-//              'legacy' — mounts a REAL, currently-unmodified mode file
-//                         (js/pier/modes/*.js still own their v1 internal
-//                         layout; only the outer .pier-mode-host chassis
-//                         changed under them, per padkit.js's header comment
-//                         and css/pier.css's contract block point 1a). These
-//                         are measured and reported HONESTLY — a FAIL here is
-//                         expected/documented, not a bug in this harness.
+// exercisable: 'full'   — mounts a REAL screen through the chassis this
+//                         rework built (`pier.mountChassis(...)`/
+//                         `chassis.overlay(...)`) and counts fully toward
+//                         the pass/fail banner below.
+//              'legacy' — would mount a REAL, currently-unmodified v1 mode
+//                         file that still owns its own in-stage veil/layout
+//                         instead of the shared chassis. Reserved for a
+//                         genuinely un-rebuilt future mode; nothing in the
+//                         array below currently qualifies (verified against
+//                         the live files by the chassis fixer — every one of
+//                         splat/gunge/ghost/teacups/tank.js now calls
+//                         `pier.mountChassis`/`chassis.overlay`). Kept as a
+//                         valid tag rather than deleted so a REAL future
+//                         regression back to an in-stage veil has somewhere
+//                         honest to be reported, instead of being silently
+//                         miscounted as 'full'.
 const STATES = [
   {
     id: 'hub-deluxe-off', label: 'HUB — cabinet grid, DELUXE off', params: {},
@@ -114,26 +148,43 @@ const STATES = [
     note: 'Same screen with the lever flipped ON at mount (persisted state) — Teacups note swaps to "Tables 2–12".',
   },
   {
-    id: 'splat-welcome', label: 'SPLAT — welcome card', params: { mode: 'splat' }, exercisable: 'legacy',
-    note: 'js/pier/modes/splat.js showWelcome() — still its OWN in-stage .splat-veil (v1 code, not rebuilt against mountChassis/overlay() yet). This is the exact machine v1’s bug was screenshot-confirmed on.',
+    id: 'splat-welcome', label: 'SPLAT — welcome card', params: { mode: 'splat' }, exercisable: 'full',
+    note: 'js/pier/modes/splat.js showWelcome() via chassis.overlay() (rebuilt — no more in-stage .splat-veil). This is the exact machine v1’s off-screen-START-button bug was screenshot-confirmed on; now chassis-owned and gated on pass/fail.',
   },
   {
-    id: 'gunge-welcome', label: 'GUNGE — welcome card', params: { mode: 'gunge' }, exercisable: 'legacy',
-    note: 'js/pier/modes/gunge.js — its own .gg-overlay (v1 code), numpad mounted inside its own stage, not the dock.',
+    id: 'gunge-welcome', label: 'GUNGE — welcome card', params: { mode: 'gunge' }, exercisable: 'full',
+    note: 'js/pier/modes/gunge.js welcome card via chassis.overlay(); numpad (playing state, not exercised here) mounts into chassis.dock, not its own stage.',
   },
   {
-    id: 'ghost-welcome', label: 'GHOST — welcome card', params: { mode: 'ghost' }, exercisable: 'legacy',
-    note: 'js/pier/modes/ghost.js — its own .gh-veil inside .gh-root (v1 code).',
+    id: 'ghost-welcome', label: 'GHOST — welcome card', params: { mode: 'ghost' }, exercisable: 'full',
+    note: 'js/pier/modes/ghost.js welcome card via chassis.overlay() (rebuilt — no more .gh-veil inside .gh-root).',
   },
   {
-    id: 'teacups-welcome', label: 'TEACUPS — table picker', params: { mode: 'teacups' }, exercisable: 'legacy',
-    note: 'js/pier/modes/teacups.js initial screen (v1 code).',
+    id: 'teacups-welcome', label: 'TEACUPS — table picker', params: { mode: 'teacups' }, exercisable: 'full',
+    note: 'js/pier/modes/teacups.js picker screen, mounted inside pier.mountChassis()’s stage.',
   },
   {
-    id: 'tank-welcome', label: 'TANK — fresh-profile empty state', params: { mode: 'tank' }, exercisable: 'legacy',
-    note: 'js/pier/modes/tank.js initial screen, no gremlins ever recorded (v1 code).',
+    id: 'tank-fresh', label: 'TANK — fresh-profile empty state', params: { mode: 'tank' }, exercisable: 'full',
+    note: 'js/pier/modes/tank.js renderFresh(): no gremlins ever recorded, no flushes — net + empty tank, "go make some mistakes", SPLAT/PRACTICE buttons. No confetti (REWORK §3 tank).',
+  },
+  {
+    id: 'tank-aquarium', label: 'TANK — aquarium (1 live gremlin)', params: { mode: 'tank' },
+    dbSeed: { meta: { pierFacts: { families: { '6x7': { history: [{ correct: false, ms: 4000 }, { correct: false, ms: 4200 }], streak: 0, misses: 5, isGremlin: true } } } } },
+    exercisable: 'full',
+    note: 'js/pier/modes/tank.js renderAquarium() (reached via facts.gremlins().length>0, seeded through ctx.db meta.pierFacts — no simulated taps): gremlin card(s), name+fact+tally.',
+  },
+  {
+    id: 'tank-clean', label: 'TANK — earned-clean celebration', params: { mode: 'tank' },
+    dbSeed: { meta: { pierFlushed: 4 } }, exercisable: 'full',
+    note: 'js/pier/modes/tank.js renderClean() (reached via facts.flushed()>0 AND no live gremlins — seeded through ctx.db meta.pierFlushed): SPARKLING CLEAN stamp + confetti. This is the ONE tank idle state that IS allowed to celebrate (REWORK §3).',
   },
 ];
+// NOT exercised by this harness (see the file-header comment above for the
+// full list and why): splat/gunge/ghost/teacups/tank's PLAYING, MID-
+// FEEDBACK, END-CARD and CEREMONY states — none are reachable through
+// `mount()` + `dbSeed` alone; each needs live taps inside that mode's own
+// closures, which is that mode-owning agent's file/timings to simulate, not
+// this shared chassis harness's to invent on their behalf.
 
 const isChild = new URLSearchParams(location.search).has('child');
 
@@ -338,7 +389,7 @@ async function runHarness() {
   const root = document.getElementById('harness');
   root.innerHTML = `
     <h1>Whiff-End Pier — layout law harness</h1>
-    <p class="intro">Mounts each registered pier screen/state (via the real <code>js/screens/pier.js</code> <code>mount()</code>, no router) inside a same-origin iframe sized to exactly <code>1000×540</code>, <code>1024×640</code> and <code>1180×745</code> CSS px, then asserts every VISIBLE interactive element's bounding rect is fully inside that box and &ge;60px on its smaller axis (docs/PIER_REWORK.md §1.6). <b>legacy</b>-tagged states mount an unmodified v1 machine file (out of this chassis pass's file ownership) — a FAIL there is an honest, expected report of current state, not a harness bug.</p>
+    <p class="intro">Mounts each registered pier screen/state (via the real <code>js/screens/pier.js</code> <code>mount()</code>, no router) inside a same-origin iframe sized to exactly <code>1000×540</code>, <code>1024×640</code> and <code>1180×745</code> CSS px, then asserts every VISIBLE interactive element's bounding rect is fully inside that box and &ge;60px on its smaller axis (docs/PIER_REWORK.md §1.6). Every state below is <b>chassis-owned</b> (all five mode files call <code>pier.mountChassis</code>/<code>chassis.overlay</code>) and counts toward the pass/fail banner; <b>legacy</b> is kept only as a tag for a genuinely un-rebuilt future mode. This pass reaches each mode's WELCOME/idle screen (plus Tank's <code>ctx.db</code>-seeded aquarium/clean idle states — see the file's header comment) — PLAYING, MID-FEEDBACK, END-CARD and CEREMONY states need live taps this harness does not simulate and are NOT covered here.</p>
     <div id="summary" class="running">Running…</div>
     <div id="states"></div>
   `;

@@ -100,7 +100,7 @@ import {
 const LINES = machine.tank;
 const PRACTICE_LEN = 10; // free-practice round length — short, matches the "never a dead end" spirit without turning into a whole session
 
-/* ---------- tiny pure helpers (unchanged from v1 — already correct) ---------- */
+/* ---------- tiny pure helpers ---------- */
 
 // A stable (not random-per-render) emoji per fact family, so a gremlin keeps
 // the same face every time the tank re-renders.
@@ -111,16 +111,22 @@ function emojiForFamily(family) {
   return GREMLIN_EMOJI[h % GREMLIN_EMOJI.length];
 }
 
-function familyParts(family) {
-  const [lo, hi] = family.split('x').map(Number);
-  return { lo, hi, product: lo * hi };
-}
 // "6 × 7 = 42, so 42 ÷ 7 = 6" — the same worked-fact phrasing Gunge uses for
 // its own wrong/slow reveal (PIER_SPEC §6), reused here so the whole pier
-// teaches a family the same way wherever you meet it.
-function workedFactText(family) {
-  const { lo, hi, product } = familyParts(family);
-  return `${lo} × ${hi} = ${product}, so ${product} ÷ ${hi} = ${lo}`;
+// teaches a family the same way wherever you meet it. Recomputed directly
+// from the exact fact the player was just asked (fact.a/fact.b/fact.answer/
+// fact.dir) — NEVER from the family key's canonical lo/hi order. facts.js's
+// buildFact() picks EITHER factor as the divisor with a 50/50 chance for a
+// division draw, so reconstructing purely from the sorted family silently
+// swaps in the OTHER division fact half the time — a live Hard-Rule-②
+// breach. Mirrors js/pier/modes/gunge.js's familyFlashText() exactly (see
+// that file's header comment for the full trap explanation).
+function workedFactText(fact) {
+  if (fact.dir === 'div') {
+    const dividend = fact.a * fact.b;
+    return `${fact.a} × ${fact.b} = ${dividend}, so ${dividend} ÷ ${fact.a} = ${fact.b}`;
+  }
+  return `${fact.a} × ${fact.b} = ${fact.answer}, so ${fact.answer} ÷ ${fact.b} = ${fact.a}`;
 }
 
 function freshRng() {
@@ -588,7 +594,7 @@ export default {
       stemEl.classList.add('pt-flash-wrong');
       playCard.classList.add('pt-wiggle');
       later(() => { if (playCard) playCard.classList.remove('pt-wiggle'); }, 450);
-      showFeedback('wrong', `So close, pet! <b>${workedFactText(fact.family)}</b>`);
+      showFeedback('wrong', `So close, pet! <b>${workedFactText(fact)}</b>`);
       sfx.nudge();
       const line = pick(rng, LINES.nearMiss);
       if (line) pier.say(line);

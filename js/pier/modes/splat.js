@@ -51,6 +51,14 @@ const WRONG_PAUSE_MS = 900;      // long enough to read the duck+wiggle and the 
 const GOO_FADE_MS = 3400;        // "persists on that hole for a few seconds"
 const DAVE_MS = 1650;
 const COUNTDOWN_STEP_MS = 560;
+// A tier-unlock and a gremlin-flush can land on the same correct tap (the
+// gremlin-weighted draw biases toward weak families, so hitting a streak
+// boundary AND a 3rd-correct-in-a-row is common). pier.say() replaces the
+// caption bar text rather than queuing it (js/screens/pier.js `say()`), so
+// firing both captions synchronously in the same callback would swap the
+// combo line out before it ever paints. Stagger the flush beat behind the
+// combo beat so each caption gets real, readable screen time.
+const FLUSH_CAPTION_STAGGER_MS = 900;
 
 const M = machine.splat;
 
@@ -556,7 +564,13 @@ export default {
             const line = pickLine(M.combo);
             if (line) pier.say(line);
           }
-          if (rec.justFlushed) celebrateFlush(rec.name);
+          if (rec.justFlushed) {
+            // See FLUSH_CAPTION_STAGGER_MS above: only stagger when a combo
+            // caption just claimed the bar this same tick — an unaccompanied
+            // flush still celebrates immediately, same as before.
+            if (tierJustReached) later(() => celebrateFlush(rec.name), FLUSH_CAPTION_STAGGER_MS);
+            else celebrateFlush(rec.name);
+          }
         }, IMPACT_DELAY_MS);
 
         later(() => { if (!roundOver) nextQuestion(); }, CORRECT_PAUSE_MS);
