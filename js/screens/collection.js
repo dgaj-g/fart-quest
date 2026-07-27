@@ -110,10 +110,15 @@ export function mount(root, ctx) {
 
   const capturedCount = commonsOwned.length + capturedTopics + capturedRegionBosses;
 
-  screen.innerHTML += `
+  // NEVER `screen.innerHTML +=` here: that re-serialises and re-parses everything
+  // already in the screen, replacing the ← Map button with a listener-less clone
+  // (this is exactly why the Stink Vault's back button was dead). Append nodes.
+  const heading = document.createElement('div');
+  heading.innerHTML = `
     <h1 class="collection-title">The Stink Vault</h1>
     <p class="collection-sub">${capturedCount} / ${total} beasties captured</p>
   `;
+  while (heading.firstChild) screen.appendChild(heading.firstChild);
 
   const grid = document.createElement('div');
   grid.className = 'collection-grid';

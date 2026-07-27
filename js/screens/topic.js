@@ -21,6 +21,31 @@ function unlockRequirementText(record, needed) {
   return '';
 }
 
+// Right-hand side of an action button: the little status line, plus a green tick
+// once that step has actually been completed. `done` is what turns the whole
+// button into its completed state (see .topic-action-btn.done in main.css).
+function actionRight(note, done) {
+  return `<span class="action-right">
+      <span class="lock-note">${note}</span>
+      ${done ? '<span class="done-tick" role="img" aria-label="Completed">✓</span>' : ''}
+    </span>`;
+}
+
+// A scrap counts as beaten if we have a recorded win. minionWins/eliteWins were
+// added later than the app, so records from before then fall back to the tier
+// unlock flags — t2Unlocked can only happen by winning tier-1 questions, so an
+// established player never loses a tick they had earned. New wins increment the
+// counters and show the "won ×N" tally.
+function scrapDone(record, stage) {
+  if (stage === 'minion') return (record.minionWins || 0) > 0 || record.t2Unlocked;
+  return (record.eliteWins || 0) > 0 || record.t3Unlocked;
+}
+
+function scrapNote(record, stage, baseNote) {
+  const wins = (stage === 'minion' ? record.minionWins : record.eliteWins) || 0;
+  return wins > 0 ? `${baseNote} · won ×${wins}` : baseNote;
+}
+
 function lessonProgressKey(topicId) {
   return `lessonProgress-${topicId}`;
 }
@@ -92,32 +117,34 @@ export async function mount(root, ctx, params) {
   const t2Unlocked = record.t2Unlocked;
   const t3Unlocked = record.t3Unlocked;
   const bossReady = level >= 3;
+  const minionDone = record.taught && scrapDone(record, 'minion');
+  const eliteDone = t2Unlocked && scrapDone(record, 'elite');
 
   info.innerHTML = `
     <h1>${topic.name}</h1>
     <p class="topic-tagline">${topic.tagline}</p>
     <div class="mastery-ladder">${ladderHtml}</div>
     <div class="topic-actions">
-      <button class="btn btn-parchment topic-action-btn ${scoutLabel.pulsing ? 'pulsing' : ''}" data-action="lesson">
+      <button class="btn btn-parchment topic-action-btn ${record.taught ? 'done' : ''} ${scoutLabel.pulsing ? 'pulsing' : ''}" data-action="lesson">
         <span>📜 Scout Report</span>
-        <span class="lock-note">${scoutLabel.line}</span>
+        ${actionRight(scoutLabel.line, record.taught)}
       </button>
       ${animIdx >= 0 ? `
-      <button class="btn btn-parchment topic-action-btn" data-action="anim">
+      <button class="btn btn-parchment topic-action-btn ${record.animDriven ? 'done' : ''}" data-action="anim">
         <span>🔧 Scout-Tech</span>
-        <span class="lock-note">Drive the machine!</span>
+        ${actionRight(record.animDriven ? 'Drive it again!' : 'Drive the machine!', record.animDriven)}
       </button>` : ''}
-      <button class="btn btn-parchment topic-action-btn" data-action="minion" ${!record.taught ? 'disabled' : ''}>
+      <button class="btn btn-parchment topic-action-btn ${minionDone ? 'done' : ''}" data-action="minion" ${!record.taught ? 'disabled' : ''}>
         <span>⚔️ Minion Battle</span>
-        <span class="lock-note">${record.taught ? 'Tier 1' : 'Learn it first'}</span>
+        ${actionRight(record.taught ? scrapNote(record, 'minion', 'Tier 1') : 'Learn it first', minionDone)}
       </button>
-      <button class="btn btn-parchment topic-action-btn" data-action="elite" ${!t2Unlocked ? 'disabled' : ''}>
+      <button class="btn btn-parchment topic-action-btn ${eliteDone ? 'done' : ''}" data-action="elite" ${!t2Unlocked ? 'disabled' : ''}>
         <span>${t2Unlocked ? '🗡️' : '🔒'} Elite Battle</span>
-        <span class="lock-note">${t2Unlocked ? 'Tier 2/3' : unlockRequirementText(record, 't2')}</span>
+        ${actionRight(t2Unlocked ? scrapNote(record, 'elite', 'Tier 2/3') : unlockRequirementText(record, 't2'), eliteDone)}
       </button>
-      <button class="btn btn-gold topic-action-btn" data-action="boss" ${!bossReady ? 'disabled' : ''}>
+      <button class="btn btn-gold topic-action-btn ${record.bossBeaten ? 'done' : ''}" data-action="boss" ${!bossReady ? 'disabled' : ''}>
         <span>${bossReady ? '👑' : '🔒'} BOSS: ${topic.creature.name}</span>
-        <span class="lock-note">${bossReady ? (record.bossBeaten ? 'Rematch' : 'Ready!') : 'Reach Boss-Ready first'}</span>
+        ${actionRight(bossReady ? (record.bossBeaten ? 'Captured — rematch?' : 'Ready!') : 'Reach Boss-Ready first', record.bossBeaten)}
       </button>
     </div>
     ${record.taught ? `<div class="weapon-mini"><b>${topic.weapon.name}:</b> ${topic.weapon.tagline}</div>` : ''}

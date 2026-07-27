@@ -11,7 +11,12 @@ export function mount(root, ctx) {
   back.addEventListener('click', () => { ctx.audio.sfx('back'); ctx.go('#/map'); });
   screen.appendChild(back);
 
-  screen.innerHTML += `<h1 class="armoury-title">The Armoury</h1>`;
+  // Append, never `innerHTML +=` — re-parsing the screen would replace the ← Map
+  // button above with a listener-less clone (see collection.js for the same fix).
+  const title = document.createElement('h1');
+  title.className = 'armoury-title';
+  title.textContent = 'The Armoury';
+  screen.appendChild(title);
 
   const taughtTopics = Object.keys(ctx.topics).filter((id) => ctx.state.topic(id).taught);
 

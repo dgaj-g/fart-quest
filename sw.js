@@ -1,5 +1,5 @@
 // FART QUEST — sw.js (UI agent)
-const CACHE_V = 'fq-v19';
+const CACHE_V = 'fq-v20';
 
 const PRECACHE_URLS = [
   './',

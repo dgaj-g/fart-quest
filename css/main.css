@@ -1021,22 +1021,37 @@ button {
 /* =====================================================================
    TOPIC SCREEN
    ===================================================================== */
+/* SCROLL LAW (fq-v20): #app is `position:fixed; overflow:hidden`, so a screen
+   that lays itself out as a normal-flow child with `min-height:100%` grows past
+   the fold and is CLIPPED with no way to scroll to the rest. Content screens
+   must therefore fill #app absolutely and do their own scrolling (`.screen`
+   already supplies `overflow:auto`). Flex-centred panels use `margin:auto`
+   instead of `align-items:center`: auto margins centre while there is spare
+   room but collapse to 0 when the panel is taller than the viewport, so the top
+   of a tall panel is never cut off above the scroll origin. */
 .topic-screen {
-  position: relative;
-  width: 100%;
-  min-height: 100%;
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
   background: linear-gradient(180deg, var(--swamp-deep), var(--swamp-mid));
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: calc(20px + var(--safe-t)) calc(20px + var(--safe-r)) calc(20px + var(--safe-b)) calc(20px + var(--safe-l));
 }
+.topic-screen .topic-panel,
+.settings-screen .settings-panel { margin: auto; }
 
 .topic-back {
   position: absolute;
   top: calc(16px + var(--safe-t));
   left: calc(16px + var(--safe-l));
   z-index: 10;
+  /* App-wide 60px touch floor (fq-v19) — this was a 32px-tall target, which is
+     a hard tap on an iPad and read as "the Map button doesn't work". */
+  min-height: 60px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .topic-panel {
@@ -1134,6 +1149,31 @@ button {
   font-weight: 600;
   opacity: .85;
 }
+.topic-action-btn .action-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Completed step: green rim on the button + a tick badge, so the child can see
+   at a glance which parts of a topic they have already beaten. Uses outline
+   rather than box-shadow so the buttons keep their 3D drop shadow. */
+.topic-action-btn.done {
+  outline: 2px solid rgba(46, 204, 113, .75);
+  outline-offset: -2px;
+}
+.topic-action-btn .done-tick {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2ecc71;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 26px;
+  text-align: center;
+  box-shadow: 0 2px 0 #24a45c;
+}
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 6px 0 var(--gold-deep), 0 0 0 0 rgba(244,197,66,.6); }
   50% { box-shadow: 0 6px 0 var(--gold-deep), 0 0 0 10px rgba(244,197,66,0); }
@@ -1159,11 +1199,11 @@ button {
    COLLECTION SCREEN
    ===================================================================== */
 .collection-screen {
-  position: relative;
-  width: 100%;
-  min-height: 100%;
+  position: absolute; /* scroll law — see .topic-screen */
+  inset: 0;
+  overflow-y: auto;
   background: linear-gradient(180deg, #241a12, #16110c);
-  padding: calc(70px + var(--safe-t)) 24px calc(24px + var(--safe-b));
+  padding: calc(88px + var(--safe-t)) 24px calc(24px + var(--safe-b));
 }
 .collection-title {
   font-family: 'Fredoka', sans-serif;
@@ -1257,11 +1297,11 @@ button {
    ARMOURY SCREEN
    ===================================================================== */
 .armoury-screen {
-  position: relative;
-  width: 100%;
-  min-height: 100%;
+  position: absolute; /* scroll law — see .topic-screen */
+  inset: 0;
+  overflow-y: auto;
   background: linear-gradient(180deg, #2b2118, #1a130d);
-  padding: calc(70px + var(--safe-t)) 24px calc(24px + var(--safe-b));
+  padding: calc(88px + var(--safe-t)) 24px calc(24px + var(--safe-b));
 }
 .armoury-title {
   font-family: 'Fredoka', sans-serif;
@@ -1322,9 +1362,9 @@ button {
    PARENT DASHBOARD
    ===================================================================== */
 .parent-screen {
-  position: relative;
-  width: 100%;
-  min-height: 100%;
+  position: absolute; /* scroll law — see .topic-screen */
+  inset: 0;
+  overflow-y: auto;
   background: #f2f2f0;
   color: #222;
   padding: calc(60px + var(--safe-t)) 24px calc(24px + var(--safe-b));
@@ -1434,12 +1474,12 @@ button {
    SETTINGS SCREEN
    ===================================================================== */
 .settings-screen {
-  position: relative;
-  width: 100%;
-  min-height: 100%;
+  position: absolute; /* scroll law — see .topic-screen */
+  inset: 0;
+  overflow-y: auto;
   background: linear-gradient(180deg, var(--swamp-deep), var(--swamp-mid));
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: calc(20px + var(--safe-t)) 20px calc(20px + var(--safe-b));
 }

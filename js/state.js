@@ -22,6 +22,14 @@ export function emptyTopicRecord() {
     tierLast8: { 1: [], 2: [], 3: [] }, // rolling window of booleans (correct?) per tier
     t2Unlocked: false,
     t3Unlocked: false,
+    // Completion counters for the topic screen's "you've done this" ticks
+    // (a scrap is "won" when its meter drains — see battle.js finishBattle).
+    // Records saved before these existed come back as 0 via the load() merge;
+    // topic.js falls back to the tier-unlock flags so old progress still ticks.
+    minionWins: 0,
+    eliteWins: 0,
+    // true once the topic's Scout-Tech machine has actually been mounted.
+    animDriven: false,
     bossBeaten: false,
     flawless: false,
     captured: false,
@@ -353,6 +361,35 @@ async function recordAnswerAction(id, { correct, tier }, now = Date.now()) {
   return topic(id);
 }
 
+/**
+ * state.recordScrapWin(id, stage) -> increments the minion/elite win counter
+ * for a topic (called only when a scrap is actually WON). Purely cosmetic —
+ * nothing gates on these counts; they drive the topic screen's completion
+ * ticks so the child can see which battles they have already beaten.
+ */
+async function recordScrapWinAction(id, stage, now = Date.now()) {
+  const record = ensureTopic(id);
+  const key = stage === 'elite' ? 'eliteWins' : stage === 'minion' ? 'minionWins' : null;
+  if (!key) return topic(id);
+  _topics[id] = { ...record, [key]: (record[key] || 0) + 1, lastPlayed: now };
+  await persistTopic(id);
+  notify();
+  return topic(id);
+}
+
+/**
+ * state.markAnimDriven(id) -> records that the topic's Scout-Tech machine has
+ * been mounted at least once (topic screen tick). Idempotent no-op if already set.
+ */
+async function markAnimDrivenAction(id) {
+  const record = ensureTopic(id);
+  if (record.animDriven) return topic(id);
+  _topics[id] = { ...record, animDriven: true };
+  await persistTopic(id);
+  notify();
+  return topic(id);
+}
+
 async function recordBossAction(id, { won, flawless }, now = Date.now()) {
   const record = ensureTopic(id);
   _topics[id] = recordBoss(record, { won, flawless }, now);
@@ -516,6 +553,8 @@ const state = {
   stink: getStink,
   markTaught,
   recordAnswer: recordAnswerAction,
+  recordScrapWin: recordScrapWinAction,
+  markAnimDriven: markAnimDrivenAction,
   recordBoss: recordBossAction,
   recordRematch: recordRematchAction,
   dueReviews: getDueReviews,

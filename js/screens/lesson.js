@@ -259,6 +259,10 @@ function renderAnimCard(card, ctx, topic, onNext) {
     queueMicrotask(onNext);
     return wrap;
   }
+  // The machine is up — remember it for the topic screen's Scout-Tech tick.
+  // Fire-and-forget: state.js persistence is already best-effort and nothing
+  // in this card may wait on storage.
+  Promise.resolve(ctx.state.markAnimDriven(topic.id)).catch(() => { /* cosmetic only */ });
   carry.addEventListener('click', () => {
     if (carry.disabled) return;
     carry.disabled = true;

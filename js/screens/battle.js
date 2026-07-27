@@ -650,6 +650,17 @@ export async function mount(root, ctx, params) {
     hideQuestionArea();
 
     const isBossyStage = stage === 'boss' || stage === 'regionboss';
+    // Cosmetic completion tracking for the topic screen's ticks. Best-effort:
+    // a storage failure must never block the end screen (same rule as recordBoss).
+    if (!isBossyStage && !isRegionBattle && outcome.won && topic) {
+      try {
+        await ctx.state.recordScrapWin(topic.id, stage);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('battle.js: recordScrapWin failed, continuing to the end screen anyway:', err);
+      }
+      if (!alive) return; // unmounted while recordScrapWin was pending
+    }
     if (isBossyStage && outcome.won) {
       await runCaptureSequence(outcome);
     } else if (isBossyStage) {

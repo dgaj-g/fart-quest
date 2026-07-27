@@ -54,7 +54,12 @@ export async function mount(root, ctx) {
   backWrap.querySelector('button').addEventListener('click', () => { ctx.audio.sfx('back'); ctx.go('#/title'); });
   screen.appendChild(backWrap);
 
-  screen.innerHTML += `<h1 class="parent-title">Parent / Teacher Dashboard</h1>`;
+  // Append, never `innerHTML +=` — re-parsing the screen would replace the ← Back
+  // button above with a listener-less clone (see collection.js for the same fix).
+  const title = document.createElement('h1');
+  title.className = 'parent-title';
+  title.textContent = 'Parent / Teacher Dashboard';
+  screen.appendChild(title);
 
   const table = document.createElement('table');
   table.className = 'parent-table';
