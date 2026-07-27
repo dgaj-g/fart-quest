@@ -9,7 +9,22 @@ const TUTORIAL_KEY = 'tutorialDone';
 const PAD_OFFSETS = [18, -32, 8, -22, 30, -14, 20, -30, 10, -18];
 
 const PAD_CELL = 250;   // pad width (210) + its 2x20px margins
+// The decorative trees BETWEEN pads take real width in the flex row, so the band
+// must pay for them too — leaving them out is what put the region boss 167px on
+// top of the last pad in a 10-pad region. Widths are pinned in css/main.css
+// (.map-between-tree) precisely so this arithmetic can't drift from the layout;
+// each tree carries 2x -8px margins, hence the -16.
+const TREE_CELL_A = 56 - 16;
+const TREE_CELL_B = 41 - 16;
 const BOSS_CELL = 260;
+
+// Width of the pads row for a region: n pads, n-1 trees alternating a/b
+// (buildLiveRegionBand gives even indexes tree-a, odd tree-b).
+function padsRowWidth(padCount) {
+  let w = padCount * PAD_CELL;
+  for (let i = 0; i < padCount - 1; i++) w += (i % 2 === 0) ? TREE_CELL_A : TREE_CELL_B;
+  return w;
+}
 const LOCKED_W = 280;
 const GATE_W = 340;
 const PIER_W = 260;
@@ -129,23 +144,54 @@ function buildPad(loc, i, ctx) {
   return pad;
 }
 
+// The region boss IS the key to the next path (boss-gated unlocks, fq-v14), so
+// the hill has to be the way in to the gauntlet at #/battle/region/:regionId —
+// until fq-v21 nothing in the app linked to that route at all and the hill was a
+// decorative div whose click toggled a class with no CSS, so no region boss could
+// ever be fought and the map could not be progressed past the two starter regions.
 function buildBossHill(region, ctx) {
-  const bossHill = document.createElement('div');
+  const liveLocations = region.locations.filter((loc) => ctx.topics[loc.topicId]);
+  const total = liveLocations.length;
+  const captured = regionCapturedCount(region, ctx);
+  const beaten = ctx.state.regionCleansed(region.id);
+  const ready = total > 0 && captured >= total;
+
+  const bossHill = document.createElement('button');
   bossHill.className = 'map-boss-hill map-boss-hill-region';
+  if (beaten) bossHill.classList.add('beaten');
+  else if (ready) bossHill.classList.add('ready');
+
+  const note = beaten
+    ? 'Beaten! Tap for a rematch.'
+    : ready
+      ? `All ${total} cleaned — TAP TO FIGHT!`
+      : `${region.boss.note} (${captured}/${total} cleaned)`;
+
   bossHill.innerHTML = `
     <div class="boss-aura"></div>
+    ${beaten ? '<div class="boss-sparkle">✨</div>' : ''}
     <img src="${region.boss.image}" alt="${region.boss.name}" onerror="this.style.visibility='hidden'">
-    <div class="boss-note">${region.boss.name}<br>${region.boss.note}</div>
+    ${ready && !beaten ? '<div class="boss-fight-chip">⚔️ FIGHT!</div>' : ''}
+    <div class="boss-note">${region.boss.name}<br>${note}</div>
   `;
+
   bossHill.addEventListener('click', () => {
+    if (ready || beaten) {
+      ctx.audio.sfx('confirm');
+      ctx.audio.vo('boss-intro');
+      ctx.go(`#/battle/region/${region.id}`);
+      return;
+    }
+    // Not ready: say exactly what is left rather than silently doing nothing.
     ctx.audio.sfx('click');
-    bossHill.querySelector('.boss-note').classList.toggle('show');
+    const left = total - captured;
+    ctx.toast(`Capture ${left} more monster${left === 1 ? '' : 's'} in ${region.name} to face ${region.boss.name}!`);
   });
   return bossHill;
 }
 
 function buildLiveRegionBand(region, ctx) {
-  const width = region.locations.length * PAD_CELL + BOSS_CELL + 60;
+  const width = padsRowWidth(region.locations.length) + BOSS_CELL + 60;
   const wrap = document.createElement('div');
   wrap.className = 'map-band';
   wrap.style.width = `${width}px`;

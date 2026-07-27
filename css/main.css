@@ -659,16 +659,20 @@ button {
   transform: translateY(var(--pad-offset, 0));
 }
 
+/* Widths are PINNED (not `auto`) so map.js's band-width arithmetic —
+   TREE_CELL_A / TREE_CELL_B — always matches what the row actually occupies.
+   These are the exact widths the PNGs rendered at when sized by height alone,
+   so nothing moves; object-fit keeps the aspect ratio. */
 .map-between-tree {
   align-self: flex-end;
   height: 120px;
-  width: auto;
+  width: 56px;
   opacity: .8;
   margin: 0 -8px;
   pointer-events: none;
   object-fit: contain;
 }
-.map-between-tree.tree-b { height: 90px; opacity: .65; filter: brightness(.7); }
+.map-between-tree.tree-b { height: 90px; width: 41px; opacity: .65; filter: brightness(.7); }
 
 .pad-stone {
   width: 168px;
@@ -815,6 +819,12 @@ button {
   align-items: center;
   text-align: center;
   cursor: pointer;
+  /* it is a real <button> since fq-v21 (the way in to the region gauntlet) */
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
 }
 .boss-aura {
   position: absolute;
@@ -944,6 +954,41 @@ button {
      ship full-colour art and must not be flattened to black. */
   filter: none;
   opacity: 1;
+}
+
+/* ---- region boss states (fq-v21) ---- */
+.map-boss-hill.ready .boss-aura {
+  background: radial-gradient(circle, rgba(244,197,66,.6), transparent 70%);
+}
+.map-boss-hill.ready img { animation: boss-ready-bob 1.8s ease-in-out infinite alternate; }
+@keyframes boss-ready-bob {
+  from { transform: translateY(0) scale(1); }
+  to { transform: translateY(-10px) scale(1.03); }
+}
+.boss-fight-chip {
+  margin-top: 6px;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  box-shadow: 0 4px 0 var(--gold-deep);
+  animation: pulse-glow 1.8s ease-in-out infinite;
+  position: relative;
+}
+.map-boss-hill.beaten .boss-aura {
+  background: radial-gradient(circle, rgba(123,201,80,.4), transparent 70%);
+}
+.map-boss-hill.beaten .boss-note { color: var(--stink-lime); }
+.boss-sparkle {
+  position: absolute;
+  top: -6px;
+  right: 6px;
+  font-size: 26px;
+  animation: idle-bob 1.8s ease-in-out infinite alternate;
+  pointer-events: none;
 }
 
 .plank-creature {
